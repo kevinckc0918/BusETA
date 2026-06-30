@@ -74,16 +74,17 @@ export default function App() {
       lat: 22.4177, lng: 114.0627
     },
     {
-      ids: ["C3D2F84C0F0FF415"],
+      // 🔥 已更新：加入 P968 嘅正確 ID (CC1A19B90FFC1703)
+      ids: ["C3D2F84C0F0FF415", "CC1A19B90FFC1703"], 
       region: "灣仔",
       name: "菲林明道",
       desc: "往 元朗(西)",
-      routes: ['968', 'N368'],
+      routes: ['968', 'P968', 'N368'], 
       lat: 22.2782, lng: 114.1738
     },
     {
       ids: ["E74202351AF7F37D"], 
-      ctbIds: ["002430"], // 🔥 已更新為正確的盧押道城巴 ID
+      ctbIds: ["002430"], 
       region: "灣仔",
       name: "盧押道",
       desc: "往 寶達",
@@ -92,7 +93,7 @@ export default function App() {
     },
     {
       ids: ["04B6438688E12AC0"], 
-      ctbIds: ["003039"], // 🔥 已更新為正確的祥和苑城巴 ID
+      ctbIds: ["003039"], 
       region: "觀塘",
       name: "祥和苑",
       desc: "往 港島 (金鐘/上環)",
@@ -150,7 +151,7 @@ export default function App() {
             .catch(() => ({ data: [] }));
         });
 
-        // 2. 城巴 API (需要 ID + Route)
+        // 2. 城巴 API
         const ctbFetches = [];
         if (loc.ctbIds && loc.ctbIds.length > 0) {
           loc.ctbIds.forEach(id => {
@@ -380,7 +381,7 @@ export default function App() {
                     <div key={rIdx} className="bg-white p-2 md:p-3 rounded-lg md:rounded-xl border border-gray-200 shadow-sm hover:border-red-300 transition-colors flex flex-col gap-2 md:gap-3">
                       
                       <div className="flex items-center gap-1.5 md:gap-2">
-                        <span className="bg-red-600 text-white font-black px-2 py-1 md:px-2.5 md:py-1 rounded-md text-sm md:text-base lg:text-lg min-w-[2.5rem] md:min-w-[3rem] text-center shadow-sm tracking-wide">
+                        <span className={`text-white font-black px-2 py-1 md:px-2.5 md:py-1 rounded-md text-sm md:text-base lg:text-lg min-w-[2.5rem] md:min-w-[3rem] text-center shadow-sm tracking-wide ${route.etas[0]?.co === 'CTB' ? 'bg-blue-600' : 'bg-red-600'}`}>
                           {route.route}
                         </span>
                         <Navigation className="w-3.5 h-3.5 md:w-5 md:h-5 text-gray-300 shrink-0 hidden sm:block" />
