@@ -238,7 +238,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto w-full flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Bus className="w-5 h-5" />
-            <h1 className="text-lg font-bold tracking-wide">全能巴士到站</h1>
+            <h1 className="text-lg font-bold tracking-wide">楊屋村巴士到站</h1>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-red-200 hidden sm:inline-block">
