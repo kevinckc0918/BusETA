@@ -241,14 +241,14 @@ export default function App() {
         <div className="max-w-7xl mx-auto w-full flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Bus className="w-5 h-5 md:w-6 md:h-6" />
-            <h1 className="text-lg md:text-xl font-bold tracking-wide">全能巴士到站</h1>
+            {/* 🔥 更改回「楊屋村巴士到站」 */}
+            <h1 className="text-lg md:text-xl font-bold tracking-wide">楊屋村巴士到站</h1>
           </div>
           <div className="flex items-center gap-2 md:gap-3">
             <span className="text-xs text-red-200 hidden md:inline-block">
               最後更新: {lastUpdated ? formatTime(lastUpdated) : '--:--'}
             </span>
             
-            {/* 🔥 新增：切換詳細時間按鈕 */}
             <button 
               onClick={() => setShowDetailedTime(!showDetailedTime)} 
               className={`p-1.5 md:p-2 rounded-full transition-colors flex items-center gap-1 ${showDetailedTime ? 'bg-red-800 text-white shadow-inner' : 'bg-red-500/50 hover:bg-red-500'}`}
@@ -341,7 +341,6 @@ export default function App() {
                   return (
                     <div key={rIdx} className="bg-white p-2 md:p-3 rounded-lg md:rounded-xl border border-gray-200 shadow-sm hover:border-red-300 transition-colors flex flex-col gap-2 md:gap-3">
                       
-                      {/* 🔥 路線同目的地字體大幅度放大 */}
                       <div className="flex items-center gap-1.5 md:gap-2">
                         <span className="bg-red-600 text-white font-black px-2 py-1 md:px-2.5 md:py-1 rounded-md text-sm md:text-base lg:text-lg min-w-[2.5rem] md:min-w-[3rem] text-center shadow-sm tracking-wide">
                           {route.route}
@@ -352,7 +351,7 @@ export default function App() {
                         </span>
                       </div>
 
-                      <div className="flex gap-1.5 md:gap-2 w-full">
+                      <div className="flex gap-1.5 md:gap-2 w-full h-[60px] md:h-[80px] lg:h-[90px]">
                         {route.etas.map((eta, eIdx) => {
                           const etaData = getCompactEta(eta.time);
                           const mins = etaData.val;
@@ -371,26 +370,24 @@ export default function App() {
                           return (
                             <div 
                               key={eIdx}
-                              className={`flex-1 flex flex-col items-center justify-center py-2 md:py-3 rounded-md border ${boxStyle} overflow-hidden px-1 transition-all duration-300`}
+                              className={`flex-1 flex flex-col items-center justify-center rounded-md border ${boxStyle} overflow-hidden transition-all duration-300 relative`}
                             >
-                              {hasAnyRmk && (
-                                <div className="h-[14px] md:h-[16px] flex items-center justify-center w-full mb-1">
-                                  {eta.rmk && (
-                                    <span className="text-[8px] md:text-[10px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-sm truncate max-w-full">
-                                      {eta.rmk}
-                                    </span>
-                                  )}
+                              {/* 絕對定位的備註，不影響數字排版 */}
+                              {hasAnyRmk && eta.rmk && (
+                                <div className="absolute top-1 w-full flex justify-center px-1">
+                                  <span className="text-[8px] md:text-[9px] font-bold text-red-600 bg-red-100/90 px-1 rounded-sm truncate max-w-full">
+                                    {eta.rmk}
+                                  </span>
                                 </div>
                               )}
 
-                              {/* 🔥 如果隱藏確實時間，就將數字放大到 3xl/4xl (巨無霸級別) */}
-                              <span className={`${showDetailedTime ? 'text-lg md:text-2xl' : 'text-3xl md:text-4xl lg:text-5xl'} font-black leading-none tracking-tighter ${textStyle} transition-all duration-300 ${!showDetailedTime && !hasAnyRmk ? 'py-1 md:py-2' : ''}`}>
+                              {/* 🔥 數字推至極限大 (塞滿方格) */}
+                              <span className={`${showDetailedTime ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl lg:text-[4rem]'} font-black leading-none tracking-tighter ${textStyle} transition-all duration-300 ${!showDetailedTime ? 'h-full flex items-center justify-center' : ''}`}>
                                 {etaData.text}
                               </span>
                               
-                              {/* 根據 Toggle 狀態顯示/隱藏確實時間 */}
                               {showDetailedTime && (
-                                <span className="text-[10px] md:text-xs text-gray-400 leading-none mt-1.5 md:mt-2 font-medium transition-all duration-300">
+                                <span className="text-[10px] md:text-xs text-gray-400 leading-none mt-1 font-medium transition-all duration-300">
                                   {formatTime(eta.time)}
                                 </span>
                               )}
@@ -399,7 +396,7 @@ export default function App() {
                         })}
                         
                         {Array.from({ length: Math.max(0, 2 - route.etas.length) }).map((_, i) => (
-                          <div key={`empty-${i}`} className="flex-1 flex items-center justify-center py-2 md:py-3 rounded-md border border-dashed border-gray-200 bg-gray-50/50">
+                          <div key={`empty-${i}`} className="flex-1 flex items-center justify-center rounded-md border border-dashed border-gray-200 bg-gray-50/50">
                             <span className="text-gray-300 text-sm">-</span>
                           </div>
                         ))}
