@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bus, RefreshCw, MapPin, AlertCircle, Navigation, Map, LocateFixed, Compass, Clock } from 'lucide-react';
+import { Bus, RefreshCw, MapPin, AlertCircle, Navigation, Map, LocateFixed, Compass, Clock, Search, Copy } from 'lucide-react';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -14,9 +14,10 @@ export default function App() {
   
   const [showDetailedTime, setShowDetailedTime] = useState(false);
 
+  // 🔥 全面升級：將 id 轉為 ids 陣列，支援多坑位合併！
   const LOCATIONS = [
     {
-      id: "6386333EDAC64C96", 
+      ids: ["6386333EDAC64C96"], 
       region: "楊屋村",
       name: "楊屋村 (西行)",
       desc: "往 元朗市中心",
@@ -25,7 +26,7 @@ export default function App() {
       lat: 22.4357, lng: 114.0483
     },
     {
-      id: "36DC37F6A54BA5E0", 
+      ids: ["36DC37F6A54BA5E0"], 
       region: "楊屋村",
       name: "東成里 (東/南行)",
       desc: "往 峻巒 / 青衣", 
@@ -33,16 +34,33 @@ export default function App() {
       lat: 22.4371, lng: 114.0478
     },
     {
-      id: "DAFFF59B0718B464",
+      // 🔥 完美合併：968坑位 + 54坑位 + 64K坑位
+      ids: ["DAFFF59B0718B464", "FAB0AB2B6DCEE7F2", "C7ACD35D5D7C153B"],
       region: "元朗西",
       name: "元朗（西）總站",
-      desc: "往 港島 (含通宵)",
-      routes: ['968', 'N368'],
+      desc: "往 港島 / 錦田 / 大埔",
+      routes: ['968', 'N368', '54', '64K'],
       ignoreDest: ['元朗'],
       lat: 22.4442, lng: 114.0256
     },
     {
-      id: "E481F7170B1F6FC3",
+      ids: ["6E85D42922E5A10C"], 
+      region: "元朗西",
+      name: "元朗廣場 (青山公路)",
+      desc: "往 錦田 / 大埔",
+      routes: ['54', '64K', '251C'],
+      lat: 22.4446, lng: 114.0227
+    },
+    {
+      ids: ["4EE417C5EF5FEF4E"], 
+      region: "元朗西",
+      name: "元朗喜利徑",
+      desc: "往 上水",
+      routes: ['76K'],
+      lat: 22.4443, lng: 114.0242
+    },
+    {
+      ids: ["E481F7170B1F6FC3"],
       region: "大欖隧道",
       name: "大欖隧道轉車站 (B1)",
       desc: "往 元朗公園 (北行)",
@@ -50,7 +68,7 @@ export default function App() {
       lat: 22.4176, lng: 114.0622
     },
     {
-      id: "211D93217331B040",
+      ids: ["211D93217331B040"],
       region: "大欖隧道",
       name: "大欖隧道轉車站 (A3)",
       desc: "往 港島 (南行)",
@@ -58,7 +76,7 @@ export default function App() {
       lat: 22.4177, lng: 114.0627
     },
     {
-      id: "C3D2F84C0F0FF415",
+      ids: ["C3D2F84C0F0FF415"],
       region: "灣仔",
       name: "菲林明道",
       desc: "往 元朗(西)",
@@ -66,7 +84,7 @@ export default function App() {
       lat: 22.2782, lng: 114.1738
     },
     {
-      id: "E74202351AF7F37D",
+      ids: ["E74202351AF7F37D"],
       region: "灣仔",
       name: "盧押道",
       desc: "往 寶達",
@@ -74,7 +92,7 @@ export default function App() {
       lat: 22.2774, lng: 114.1711
     },
     {
-      id: "04B6438688E12AC0",
+      ids: ["04B6438688E12AC0"],
       region: "觀塘",
       name: "祥和苑",
       desc: "往 港島 (金鐘/上環)",
@@ -83,7 +101,7 @@ export default function App() {
     }
   ];
 
-  const REGIONS = ['附近', '楊屋村', '元朗西', '大欖隧道', '灣仔', '觀塘'];
+  const REGIONS = ['附近', '楊屋村', '元朗西', '大欖隧道', '灣仔', '觀塘', '🔍 尋找 ID'];
 
   const getDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371; 
@@ -121,17 +139,28 @@ export default function App() {
   }, [activeTab]);
 
   const fetchData = useCallback(async () => {
+    if (activeTab === '🔍 尋找 ID') return; 
+
     setLoading(true);
     setError(null);
     try {
-      const fetchPromises = LOCATIONS.map(loc => 
-        fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${loc.id}`)
-          .then(res => {
-            if (!res.ok) throw new Error('Network error');
-            return res.json();
-          })
-          .catch(() => ({ data: [] }))
-      );
+      // 🔥 同步並行獲取一個車站內所有 ID 嘅數據，然後合併
+      const fetchPromises = LOCATIONS.map(loc => {
+        const fetches = loc.ids.map(id => 
+          fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${id}`)
+            .then(res => {
+              if (!res.ok) throw new Error('Network error');
+              return res.json();
+            })
+            .catch(() => ({ data: [] }))
+        );
+        
+        return Promise.all(fetches).then(results => {
+          // 將多個 ID 嘅數據打平合併成一個 Array
+          const mergedData = results.flatMap(res => res.data || []);
+          return { data: mergedData };
+        });
+      });
 
       const results = await Promise.all(fetchPromises);
 
@@ -193,7 +222,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
     fetchData();
@@ -227,25 +256,85 @@ export default function App() {
         .filter(loc => loc.distance < 5) 
         .sort((a, b) => a.distance - b.distance); 
     }
-  } else {
+  } else if (activeTab !== '🔍 尋找 ID') {
     displayLocations = locationsData.filter(loc => loc.region === activeTab);
   }
 
   const visibleLocations = displayLocations.filter(loc => loc.routesData.length > 0);
 
+  const StopIdFinder = () => {
+    const [stops, setStops] = useState([]);
+    const [fetching, setFetching] = useState(true);
+
+    useEffect(() => {
+      fetch('https://data.etabus.gov.hk/v1/transport/kmb/stop')
+        .then(res => res.json())
+        .then(json => {
+          const filtered = json.data.filter(s => 
+            s.name_tc.includes('元朗廣場') || 
+            s.name_tc.includes('喜利徑') || 
+            s.name_tc.includes('元朗（西）總站')
+          );
+          setStops(filtered);
+          setFetching(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setFetching(false);
+        });
+    }, []);
+
+    const copyToClipboard = (id) => {
+      navigator.clipboard.writeText(id);
+      alert(`已複製 ID: ${id}`);
+    };
+
+    if (fetching) return (
+      <div className="py-20 text-center text-gray-500 flex flex-col items-center">
+        <RefreshCw className="w-8 h-8 animate-spin mb-3 text-red-500" />
+        正在從九巴資料庫搜尋車站 ID...
+      </div>
+    );
+
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 space-y-4">
+        <div className="flex items-center gap-2 border-b pb-3 mb-4">
+          <Search className="w-6 h-6 text-red-600" />
+          <h2 className="text-xl font-bold text-gray-800">九巴車站 ID 列表</h2>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+          {stops.map(stop => (
+            <div key={stop.stop} className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col justify-between hover:border-red-300 transition-colors">
+              <div>
+                <h3 className="font-bold text-lg text-gray-800">{stop.name_tc}</h3>
+                <p className="text-xs text-gray-500 mt-1">英文名: {stop.name_en}</p>
+              </div>
+              <div className="mt-4 flex items-center justify-between bg-white px-3 py-2 rounded border border-gray-200">
+                <code className="text-sm font-mono text-red-600">{stop.stop}</code>
+                <button 
+                  onClick={() => copyToClipboard(stop.stop)}
+                  className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 transition-colors"
+                >
+                  <Copy className="w-3 h-3" /> 複製
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-200 text-gray-800 font-sans pb-6">
       
-      {/* 頂部 Header */}
       <header className="bg-red-600 p-3 shadow-md sticky top-0 z-20 flex justify-between items-center">
         <div className="max-w-7xl mx-auto w-full flex justify-between items-center">
-          
-          {/* 🔥 確保 Icon 同文字都係純白色，加入 drop-shadow 增加立體感 */}
           <div className="flex items-center gap-2 text-white drop-shadow-sm">
             <Bus className="w-5 h-5 md:w-6 md:h-6" />
             <h1 className="text-lg md:text-xl font-bold tracking-wide text-white">楊屋村巴士到站</h1>
           </div>
-          
           <div className="flex items-center gap-2 md:gap-3">
             <span className="text-xs text-red-100 hidden md:inline-block font-medium">
               最後更新: {lastUpdated ? formatTime(lastUpdated) : '--:--'}
@@ -282,7 +371,7 @@ export default function App() {
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
               }`}
             >
-              {region === '附近' ? <LocateFixed className="w-4 h-4" /> : <Map className="w-4 h-4" />}
+              {region === '附近' ? <LocateFixed className="w-4 h-4" /> : region === '🔍 尋找 ID' ? <Search className="w-4 h-4" /> : <Map className="w-4 h-4" />}
               {region}
             </button>
           ))}
@@ -297,6 +386,8 @@ export default function App() {
             <p>{error}</p>
           </div>
         )}
+
+        {activeTab === '🔍 尋找 ID' && <StopIdFinder />}
 
         {activeTab === '附近' && (
           <div className="mb-2">
@@ -313,102 +404,104 @@ export default function App() {
           </div>
         )}
 
-        <div className="flex flex-col gap-4">
-          
-          {!loading && !locating && visibleLocations.length === 0 && (
-            <div className="py-20 text-center text-gray-400 flex flex-col items-center justify-center bg-white rounded-xl shadow-sm border border-gray-200">
-              <Bus className="w-12 h-12 opacity-20 mb-3" />
-              <p className="text-lg font-medium text-gray-500">
-                {activeTab === '附近' && userLocation ? '附近 5 公里內沒有設定的車站，或暫無班次' : '該地區目前無即將到站班次'}
-              </p>
-              <p className="text-sm mt-1">可能是非服務時間，請切換地區或稍後再試</p>
-            </div>
-          )}
-
-          {visibleLocations.map((loc, locIdx) => (
-            <div key={locIdx} className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-              
-              <div className="bg-gray-100 border-b border-gray-200 px-3 md:px-4 py-2.5 md:py-3 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-red-500" />
-                <h2 className="font-bold text-gray-800 text-lg md:text-xl">{loc.name}</h2>
-                <span className="text-xs md:text-sm text-gray-500 ml-auto bg-gray-200/80 px-2.5 py-1 rounded-md flex items-center gap-1 font-bold">
-                  {loc.distance ? `${loc.distance.toFixed(1)} km` : loc.desc}
-                </span>
+        {activeTab !== '🔍 尋找 ID' && (
+          <div className="flex flex-col gap-4">
+            
+            {!loading && !locating && visibleLocations.length === 0 && (
+              <div className="py-20 text-center text-gray-400 flex flex-col items-center justify-center bg-white rounded-xl shadow-sm border border-gray-200">
+                <Bus className="w-12 h-12 opacity-20 mb-3" />
+                <p className="text-lg font-medium text-gray-500">
+                  {activeTab === '附近' && userLocation ? '附近 5 公里內沒有設定的車站，或暫無班次' : '該地區目前無即將到站班次'}
+                </p>
+                <p className="text-sm mt-1">可能是非服務時間，請切換地區或稍後再試</p>
               </div>
+            )}
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 landscape:grid-cols-4 gap-2 md:gap-3 p-2 md:p-4 bg-gray-50">
-                {loc.routesData.map((route, rIdx) => {
-                  const hasAnyRmk = route.etas.some(e => e.rmk);
+            {visibleLocations.map((loc, locIdx) => (
+              <div key={locIdx} className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+                
+                <div className="bg-gray-100 border-b border-gray-200 px-3 md:px-4 py-2.5 md:py-3 flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-red-500" />
+                  <h2 className="font-bold text-gray-800 text-lg md:text-xl">{loc.name}</h2>
+                  <span className="text-xs md:text-sm text-gray-500 ml-auto bg-gray-200/80 px-2.5 py-1 rounded-md flex items-center gap-1 font-bold">
+                    {loc.distance ? `${loc.distance.toFixed(1)} km` : loc.desc}
+                  </span>
+                </div>
 
-                  return (
-                    <div key={rIdx} className="bg-white p-2 md:p-3 rounded-lg md:rounded-xl border border-gray-200 shadow-sm hover:border-red-300 transition-colors flex flex-col gap-2 md:gap-3">
-                      
-                      <div className="flex items-center gap-1.5 md:gap-2">
-                        <span className="bg-red-600 text-white font-black px-2 py-1 md:px-2.5 md:py-1 rounded-md text-sm md:text-base lg:text-lg min-w-[2.5rem] md:min-w-[3rem] text-center shadow-sm tracking-wide">
-                          {route.route}
-                        </span>
-                        <Navigation className="w-3.5 h-3.5 md:w-5 md:h-5 text-gray-300 shrink-0 hidden sm:block" />
-                        <span className="font-bold text-gray-800 text-sm md:text-base lg:text-lg truncate flex-1 tracking-tight">
-                          {route.dest}
-                        </span>
-                      </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 landscape:grid-cols-4 gap-2 md:gap-3 p-2 md:p-4 bg-gray-50">
+                  {loc.routesData.map((route, rIdx) => {
+                    const hasAnyRmk = route.etas.some(e => e.rmk);
 
-                      <div className="flex gap-1.5 md:gap-2 w-full h-[60px] md:h-[80px] lg:h-[90px]">
-                        {route.etas.map((eta, eIdx) => {
-                          const etaData = getCompactEta(eta.time);
-                          const mins = etaData.val;
-                          
-                          let boxStyle = 'bg-gray-50 border-gray-200 text-gray-400';
-                          let textStyle = 'text-gray-600';
-
-                          if (mins >= 0 && mins <= 5) {
-                            boxStyle = 'bg-red-50 border-red-200 shadow-sm';
-                            textStyle = 'text-red-600';
-                          } else if (mins > 5 && mins <= 10) {
-                            boxStyle = 'bg-amber-50 border-amber-200 shadow-sm';
-                            textStyle = 'text-amber-600';
-                          }
-
-                          return (
-                            <div 
-                              key={eIdx}
-                              className={`flex-1 flex flex-col items-center justify-center rounded-md border ${boxStyle} overflow-hidden transition-all duration-300 relative`}
-                            >
-                              {hasAnyRmk && eta.rmk && (
-                                <div className="absolute top-1 w-full flex justify-center px-1">
-                                  <span className="text-[8px] md:text-[9px] font-bold text-red-600 bg-red-100/90 px-1 rounded-sm truncate max-w-full">
-                                    {eta.rmk}
-                                  </span>
-                                </div>
-                              )}
-
-                              <span className={`${showDetailedTime ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl lg:text-[4rem]'} font-black leading-none tracking-tighter ${textStyle} transition-all duration-300 ${!showDetailedTime ? 'h-full flex items-center justify-center' : ''}`}>
-                                {etaData.text}
-                              </span>
-                              
-                              {showDetailedTime && (
-                                <span className="text-[10px] md:text-xs text-gray-400 leading-none mt-1 font-medium transition-all duration-300">
-                                  {formatTime(eta.time)}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
+                    return (
+                      <div key={rIdx} className="bg-white p-2 md:p-3 rounded-lg md:rounded-xl border border-gray-200 shadow-sm hover:border-red-300 transition-colors flex flex-col gap-2 md:gap-3">
                         
-                        {Array.from({ length: Math.max(0, 2 - route.etas.length) }).map((_, i) => (
-                          <div key={`empty-${i}`} className="flex-1 flex items-center justify-center rounded-md border border-dashed border-gray-200 bg-gray-50/50">
-                            <span className="text-gray-300 text-sm">-</span>
-                          </div>
-                        ))}
-                      </div>
+                        <div className="flex items-center gap-1.5 md:gap-2">
+                          <span className="bg-red-600 text-white font-black px-2 py-1 md:px-2.5 md:py-1 rounded-md text-sm md:text-base lg:text-lg min-w-[2.5rem] md:min-w-[3rem] text-center shadow-sm tracking-wide">
+                            {route.route}
+                          </span>
+                          <Navigation className="w-3.5 h-3.5 md:w-5 md:h-5 text-gray-300 shrink-0 hidden sm:block" />
+                          <span className="font-bold text-gray-800 text-sm md:text-base lg:text-lg truncate flex-1 tracking-tight">
+                            {route.dest}
+                          </span>
+                        </div>
 
-                    </div>
-                  );
-                })}
+                        <div className="flex gap-1.5 md:gap-2 w-full h-[60px] md:h-[80px] lg:h-[90px]">
+                          {route.etas.map((eta, eIdx) => {
+                            const etaData = getCompactEta(eta.time);
+                            const mins = etaData.val;
+                            
+                            let boxStyle = 'bg-gray-50 border-gray-200 text-gray-400';
+                            let textStyle = 'text-gray-600';
+
+                            if (mins >= 0 && mins <= 5) {
+                              boxStyle = 'bg-red-50 border-red-200 shadow-sm';
+                              textStyle = 'text-red-600';
+                            } else if (mins > 5 && mins <= 10) {
+                              boxStyle = 'bg-amber-50 border-amber-200 shadow-sm';
+                              textStyle = 'text-amber-600';
+                            }
+
+                            return (
+                              <div 
+                                key={eIdx}
+                                className={`flex-1 flex flex-col items-center justify-center rounded-md border ${boxStyle} overflow-hidden transition-all duration-300 relative`}
+                              >
+                                {hasAnyRmk && eta.rmk && (
+                                  <div className="absolute top-1 w-full flex justify-center px-1">
+                                    <span className="text-[8px] md:text-[9px] font-bold text-red-600 bg-red-100/90 px-1 rounded-sm truncate max-w-full">
+                                      {eta.rmk}
+                                    </span>
+                                  </div>
+                                )}
+
+                                <span className={`${showDetailedTime ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl lg:text-[4rem]'} font-black leading-none tracking-tighter ${textStyle} transition-all duration-300 ${!showDetailedTime ? 'h-full flex items-center justify-center' : ''}`}>
+                                  {etaData.text}
+                                </span>
+                                
+                                {showDetailedTime && (
+                                  <span className="text-[10px] md:text-xs text-gray-400 leading-none mt-1 font-medium transition-all duration-300">
+                                    {formatTime(eta.time)}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                          
+                          {Array.from({ length: Math.max(0, 2 - route.etas.length) }).map((_, i) => (
+                            <div key={`empty-${i}`} className="flex-1 flex items-center justify-center rounded-md border border-dashed border-gray-200 bg-gray-50/50">
+                              <span className="text-gray-300 text-sm">-</span>
+                            </div>
+                          ))}
+                        </div>
+
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
       </main>
     </div>
