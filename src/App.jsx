@@ -12,7 +12,6 @@ export default function App() {
   const [locating, setLocating] = useState(false);
   const [gpsError, setGpsError] = useState(null);
   
-  // 🔥 新增：是否顯示確實時間 (預設為 false，即係極簡巨型數字模式)
   const [showDetailedTime, setShowDetailedTime] = useState(false);
 
   const LOCATIONS = [
@@ -237,21 +236,24 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-200 text-gray-800 font-sans pb-6">
       
-      <header className="bg-red-600 text-white p-3 shadow-md sticky top-0 z-20 flex justify-between items-center">
+      {/* 頂部 Header */}
+      <header className="bg-red-600 p-3 shadow-md sticky top-0 z-20 flex justify-between items-center">
         <div className="max-w-7xl mx-auto w-full flex justify-between items-center">
-          <div className="flex items-center gap-2">
+          
+          {/* 🔥 確保 Icon 同文字都係純白色，加入 drop-shadow 增加立體感 */}
+          <div className="flex items-center gap-2 text-white drop-shadow-sm">
             <Bus className="w-5 h-5 md:w-6 md:h-6" />
-            {/* 🔥 更改回「楊屋村巴士到站」 */}
-            <h1 className="text-lg md:text-xl font-bold tracking-wide">楊屋村巴士到站</h1>
+            <h1 className="text-lg md:text-xl font-bold tracking-wide text-white">楊屋村巴士到站</h1>
           </div>
+          
           <div className="flex items-center gap-2 md:gap-3">
-            <span className="text-xs text-red-200 hidden md:inline-block">
+            <span className="text-xs text-red-100 hidden md:inline-block font-medium">
               最後更新: {lastUpdated ? formatTime(lastUpdated) : '--:--'}
             </span>
             
             <button 
               onClick={() => setShowDetailedTime(!showDetailedTime)} 
-              className={`p-1.5 md:p-2 rounded-full transition-colors flex items-center gap-1 ${showDetailedTime ? 'bg-red-800 text-white shadow-inner' : 'bg-red-500/50 hover:bg-red-500'}`}
+              className={`p-1.5 md:p-2 rounded-full transition-colors flex items-center gap-1 ${showDetailedTime ? 'bg-red-800 text-white shadow-inner' : 'text-white bg-red-500/50 hover:bg-red-500'}`}
               title="切換確實時間"
             >
               <Clock className="w-4 h-4 md:w-5 md:h-5" />
@@ -260,7 +262,7 @@ export default function App() {
             <button 
               onClick={fetchData} 
               disabled={loading}
-              className="p-1.5 md:p-2 rounded-full hover:bg-red-500 transition-colors bg-red-500/50"
+              className="p-1.5 md:p-2 rounded-full text-white hover:bg-red-500 transition-colors bg-red-500/50"
             >
               <RefreshCw className={`w-4 h-4 md:w-5 md:h-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -372,7 +374,6 @@ export default function App() {
                               key={eIdx}
                               className={`flex-1 flex flex-col items-center justify-center rounded-md border ${boxStyle} overflow-hidden transition-all duration-300 relative`}
                             >
-                              {/* 絕對定位的備註，不影響數字排版 */}
                               {hasAnyRmk && eta.rmk && (
                                 <div className="absolute top-1 w-full flex justify-center px-1">
                                   <span className="text-[8px] md:text-[9px] font-bold text-red-600 bg-red-100/90 px-1 rounded-sm truncate max-w-full">
@@ -381,7 +382,6 @@ export default function App() {
                                 </div>
                               )}
 
-                              {/* 🔥 數字推至極限大 (塞滿方格) */}
                               <span className={`${showDetailedTime ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl lg:text-[4rem]'} font-black leading-none tracking-tighter ${textStyle} transition-all duration-300 ${!showDetailedTime ? 'h-full flex items-center justify-center' : ''}`}>
                                 {etaData.text}
                               </span>
