@@ -17,12 +17,11 @@ export default function App() {
 
   const LOCATIONS = [
     {
-      // 🔥 加入了 A36 嘅站柱 ID
       ids: ["6386333EDAC64C96", "2E73B26A07205432"], 
       region: "楊屋村",
       name: "楊屋村 (西行)",
-      desc: "往 元朗市中心 / 機場", // 稍微更新了目的地備註
-      routes: ['54', '64K', '251C', '76K', '77K', '68', '68F', 'A36'], // 加入了 A36
+      desc: "往 元朗市中心 / 機場",
+      routes: ['54', '64K', '251C', '76K', '77K', '68', '68F', 'A36'],
       ignoreDest: ['康樂路', '八鄉'],
       lat: 22.4357, lng: 114.0483
     },
@@ -273,9 +272,6 @@ export default function App() {
 
   const visibleLocations = displayLocations.filter(loc => loc.routesData.length > 0);
 
-  // ==========================================
-  // 🔥 尋站神器視窗組件 (Modal)
-  // ==========================================
   const SearchModal = () => {
     const [routeInput, setRouteInput] = useState('');
     const [stops, setStops] = useState([]);
@@ -289,7 +285,6 @@ export default function App() {
       try {
         let allStops = [];
 
-        // 1. 搜尋九巴 (KMB)
         const kmbOutRes = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/route-stop/${routeInput}/outbound/1`).then(r=>r.json()).catch(()=>({data:[]}));
         const kmbInRes = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/route-stop/${routeInput}/inbound/1`).then(r=>r.json()).catch(()=>({data:[]}));
         
@@ -309,7 +304,6 @@ export default function App() {
           allStops = [...allStops, ...resolvedKmb];
         }
 
-        // 2. 搜尋城巴 (CTB)
         const ctbOutRes = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/route-stop/CTB/${routeInput}/outbound`).then(r=>r.json()).catch(()=>({data:[]}));
         const ctbInRes = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/route-stop/CTB/${routeInput}/inbound`).then(r=>r.json()).catch(()=>({data:[]}));
         
@@ -549,28 +543,30 @@ export default function App() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4 p-2 md:p-4 bg-white">
+              {/* 🔥 關鍵修改：強制 portrait (直向) 時 2 格，landscape (橫向) 或 lg 以上時 4 格 */}
+              <div className="grid grid-cols-2 portrait:grid-cols-2 landscape:grid-cols-4 lg:grid-cols-4 gap-2 md:gap-4 p-2 md:p-4 bg-white">
                 {loc.routesData.map((route, rIdx) => {
                   const hasAnyRmk = route.etas.some(e => e.rmk);
 
-                  // 🔥 智能龍運 A/E 線顏色 (橙色)
                   const isLWB = route.route.startsWith('A') || route.route.startsWith('E') || route.route.startsWith('NA');
                   const routeBadgeColor = route.etas[0]?.co === 'CTB' ? 'bg-blue-600' : (isLWB ? 'bg-orange-500' : 'bg-red-600');
 
                   return (
                     <div key={rIdx} className="bg-white p-1.5 md:p-3 rounded-lg md:rounded-xl border border-gray-200 shadow-sm hover:border-red-300 transition-colors flex flex-col gap-1.5 md:gap-3">
                       
+                      {/* 🔥 橫向螢幕微調：目的地文字唔好太大避免截斷 */}
                       <div className="flex items-center gap-1 md:gap-2 mb-0.5">
-                        <span className={`text-white font-black px-1.5 py-0.5 md:px-3 md:py-1 rounded text-xs md:text-xl min-w-[2.2rem] md:min-w-[4rem] text-center shadow-sm tracking-wide ${routeBadgeColor}`}>
+                        <span className={`text-white font-black px-1.5 py-0.5 md:px-3 md:py-1 rounded text-xs portrait:text-sm landscape:text-xs md:text-xl min-w-[2.2rem] md:min-w-[4rem] text-center shadow-sm tracking-wide ${routeBadgeColor}`}>
                           {route.route}
                         </span>
                         <Navigation className="w-3.5 h-3.5 md:w-5 md:h-5 text-gray-300 shrink-0 hidden sm:block" />
-                        <span className="font-bold text-gray-700 text-[11px] md:text-xl truncate flex-1 tracking-tight">
+                        <span className="font-bold text-gray-700 text-[11px] portrait:text-[13px] landscape:text-[11px] md:text-xl truncate flex-1 tracking-tight">
                           {route.dest}
                         </span>
                       </div>
 
-                      <div className="flex gap-1 md:gap-3 w-full h-[60px] sm:h-[70px] md:h-[100px] lg:h-[110px]">
+                      {/* 🔥 橫向螢幕微調：方格高度稍微縮減 */}
+                      <div className="flex gap-1 md:gap-3 w-full h-[60px] portrait:h-[65px] landscape:h-[55px] sm:h-[70px] md:h-[100px] lg:h-[110px]">
                         {route.etas.map((eta, eIdx) => {
                           const etaData = getCompactEta(eta.time);
                           const mins = etaData.val;
@@ -587,9 +583,10 @@ export default function App() {
                           }
 
                           const isText = isNaN(etaData.text);
+                          // 🔥 橫向螢幕微調：字體縮細少少，確保一行四個都塞得落
                           const giantClass = isText 
-                            ? 'text-[1.5rem] sm:text-[1.8rem] md:text-[3rem] lg:text-[3.5rem]' 
-                            : 'text-[3.2rem] sm:text-[4rem] md:text-[5.5rem] lg:text-[6.8rem]';
+                            ? 'text-[1.5rem] portrait:text-[1.6rem] landscape:text-[1.3rem] sm:text-[1.8rem] md:text-[3rem] lg:text-[3.5rem]' 
+                            : 'text-[3.2rem] portrait:text-[3.5rem] landscape:text-[2.8rem] sm:text-[4rem] md:text-[5.5rem] lg:text-[6.8rem]';
 
                           return (
                             <div 
@@ -608,7 +605,7 @@ export default function App() {
 
                               <div className={`flex items-center justify-center w-full transition-all duration-300 ${!showDetailedTime ? 'h-full' : 'mt-1 flex-1'}`}>
                                 <span 
-                                  className={`${showDetailedTime ? 'text-lg md:text-3xl leading-none' : `${giantClass} leading-[0.85]`} tracking-tighter ${textStyle} transition-all duration-300`}
+                                  className={`${showDetailedTime ? 'text-lg portrait:text-xl landscape:text-base md:text-3xl leading-none' : `${giantClass} leading-[0.85]`} tracking-tighter ${textStyle} transition-all duration-300`}
                                   style={{ 
                                     fontFamily: '"Arial Black", Impact, "PingFang HK", "Microsoft JhengHei", sans-serif',
                                     fontWeight: 900 
