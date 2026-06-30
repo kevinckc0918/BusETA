@@ -15,21 +15,28 @@ export default function App() {
   const [showDetailedTime, setShowDetailedTime] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
 
-  // 🔥 關鍵修改：預設為 true (暗黑模式)
+  // 🔥 關鍵修改：預設為 true (暗黑模式)，並加入 try-catch 防止 iframe 內 localStorage 報錯
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('busTheme');
-      // 如果用戶曾經明確選擇過 'light'，先至用光亮模式；否則一律預設為 'dark'
-      return savedTheme !== 'light'; 
+    try {
+      if (typeof window !== 'undefined') {
+        const savedTheme = localStorage.getItem('busTheme');
+        return savedTheme !== 'light'; 
+      }
+    } catch (e) {
+      console.error("localStorage 讀取受限:", e);
     }
-    return true; // 伺服器端渲染時預設為 true
+    return true; 
   });
 
   useEffect(() => {
-    if (isDarkMode) {
-      localStorage.setItem('busTheme', 'dark');
-    } else {
-      localStorage.setItem('busTheme', 'light');
+    try {
+      if (isDarkMode) {
+        localStorage.setItem('busTheme', 'dark');
+      } else {
+        localStorage.setItem('busTheme', 'light');
+      }
+    } catch (e) {
+      console.error("localStorage 寫入受限:", e);
     }
   }, [isDarkMode]);
 
@@ -147,7 +154,7 @@ export default function App() {
           setLocating(false);
         },
         (err) => {
-          console.error(err);
+          console.error("定位失敗:", err.message || err);
           setGpsError('無法獲取位置，請允許瀏覽器定位權限');
           setLocating(false);
           setTimeout(() => setActiveTab('楊屋村'), 2000);
@@ -356,9 +363,20 @@ export default function App() {
       }
     };
 
+    // 🔥 修改：改用相容性最高嘅 execCommand 避免 iframe 剪貼簿報錯
     const copyToClipboard = (id, co) => {
-      navigator.clipboard.writeText(id);
-      alert(`已複製 ${co} ID: ${id}`);
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = id;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert(`已複製 ${co} ID: ${id}`);
+      } catch (err) {
+        console.error('複製失敗:', err);
+        alert(`無法自動複製，請手動抄寫 ID: ${id}`);
+      }
     };
 
     return (
