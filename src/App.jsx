@@ -370,29 +370,29 @@ export default function App() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 landscape:grid-cols-4 gap-2 md:gap-3 p-2 md:p-4 bg-white">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 landscape:grid-cols-4 gap-3 p-3 md:p-4 bg-white">
                 {loc.routesData.map((route, rIdx) => {
                   const hasAnyRmk = route.etas.some(e => e.rmk);
 
                   return (
-                    <div key={rIdx} className="bg-white p-2 md:p-3 rounded-lg md:rounded-xl border border-gray-200 shadow-sm hover:border-red-300 transition-colors flex flex-col gap-2 md:gap-3">
+                    <div key={rIdx} className="bg-white p-3 rounded-lg md:rounded-xl border border-gray-200 shadow-sm hover:border-red-300 transition-colors flex flex-col gap-3">
                       
-                      <div className="flex items-center gap-1.5 md:gap-2">
-                        <span className={`text-white font-black px-1.5 py-0.5 md:px-2.5 md:py-1 rounded text-xs md:text-base lg:text-lg min-w-[2.5rem] md:min-w-[3rem] text-center shadow-sm tracking-wide ${route.etas[0]?.co === 'CTB' ? 'bg-blue-600' : 'bg-red-600'}`}>
+                      {/* 🔥 路線同目的地字體大幅度加大 */}
+                      <div className="flex items-center gap-2 md:gap-3 mb-0.5">
+                        <span className={`text-white font-black px-2 py-1 md:px-3 md:py-1 rounded text-sm sm:text-lg md:text-xl min-w-[3rem] md:min-w-[4rem] text-center shadow-sm tracking-wide ${route.etas[0]?.co === 'CTB' ? 'bg-blue-600' : 'bg-red-600'}`}>
                           {route.route}
                         </span>
-                        <Navigation className="w-3.5 h-3.5 md:w-5 md:h-5 text-gray-300 shrink-0 hidden sm:block" />
-                        <span className="font-bold text-gray-700 text-xs md:text-base lg:text-lg truncate flex-1 tracking-tight">
+                        <Navigation className="w-4 h-4 md:w-5 md:h-5 text-gray-300 shrink-0 hidden sm:block" />
+                        <span className="font-bold text-gray-700 text-sm sm:text-lg md:text-xl truncate flex-1 tracking-tight">
                           {route.dest}
                         </span>
                       </div>
 
-                      <div className="flex gap-1.5 md:gap-2 w-full h-[65px] sm:h-[80px] md:h-[95px] lg:h-[105px]">
+                      <div className="flex gap-2 md:gap-3 w-full h-[70px] sm:h-[90px] md:h-[100px] lg:h-[110px]">
                         {route.etas.map((eta, eIdx) => {
                           const etaData = getCompactEta(eta.time);
                           const mins = etaData.val;
                           
-                          // 🔥 顏色還原設計圖
                           let boxStyle = 'bg-white border-gray-200';
                           let textStyle = 'text-slate-600';
 
@@ -404,11 +404,10 @@ export default function App() {
                             textStyle = 'text-amber-600';
                           }
 
-                          // 🔥 特粗黑體 Arial Black / Impact
                           const isText = isNaN(etaData.text);
                           const giantClass = isText 
-                            ? 'text-[2.2rem] sm:text-[2.5rem] md:text-[3rem] lg:text-[3.5rem]' 
-                            : 'text-[4.2rem] sm:text-[5rem] md:text-[6rem] lg:text-[6.8rem]';
+                            ? 'text-[2.5rem] sm:text-[3rem] md:text-[3.5rem] lg:text-[4rem]' 
+                            : 'text-[4.5rem] sm:text-[5.5rem] md:text-[6.5rem] lg:text-[7.5rem]';
 
                           return (
                             <div 
@@ -417,7 +416,7 @@ export default function App() {
                             >
                               {hasAnyRmk && eta.rmk && (
                                 <div className="absolute top-0.5 md:top-1 w-full flex justify-center px-1 z-10">
-                                  <span className={`text-[8px] md:text-[9px] font-bold px-1 rounded-sm truncate max-w-full ${
+                                  <span className={`text-[8px] md:text-[10px] font-bold px-1.5 py-0.5 rounded-sm truncate max-w-full ${
                                     eta.co === 'CTB' ? 'text-blue-600 bg-blue-100/90' : 'text-red-600 bg-red-100/90'
                                   }`}>
                                     {eta.rmk}
@@ -438,7 +437,7 @@ export default function App() {
                               </div>
                               
                               {showDetailedTime && (
-                                <span className="text-[10px] md:text-xs text-gray-400 leading-none mb-1.5 md:mb-2 font-medium transition-all duration-300">
+                                <span className="text-[11px] md:text-sm text-gray-400 leading-none mb-1.5 md:mb-2 font-medium transition-all duration-300">
                                   {formatTime(eta.time)}
                                 </span>
                               )}
