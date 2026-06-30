@@ -74,7 +74,6 @@ export default function App() {
       lat: 22.4177, lng: 114.0627
     },
     {
-      // 🔥 已更新：加入 P968 嘅正確 ID (CC1A19B90FFC1703)
       ids: ["C3D2F84C0F0FF415", "CC1A19B90FFC1703"], 
       region: "灣仔",
       name: "菲林明道",
@@ -144,14 +143,12 @@ export default function App() {
     setError(null);
     try {
       const fetchPromises = LOCATIONS.map(loc => {
-        // 1. 九巴 API
         const kmbFetches = (loc.ids || []).map(id => {
           return fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${id}`)
             .then(res => res.ok ? res.json() : { data: [] })
             .catch(() => ({ data: [] }));
         });
 
-        // 2. 城巴 API
         const ctbFetches = [];
         if (loc.ctbIds && loc.ctbIds.length > 0) {
           loc.ctbIds.forEach(id => {
@@ -275,7 +272,7 @@ export default function App() {
   const visibleLocations = displayLocations.filter(loc => loc.routesData.length > 0);
 
   return (
-    <div className="min-h-screen bg-gray-200 text-gray-800 font-sans pb-6">
+    <div className="min-h-screen bg-gray-100 text-gray-800 font-sans pb-6">
       
       <header className="bg-red-600 p-3 shadow-md sticky top-0 z-20 flex justify-between items-center">
         <div className="max-w-7xl mx-auto w-full flex justify-between items-center">
@@ -365,15 +362,15 @@ export default function App() {
           {visibleLocations.map((loc, locIdx) => (
             <div key={locIdx} className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
               
-              <div className="bg-gray-100 border-b border-gray-200 px-3 md:px-4 py-2.5 md:py-3 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-red-500" />
-                <h2 className="font-bold text-gray-800 text-lg md:text-xl">{loc.name}</h2>
-                <span className="text-xs md:text-sm text-gray-500 ml-auto bg-gray-200/80 px-2.5 py-1 rounded-md flex items-center gap-1 font-bold">
+              <div className="bg-gray-50 border-b border-gray-200 px-3 md:px-4 py-2.5 md:py-3 flex items-center gap-2">
+                <MapPin className="w-4 h-4 md:w-5 md:h-5 text-red-500" />
+                <h2 className="font-bold text-gray-800 text-base md:text-xl">{loc.name}</h2>
+                <span className="text-[10px] md:text-sm text-gray-500 ml-auto bg-gray-200/80 px-2 py-1 md:px-2.5 rounded-md flex items-center gap-1 font-bold">
                   {loc.distance ? `${loc.distance.toFixed(1)} km` : loc.desc}
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 landscape:grid-cols-4 gap-2 md:gap-3 p-2 md:p-4 bg-gray-50">
+              <div className="grid grid-cols-2 lg:grid-cols-4 landscape:grid-cols-4 gap-2 md:gap-3 p-2 md:p-4 bg-white">
                 {loc.routesData.map((route, rIdx) => {
                   const hasAnyRmk = route.etas.some(e => e.rmk);
 
@@ -381,38 +378,45 @@ export default function App() {
                     <div key={rIdx} className="bg-white p-2 md:p-3 rounded-lg md:rounded-xl border border-gray-200 shadow-sm hover:border-red-300 transition-colors flex flex-col gap-2 md:gap-3">
                       
                       <div className="flex items-center gap-1.5 md:gap-2">
-                        <span className={`text-white font-black px-2 py-1 md:px-2.5 md:py-1 rounded-md text-sm md:text-base lg:text-lg min-w-[2.5rem] md:min-w-[3rem] text-center shadow-sm tracking-wide ${route.etas[0]?.co === 'CTB' ? 'bg-blue-600' : 'bg-red-600'}`}>
+                        <span className={`text-white font-black px-1.5 py-0.5 md:px-2.5 md:py-1 rounded text-xs md:text-base lg:text-lg min-w-[2.5rem] md:min-w-[3rem] text-center shadow-sm tracking-wide ${route.etas[0]?.co === 'CTB' ? 'bg-blue-600' : 'bg-red-600'}`}>
                           {route.route}
                         </span>
                         <Navigation className="w-3.5 h-3.5 md:w-5 md:h-5 text-gray-300 shrink-0 hidden sm:block" />
-                        <span className="font-bold text-gray-800 text-sm md:text-base lg:text-lg truncate flex-1 tracking-tight">
+                        <span className="font-bold text-gray-700 text-xs md:text-base lg:text-lg truncate flex-1 tracking-tight">
                           {route.dest}
                         </span>
                       </div>
 
-                      <div className="flex gap-1.5 md:gap-2 w-full h-[60px] md:h-[80px] lg:h-[90px]">
+                      <div className="flex gap-1.5 md:gap-2 w-full h-[65px] sm:h-[80px] md:h-[95px] lg:h-[105px]">
                         {route.etas.map((eta, eIdx) => {
                           const etaData = getCompactEta(eta.time);
                           const mins = etaData.val;
                           
-                          let boxStyle = 'bg-gray-50 border-gray-200 text-gray-400';
-                          let textStyle = 'text-gray-600';
+                          // 🔥 顏色還原設計圖
+                          let boxStyle = 'bg-white border-gray-200';
+                          let textStyle = 'text-slate-600';
 
                           if (mins >= 0 && mins <= 5) {
-                            boxStyle = 'bg-red-50 border-red-200 shadow-sm';
+                            boxStyle = 'bg-red-50/80 border-red-100 shadow-sm';
                             textStyle = 'text-red-600';
                           } else if (mins > 5 && mins <= 10) {
-                            boxStyle = 'bg-amber-50 border-amber-200 shadow-sm';
+                            boxStyle = 'bg-amber-50 border-amber-100 shadow-sm';
                             textStyle = 'text-amber-600';
                           }
+
+                          // 🔥 特粗黑體 Arial Black / Impact
+                          const isText = isNaN(etaData.text);
+                          const giantClass = isText 
+                            ? 'text-[2.2rem] sm:text-[2.5rem] md:text-[3rem] lg:text-[3.5rem]' 
+                            : 'text-[4.2rem] sm:text-[5rem] md:text-[6rem] lg:text-[6.8rem]';
 
                           return (
                             <div 
                               key={eIdx}
-                              className={`flex-1 flex flex-col items-center justify-center rounded-md border ${boxStyle} overflow-hidden transition-all duration-300 relative`}
+                              className={`flex-1 flex flex-col items-center justify-center rounded-lg border ${boxStyle} overflow-hidden transition-all duration-300 relative`}
                             >
                               {hasAnyRmk && eta.rmk && (
-                                <div className="absolute top-1 w-full flex justify-center px-1">
+                                <div className="absolute top-0.5 md:top-1 w-full flex justify-center px-1 z-10">
                                   <span className={`text-[8px] md:text-[9px] font-bold px-1 rounded-sm truncate max-w-full ${
                                     eta.co === 'CTB' ? 'text-blue-600 bg-blue-100/90' : 'text-red-600 bg-red-100/90'
                                   }`}>
@@ -421,12 +425,20 @@ export default function App() {
                                 </div>
                               )}
 
-                              <span className={`${showDetailedTime ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl lg:text-[4rem]'} font-black leading-none tracking-tighter ${textStyle} transition-all duration-300 ${!showDetailedTime ? 'h-full flex items-center justify-center' : ''}`}>
-                                {etaData.text}
-                              </span>
+                              <div className={`flex items-center justify-center w-full transition-all duration-300 ${!showDetailedTime ? 'h-full' : 'mt-2 flex-1'}`}>
+                                <span 
+                                  className={`${showDetailedTime ? 'text-2xl md:text-3xl leading-none' : `${giantClass} leading-[0.85]`} tracking-tighter ${textStyle} transition-all duration-300`}
+                                  style={{ 
+                                    fontFamily: '"Arial Black", Impact, "PingFang HK", "Microsoft JhengHei", sans-serif',
+                                    fontWeight: 900 
+                                  }}
+                                >
+                                  {etaData.text}
+                                </span>
+                              </div>
                               
                               {showDetailedTime && (
-                                <span className="text-[10px] md:text-xs text-gray-400 leading-none mt-1 font-medium transition-all duration-300">
+                                <span className="text-[10px] md:text-xs text-gray-400 leading-none mb-1.5 md:mb-2 font-medium transition-all duration-300">
                                   {formatTime(eta.time)}
                                 </span>
                               )}
@@ -435,8 +447,8 @@ export default function App() {
                         })}
                         
                         {Array.from({ length: Math.max(0, 2 - route.etas.length) }).map((_, i) => (
-                          <div key={`empty-${i}`} className="flex-1 flex items-center justify-center rounded-md border border-dashed border-gray-200 bg-gray-50/50">
-                            <span className="text-gray-300 text-sm">-</span>
+                          <div key={`empty-${i}`} className="flex-1 flex items-center justify-center rounded-lg border border-gray-100 bg-white">
+                            <span className="text-gray-200 text-sm">-</span>
                           </div>
                         ))}
                       </div>
