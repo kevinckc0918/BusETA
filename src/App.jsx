@@ -15,28 +15,25 @@ export default function App() {
   const [showDetailedTime, setShowDetailedTime] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
 
-  // 🔥 絕對預設為暗黑模式，並防止 iframe localStorage 報錯
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
       if (typeof window !== 'undefined') {
         const savedTheme = localStorage.getItem('busTheme');
-        if (savedTheme === 'light') return false; // 只有曾經手動設定為 light 先會轉白
+        if (savedTheme === 'light') return false; 
       }
     } catch (e) {
       console.warn("預覽環境限制了 localStorage，將維持預設暗黑模式");
     }
-    return true; // 預設必定為黑色
+    return true; 
   });
 
   useEffect(() => {
     try {
       localStorage.setItem('busTheme', isDarkMode ? 'dark' : 'light');
-      // 強制改變 body 背景顏色避免邊緣閃白
       document.body.style.backgroundColor = isDarkMode ? '#111827' : '#f3f4f6';
     } catch (e) {}
   }, [isDarkMode]);
 
-  // 🔥 強制主題渲染引擎：根據 isDarkMode 自動分配正確 class，完美避開環境設定問題
   const t = (lightClass, darkClass) => isDarkMode ? darkClass : lightClass;
 
   const LOCATIONS = [
@@ -99,11 +96,13 @@ export default function App() {
       lat: 22.4177, lng: 114.0627
     },
     {
-      ids: ["C3D2F84C0F0FF415", "CC1A19B90FFC1703"], 
+      // 🔥 無論入咗幾多支唔同坑位嘅 ID，下面嘅 ignoreDest 都會自動幫你過濾錯方向嘅車
+      ids: ["C3D2F84C0F0FF415", "CC1A19B90FFC1703", "C88DEC0AF0D1102B"], 
       region: "灣仔",
       name: "菲林明道",
       desc: "往 元朗(西)",
       routes: ['968', 'P968', 'N368'], 
+      ignoreDest: ['中環', '港澳', '銅鑼灣', '天后'], // 🔥 自動篩走對面線(去市區)嘅班次
       lat: 22.2782, lng: 114.1738
     },
     {
@@ -153,7 +152,7 @@ export default function App() {
           setLocating(false);
         },
         (err) => {
-          console.error(err);
+          console.error("定位失敗:", err.message || err);
           setGpsError('無法獲取位置，請允許瀏覽器定位權限');
           setLocating(false);
           setTimeout(() => setActiveTab('楊屋村'), 2000);
@@ -204,6 +203,7 @@ export default function App() {
           
           if (loc.routes.includes(etaRoute) && eta.eta) {
             
+            // 🔥 過濾不想要的班次 (例如去錯方向)
             if (loc.ignoreDest && loc.ignoreDest.some(destWord => eta.dest_tc && eta.dest_tc.includes(destWord))) {
               return; 
             }
@@ -362,7 +362,6 @@ export default function App() {
       }
     };
 
-    // 🔥 修復 iframe 內無法使用 clipboard 嘅報錯
     const copyToClipboard = (id, co) => {
       try {
         const textArea = document.createElement("textarea");
