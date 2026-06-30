@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bus, RefreshCw, MapPin, AlertCircle, Navigation, Map, LocateFixed, Compass } from 'lucide-react';
+import { Bus, RefreshCw, MapPin, AlertCircle, Navigation, Map, LocateFixed, Compass, Clock } from 'lucide-react';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -11,6 +11,9 @@ export default function App() {
   const [userLocation, setUserLocation] = useState(null);
   const [locating, setLocating] = useState(false);
   const [gpsError, setGpsError] = useState(null);
+  
+  // 🔥 新增：是否顯示確實時間 (預設為 false，即係極簡巨型數字模式)
+  const [showDetailedTime, setShowDetailedTime] = useState(false);
 
   const LOCATIONS = [
     {
@@ -237,31 +240,41 @@ export default function App() {
       <header className="bg-red-600 text-white p-3 shadow-md sticky top-0 z-20 flex justify-between items-center">
         <div className="max-w-7xl mx-auto w-full flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Bus className="w-5 h-5" />
-            <h1 className="text-lg font-bold tracking-wide">楊屋村巴士到站</h1>
+            <Bus className="w-5 h-5 md:w-6 md:h-6" />
+            <h1 className="text-lg md:text-xl font-bold tracking-wide">全能巴士到站</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-red-200 hidden sm:inline-block">
+          <div className="flex items-center gap-2 md:gap-3">
+            <span className="text-xs text-red-200 hidden md:inline-block">
               最後更新: {lastUpdated ? formatTime(lastUpdated) : '--:--'}
             </span>
+            
+            {/* 🔥 新增：切換詳細時間按鈕 */}
+            <button 
+              onClick={() => setShowDetailedTime(!showDetailedTime)} 
+              className={`p-1.5 md:p-2 rounded-full transition-colors flex items-center gap-1 ${showDetailedTime ? 'bg-red-800 text-white shadow-inner' : 'bg-red-500/50 hover:bg-red-500'}`}
+              title="切換確實時間"
+            >
+              <Clock className="w-4 h-4 md:w-5 md:h-5" />
+            </button>
+
             <button 
               onClick={fetchData} 
               disabled={loading}
-              className="p-1.5 rounded-full hover:bg-red-700 transition-colors bg-red-700/50"
+              className="p-1.5 md:p-2 rounded-full hover:bg-red-500 transition-colors bg-red-500/50"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 md:w-5 md:h-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
       </header>
 
-      <div className="bg-white shadow-sm border-b border-gray-200 sticky top-[52px] z-10 overflow-x-auto">
+      <div className="bg-white shadow-sm border-b border-gray-200 sticky top-[56px] md:top-[64px] z-10 overflow-x-auto">
         <div className="max-w-7xl mx-auto px-2 py-2 flex gap-2 whitespace-nowrap scrollbar-hide">
           {REGIONS.map(region => (
             <button
               key={region}
               onClick={() => setActiveTab(region)}
-              className={`px-4 py-2 rounded-full text-sm font-bold flex items-center gap-1.5 transition-all ${
+              className={`px-4 py-2.5 rounded-full text-sm md:text-base font-bold flex items-center gap-1.5 transition-all ${
                 activeTab === region 
                   ? 'bg-red-600 text-white shadow-md' 
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
@@ -314,27 +327,27 @@ export default function App() {
             <div key={locIdx} className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
               
               <div className="bg-gray-100 border-b border-gray-200 px-3 md:px-4 py-2.5 md:py-3 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-red-500" />
-                <h2 className="font-bold text-gray-800 text-base md:text-lg">{loc.name}</h2>
-                <span className="text-[10px] md:text-xs text-gray-500 ml-auto bg-gray-200/80 px-2 py-1 rounded flex items-center gap-1 font-medium">
+                <MapPin className="w-5 h-5 text-red-500" />
+                <h2 className="font-bold text-gray-800 text-lg md:text-xl">{loc.name}</h2>
+                <span className="text-xs md:text-sm text-gray-500 ml-auto bg-gray-200/80 px-2.5 py-1 rounded-md flex items-center gap-1 font-bold">
                   {loc.distance ? `${loc.distance.toFixed(1)} km` : loc.desc}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 lg:grid-cols-4 landscape:grid-cols-4 gap-2 md:gap-3 p-2 md:p-4 bg-gray-50">
                 {loc.routesData.map((route, rIdx) => {
-                  // 🔥 檢查呢條路線有沒有任何一班車有特別備註
                   const hasAnyRmk = route.etas.some(e => e.rmk);
 
                   return (
                     <div key={rIdx} className="bg-white p-2 md:p-3 rounded-lg md:rounded-xl border border-gray-200 shadow-sm hover:border-red-300 transition-colors flex flex-col gap-2 md:gap-3">
                       
-                      <div className="flex items-center gap-1 md:gap-2">
-                        <span className="bg-red-600 text-white font-black px-1.5 py-0.5 rounded text-xs md:text-sm min-w-[2rem] text-center shadow-sm">
+                      {/* 🔥 路線同目的地字體大幅度放大 */}
+                      <div className="flex items-center gap-1.5 md:gap-2">
+                        <span className="bg-red-600 text-white font-black px-2 py-1 md:px-2.5 md:py-1 rounded-md text-sm md:text-base lg:text-lg min-w-[2.5rem] md:min-w-[3rem] text-center shadow-sm tracking-wide">
                           {route.route}
                         </span>
-                        <Navigation className="w-3 h-3 md:w-4 md:h-4 text-gray-300 shrink-0 hidden sm:block" />
-                        <span className="font-bold text-gray-700 text-[11px] md:text-sm truncate flex-1">
+                        <Navigation className="w-3.5 h-3.5 md:w-5 md:h-5 text-gray-300 shrink-0 hidden sm:block" />
+                        <span className="font-bold text-gray-800 text-sm md:text-base lg:text-lg truncate flex-1 tracking-tight">
                           {route.dest}
                         </span>
                       </div>
@@ -344,8 +357,8 @@ export default function App() {
                           const etaData = getCompactEta(eta.time);
                           const mins = etaData.val;
                           
-                          let boxStyle = 'bg-gray-50 border-gray-200 text-gray-500';
-                          let textStyle = 'text-gray-700';
+                          let boxStyle = 'bg-gray-50 border-gray-200 text-gray-400';
+                          let textStyle = 'text-gray-600';
 
                           if (mins >= 0 && mins <= 5) {
                             boxStyle = 'bg-red-50 border-red-200 shadow-sm';
@@ -358,32 +371,36 @@ export default function App() {
                           return (
                             <div 
                               key={eIdx}
-                              className={`flex-1 flex flex-col items-center justify-center py-1.5 md:py-2 rounded-md border ${boxStyle} overflow-hidden px-1`}
+                              className={`flex-1 flex flex-col items-center justify-center py-2 md:py-3 rounded-md border ${boxStyle} overflow-hidden px-1 transition-all duration-300`}
                             >
-                              {/* 🔥 如果有備註，顯示喺時間嘅上方 */}
                               {hasAnyRmk && (
-                                <div className="h-[12px] md:h-[14px] flex items-center justify-center w-full mb-0.5">
+                                <div className="h-[14px] md:h-[16px] flex items-center justify-center w-full mb-1">
                                   {eta.rmk && (
-                                    <span className="text-[7px] md:text-[9px] font-bold text-red-600 bg-red-100 px-1 rounded-sm truncate max-w-full">
+                                    <span className="text-[8px] md:text-[10px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-sm truncate max-w-full">
                                       {eta.rmk}
                                     </span>
                                   )}
                                 </div>
                               )}
 
-                              <span className={`text-lg md:text-2xl font-black leading-none tracking-tighter ${textStyle}`}>
+                              {/* 🔥 如果隱藏確實時間，就將數字放大到 3xl/4xl (巨無霸級別) */}
+                              <span className={`${showDetailedTime ? 'text-lg md:text-2xl' : 'text-3xl md:text-4xl lg:text-5xl'} font-black leading-none tracking-tighter ${textStyle} transition-all duration-300 ${!showDetailedTime && !hasAnyRmk ? 'py-1 md:py-2' : ''}`}>
                                 {etaData.text}
                               </span>
-                              <span className="text-[9px] md:text-[10px] text-gray-400 leading-none mt-1 md:mt-1.5 font-medium">
-                                {formatTime(eta.time)}
-                              </span>
+                              
+                              {/* 根據 Toggle 狀態顯示/隱藏確實時間 */}
+                              {showDetailedTime && (
+                                <span className="text-[10px] md:text-xs text-gray-400 leading-none mt-1.5 md:mt-2 font-medium transition-all duration-300">
+                                  {formatTime(eta.time)}
+                                </span>
+                              )}
                             </div>
                           );
                         })}
                         
                         {Array.from({ length: Math.max(0, 2 - route.etas.length) }).map((_, i) => (
-                          <div key={`empty-${i}`} className="flex-1 flex items-center justify-center py-1.5 md:py-2 rounded-md border border-dashed border-gray-200 bg-gray-50/50">
-                            <span className="text-gray-300 text-xs">-</span>
+                          <div key={`empty-${i}`} className="flex-1 flex items-center justify-center py-2 md:py-3 rounded-md border border-dashed border-gray-200 bg-gray-50/50">
+                            <span className="text-gray-300 text-sm">-</span>
                           </div>
                         ))}
                       </div>
