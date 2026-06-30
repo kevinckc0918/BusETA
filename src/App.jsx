@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bus, RefreshCw, MapPin, AlertCircle, Navigation, Map, LocateFixed, Compass, Clock, Search, Copy, X } from 'lucide-react';
+import { Bus, RefreshCw, MapPin, AlertCircle, Navigation, Map, LocateFixed, Compass, Clock, Search, Copy, X, Moon, Sun } from 'lucide-react';
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -14,6 +14,24 @@ export default function App() {
   
   const [showDetailedTime, setShowDetailedTime] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+
+  // 🔥 關鍵修改：預設為 true (暗黑模式)
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('busTheme');
+      // 如果用戶曾經明確選擇過 'light'，先至用光亮模式；否則一律預設為 'dark'
+      return savedTheme !== 'light'; 
+    }
+    return true; // 伺服器端渲染時預設為 true
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      localStorage.setItem('busTheme', 'dark');
+    } else {
+      localStorage.setItem('busTheme', 'light');
+    }
+  }, [isDarkMode]);
 
   const LOCATIONS = [
     {
@@ -344,24 +362,24 @@ export default function App() {
     };
 
     return (
-      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="fixed inset-0 bg-black/60 dark:bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-colors">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden transition-colors">
           
-          <div className="bg-gray-100 border-b border-gray-200 p-4 flex items-center justify-between">
+          <div className="bg-gray-100 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between transition-colors">
             <div className="flex items-center gap-2">
-              <Search className="w-5 h-5 md:w-6 md:h-6 text-red-600" />
-              <h2 className="text-lg md:text-xl font-bold text-gray-800 tracking-wide">全能路線尋站系統</h2>
+              <Search className="w-5 h-5 md:w-6 md:h-6 text-red-600 dark:text-red-500" />
+              <h2 className="text-lg md:text-xl font-bold text-gray-800 dark:text-gray-100 tracking-wide">全能路線尋站系統</h2>
             </div>
             <button 
               onClick={() => setShowSearchModal(false)}
-              className="p-1.5 bg-gray-200 hover:bg-red-100 hover:text-red-600 rounded-full transition-colors"
+              className="p-1.5 bg-gray-200 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 dark:hover:text-red-400 rounded-full transition-colors text-gray-600 dark:text-gray-300"
             >
               <X className="w-5 h-5 md:w-6 md:h-6" />
             </button>
           </div>
 
           <div className="p-4 md:p-6 flex flex-col flex-1 overflow-hidden">
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               請輸入路線（例如：601、A36），系統會搵出沿線所有九巴及城巴車站嘅真實 ID。
             </p>
             
@@ -372,12 +390,12 @@ export default function App() {
                 onChange={(e) => setRouteInput(e.target.value.toUpperCase())}
                 onKeyDown={(e) => e.key === 'Enter' && searchRoute()}
                 placeholder="輸入巴士路線..."
-                className="border border-gray-300 rounded-lg px-4 py-2.5 flex-1 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 text-lg font-bold"
+                className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-lg px-4 py-2.5 flex-1 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 dark:focus:ring-red-900/50 text-lg font-bold transition-colors"
               />
               <button 
                 onClick={searchRoute}
                 disabled={fetching}
-                className="bg-red-600 text-white px-5 md:px-8 py-2.5 rounded-lg font-bold hover:bg-red-700 transition-all flex items-center justify-center gap-2 disabled:bg-red-300 whitespace-nowrap shadow-sm"
+                className="bg-red-600 dark:bg-red-700 text-white px-5 md:px-8 py-2.5 rounded-lg font-bold hover:bg-red-700 dark:hover:bg-red-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50 whitespace-nowrap shadow-sm"
               >
                 {fetching ? <RefreshCw className="w-5 h-5 animate-spin" /> : '搜尋'}
               </button>
@@ -385,8 +403,8 @@ export default function App() {
 
             <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
               {fetching && (
-                <div className="py-12 text-center text-gray-500 flex flex-col items-center justify-center h-full">
-                  <RefreshCw className="w-10 h-10 animate-spin mb-3 text-red-500" />
+                <div className="py-12 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-full">
+                  <RefreshCw className="w-10 h-10 animate-spin mb-3 text-red-500 dark:text-red-400" />
                   <p className="font-medium">正在連線巴士公司伺服器...</p>
                 </div>
               )}
@@ -394,23 +412,33 @@ export default function App() {
               {!fetching && stops.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
                   {stops.map(stop => (
-                    <div key={`${stop.co}-${stop.dir}-${stop.seq}`} className={`p-3 rounded-lg border flex flex-col justify-between transition-colors shadow-sm ${stop.co === 'KMB' ? 'bg-red-50 border-red-100 hover:border-red-300' : 'bg-blue-50 border-blue-100 hover:border-blue-300'}`}>
+                    <div key={`${stop.co}-${stop.dir}-${stop.seq}`} className={`p-3 rounded-lg border flex flex-col justify-between transition-colors shadow-sm ${
+                      stop.co === 'KMB' 
+                        ? 'bg-red-50 border-red-100 hover:border-red-300 dark:bg-red-900/10 dark:border-red-900/30 dark:hover:border-red-700' 
+                        : 'bg-blue-50 border-blue-100 hover:border-blue-300 dark:bg-blue-900/10 dark:border-blue-900/30 dark:hover:border-blue-700'
+                    }`}>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${stop.co === 'KMB' ? 'bg-red-600' : 'bg-blue-600'}`}>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${stop.co === 'KMB' ? 'bg-red-600 dark:bg-red-700' : 'bg-blue-600 dark:bg-blue-700'}`}>
                             {stop.co}
                           </span>
-                          <span className={`text-xs font-bold bg-white px-1.5 py-0.5 rounded border ${stop.co === 'KMB' ? 'text-red-700 border-red-200' : 'text-blue-700 border-blue-200'}`}>
+                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded border bg-white dark:bg-gray-800 ${
+                            stop.co === 'KMB' ? 'text-red-700 border-red-200 dark:text-red-400 dark:border-red-800' : 'text-blue-700 border-blue-200 dark:text-blue-400 dark:border-blue-800'
+                          }`}>
                             {stop.dir} - #{stop.seq}
                           </span>
                         </div>
-                        <h3 className="font-bold text-base text-gray-800 mt-2 leading-tight">{stop.name}</h3>
+                        <h3 className="font-bold text-base text-gray-800 dark:text-gray-200 mt-2 leading-tight">{stop.name}</h3>
                       </div>
-                      <div className={`mt-4 flex items-center justify-between bg-white px-2 py-1.5 rounded border shadow-sm ${stop.co === 'KMB' ? 'border-red-200' : 'border-blue-200'}`}>
-                        <code className={`text-sm font-mono font-bold ${stop.co === 'KMB' ? 'text-red-800' : 'text-blue-800'}`}>{stop.id}</code>
+                      <div className={`mt-4 flex items-center justify-between px-2 py-1.5 rounded border shadow-sm bg-white dark:bg-gray-900 ${
+                        stop.co === 'KMB' ? 'border-red-200 dark:border-red-900/50' : 'border-blue-200 dark:border-blue-900/50'
+                      }`}>
+                        <code className={`text-sm font-mono font-bold ${stop.co === 'KMB' ? 'text-red-800 dark:text-red-400' : 'text-blue-800 dark:text-blue-400'}`}>{stop.id}</code>
                         <button 
                           onClick={() => copyToClipboard(stop.id, stop.co)}
-                          className={`px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1 transition-colors ${stop.co === 'KMB' ? 'bg-red-100 hover:bg-red-200 text-red-700' : 'bg-blue-100 hover:bg-blue-200 text-blue-700'}`}
+                          className={`px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1 transition-colors ${
+                            stop.co === 'KMB' ? 'bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/40 dark:hover:bg-red-900/60 dark:text-red-300' : 'bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 dark:text-blue-300'
+                          }`}
                         >
                           <Copy className="w-3 h-3" /> 複製
                         </button>
@@ -421,7 +449,7 @@ export default function App() {
               )}
               
               {!fetching && stops.length === 0 && routeInput && (
-                <div className="py-12 text-center text-gray-400 h-full flex flex-col items-center justify-center">
+                <div className="py-12 text-center text-gray-400 dark:text-gray-500 h-full flex flex-col items-center justify-center">
                   <Bus className="w-12 h-12 opacity-20 mb-3" />
                   <p>搵唔到資料，請確認路線是否正確。</p>
                 </div>
@@ -435,211 +463,217 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-800 font-sans pb-6">
-      
-      {showSearchModal && <SearchModal />}
-
-      <header className="bg-red-600 p-3 shadow-md sticky top-0 z-20 flex justify-between items-center">
-        <div className="max-w-7xl mx-auto w-full flex justify-between items-center">
-          <div className="flex items-center gap-2 text-white drop-shadow-sm">
-            <Bus className="w-5 h-5 md:w-6 md:h-6" />
-            <h1 className="text-lg md:text-xl font-bold tracking-wide text-white">楊屋村巴士到站</h1>
-          </div>
-          <div className="flex items-center gap-1.5 md:gap-3">
-            <span className="text-xs text-red-100 hidden md:inline-block font-medium">
-              最後更新: {lastUpdated ? formatTime(lastUpdated) : '--:--'}
-            </span>
-            
-            <button 
-              onClick={() => setShowSearchModal(true)} 
-              className="p-1.5 md:p-2 rounded-full text-white bg-red-500/50 hover:bg-red-500 transition-colors"
-              title="搜尋車站 ID"
-            >
-              <Search className="w-4 h-4 md:w-5 md:h-5" />
-            </button>
-
-            <button 
-              onClick={() => setShowDetailedTime(!showDetailedTime)} 
-              className={`p-1.5 md:p-2 rounded-full transition-colors flex items-center gap-1 ${showDetailedTime ? 'bg-red-800 text-white shadow-inner' : 'text-white bg-red-500/50 hover:bg-red-500'}`}
-              title="切換確實時間"
-            >
-              <Clock className="w-4 h-4 md:w-5 md:h-5" />
-            </button>
-
-            <button 
-              onClick={fetchData} 
-              disabled={loading}
-              className="p-1.5 md:p-2 rounded-full text-white hover:bg-red-500 transition-colors bg-red-500/50"
-            >
-              <RefreshCw className={`w-4 h-4 md:w-5 md:h-5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="bg-white shadow-sm border-b border-gray-200 sticky top-[56px] md:top-[64px] z-10 overflow-x-auto">
-        <div className="max-w-7xl mx-auto px-2 py-2 flex gap-2 whitespace-nowrap scrollbar-hide">
-          {REGIONS.map(region => (
-            <button
-              key={region}
-              onClick={() => setActiveTab(region)}
-              className={`px-4 py-2.5 rounded-full text-sm md:text-base font-bold flex items-center gap-1.5 transition-all ${
-                activeTab === region 
-                  ? 'bg-red-600 text-white shadow-md' 
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
-            >
-              {region === '附近' ? <LocateFixed className="w-4 h-4" /> : <Map className="w-4 h-4" />}
-              {region}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <main className="w-full max-w-7xl mx-auto p-2 md:p-4 space-y-4">
+    <div className={`${isDarkMode ? 'dark' : ''}`}>
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans pb-6 transition-colors duration-300">
         
-        {error && (
-          <div className="bg-red-50 border border-red-200 p-3 rounded-lg flex items-start gap-2 text-red-700 text-sm">
-            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-            <p>{error}</p>
-          </div>
-        )}
+        {showSearchModal && <SearchModal />}
 
-        {activeTab === '附近' && (
-          <div className="mb-2">
-            {locating && (
-              <div className="flex items-center justify-center gap-2 text-blue-600 bg-blue-50 p-3 rounded-lg text-sm">
-                <Compass className="w-4 h-4 animate-spin" /> 正在獲取您的位置...
-              </div>
-            )}
-            {gpsError && (
-              <div className="flex items-center justify-center gap-2 text-orange-600 bg-orange-50 p-3 rounded-lg text-sm">
-                <AlertCircle className="w-4 h-4" /> {gpsError}
-              </div>
-            )}
-          </div>
-        )}
+        <header className="bg-red-600 dark:bg-red-800 p-3 shadow-md sticky top-0 z-20 flex justify-between items-center transition-colors duration-300">
+          <div className="max-w-7xl mx-auto w-full flex justify-between items-center">
+            <div className="flex items-center gap-2 text-white drop-shadow-sm">
+              <Bus className="w-5 h-5 md:w-6 md:h-6" />
+              <h1 className="text-lg md:text-xl font-bold tracking-wide text-white">楊屋村巴士到站</h1>
+            </div>
+            <div className="flex items-center gap-1.5 md:gap-3">
+              <span className="text-xs text-red-100 dark:text-red-200 hidden md:inline-block font-medium">
+                最後更新: {lastUpdated ? formatTime(lastUpdated) : '--:--'}
+              </span>
+              
+              <button 
+                onClick={() => setIsDarkMode(!isDarkMode)} 
+                className="p-1.5 md:p-2 rounded-full text-white bg-red-500/50 dark:bg-red-900/50 hover:bg-red-500 dark:hover:bg-red-700 transition-colors"
+                title="切換日夜模式"
+              >
+                {isDarkMode ? <Sun className="w-4 h-4 md:w-5 md:h-5" /> : <Moon className="w-4 h-4 md:w-5 md:h-5" />}
+              </button>
 
-        <div className="flex flex-col gap-4">
+              <button 
+                onClick={() => setShowSearchModal(true)} 
+                className="p-1.5 md:p-2 rounded-full text-white bg-red-500/50 dark:bg-red-900/50 hover:bg-red-500 dark:hover:bg-red-700 transition-colors"
+                title="搜尋車站 ID"
+              >
+                <Search className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
+
+              <button 
+                onClick={() => setShowDetailedTime(!showDetailedTime)} 
+                className={`p-1.5 md:p-2 rounded-full transition-colors flex items-center gap-1 ${showDetailedTime ? 'bg-red-800 dark:bg-red-950 text-white shadow-inner' : 'text-white bg-red-500/50 dark:bg-red-900/50 hover:bg-red-500 dark:hover:bg-red-700'}`}
+                title="切換確實時間"
+              >
+                <Clock className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
+
+              <button 
+                onClick={fetchData} 
+                disabled={loading}
+                className="p-1.5 md:p-2 rounded-full text-white hover:bg-red-500 dark:hover:bg-red-700 transition-colors bg-red-500/50 dark:bg-red-900/50"
+              >
+                <RefreshCw className={`w-4 h-4 md:w-5 md:h-5 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-[56px] md:top-[64px] z-10 overflow-x-auto transition-colors duration-300">
+          <div className="max-w-7xl mx-auto px-2 py-2 flex gap-2 whitespace-nowrap scrollbar-hide">
+            {REGIONS.map(region => (
+              <button
+                key={region}
+                onClick={() => setActiveTab(region)}
+                className={`px-4 py-2.5 rounded-full text-sm md:text-base font-bold flex items-center gap-1.5 transition-all ${
+                  activeTab === region 
+                    ? 'bg-red-600 dark:bg-red-700 text-white shadow-md' 
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                {region === '附近' ? <LocateFixed className="w-4 h-4" /> : <Map className="w-4 h-4" />}
+                {region}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <main className="w-full max-w-7xl mx-auto p-2 md:p-4 space-y-4">
           
-          {!loading && !locating && visibleLocations.length === 0 && (
-            <div className="py-20 text-center text-gray-400 flex flex-col items-center justify-center bg-white rounded-xl shadow-sm border border-gray-200">
-              <Bus className="w-12 h-12 opacity-20 mb-3" />
-              <p className="text-lg font-medium text-gray-500">
-                {activeTab === '附近' && userLocation ? '附近 5 公里內沒有設定的車站，或暫無班次' : '該地區目前無即將到站班次'}
-              </p>
-              <p className="text-sm mt-1">可能是非服務時間，請切換地區或稍後再試</p>
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 p-3 rounded-lg flex items-start gap-2 text-red-700 dark:text-red-400 text-sm">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <p>{error}</p>
             </div>
           )}
 
-          {visibleLocations.map((loc, locIdx) => (
-            <div key={locIdx} className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-              
-              <div className="bg-gray-50 border-b border-gray-200 px-3 md:px-4 py-2.5 md:py-3 flex items-center gap-2">
-                <MapPin className="w-4 h-4 md:w-5 md:h-5 text-red-500" />
-                <h2 className="font-bold text-gray-800 text-base md:text-xl">{loc.name}</h2>
-                <span className="text-[10px] md:text-sm text-gray-500 ml-auto bg-gray-200/80 px-2 py-1 md:px-2.5 rounded-md flex items-center gap-1 font-bold">
-                  {loc.distance ? `${loc.distance.toFixed(1)} km` : loc.desc}
-                </span>
+          {activeTab === '附近' && (
+            <div className="mb-2">
+              {locating && (
+                <div className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-sm">
+                  <Compass className="w-4 h-4 animate-spin" /> 正在獲取您的位置...
+                </div>
+              )}
+              {gpsError && (
+                <div className="flex items-center justify-center gap-2 text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 p-3 rounded-lg text-sm">
+                  <AlertCircle className="w-4 h-4" /> {gpsError}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-4">
+            
+            {!loading && !locating && visibleLocations.length === 0 && (
+              <div className="py-20 text-center text-gray-400 dark:text-gray-500 flex flex-col items-center justify-center bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                <Bus className="w-12 h-12 opacity-20 dark:opacity-40 mb-3" />
+                <p className="text-lg font-medium text-gray-500 dark:text-gray-400">
+                  {activeTab === '附近' && userLocation ? '附近 5 公里內沒有設定的車站，或暫無班次' : '該地區目前無即將到站班次'}
+                </p>
+                <p className="text-sm mt-1">可能是非服務時間，請切換地區或稍後再試</p>
               </div>
+            )}
 
-              {/* 🔥 關鍵修改：強制 portrait (直向) 時 2 格，landscape (橫向) 或 lg 以上時 4 格 */}
-              <div className="grid grid-cols-2 portrait:grid-cols-2 landscape:grid-cols-4 lg:grid-cols-4 gap-2 md:gap-4 p-2 md:p-4 bg-white">
-                {loc.routesData.map((route, rIdx) => {
-                  const hasAnyRmk = route.etas.some(e => e.rmk);
+            {visibleLocations.map((loc, locIdx) => (
+              <div key={locIdx} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden transition-colors duration-300">
+                
+                <div className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200 dark:border-gray-700 px-3 md:px-4 py-2.5 md:py-3 flex items-center gap-2 transition-colors duration-300">
+                  <MapPin className="w-4 h-4 md:w-5 md:h-5 text-red-500 dark:text-red-400" />
+                  <h2 className="font-bold text-gray-800 dark:text-gray-100 text-base md:text-xl">{loc.name}</h2>
+                  <span className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400 ml-auto bg-gray-200/80 dark:bg-gray-700 px-2 py-1 md:px-2.5 rounded-md flex items-center gap-1 font-bold">
+                    {loc.distance ? `${loc.distance.toFixed(1)} km` : loc.desc}
+                  </span>
+                </div>
 
-                  const isLWB = route.route.startsWith('A') || route.route.startsWith('E') || route.route.startsWith('NA');
-                  const routeBadgeColor = route.etas[0]?.co === 'CTB' ? 'bg-blue-600' : (isLWB ? 'bg-orange-500' : 'bg-red-600');
+                <div className="grid grid-cols-2 portrait:grid-cols-2 landscape:grid-cols-4 lg:grid-cols-4 gap-2 md:gap-4 p-2 md:p-4 bg-white dark:bg-gray-900 transition-colors duration-300">
+                  {loc.routesData.map((route, rIdx) => {
+                    const hasAnyRmk = route.etas.some(e => e.rmk);
 
-                  return (
-                    <div key={rIdx} className="bg-white p-1.5 md:p-3 rounded-lg md:rounded-xl border border-gray-200 shadow-sm hover:border-red-300 transition-colors flex flex-col gap-1.5 md:gap-3">
-                      
-                      {/* 🔥 橫向螢幕微調：目的地文字唔好太大避免截斷 */}
-                      <div className="flex items-center gap-1 md:gap-2 mb-0.5">
-                        <span className={`text-white font-black px-1.5 py-0.5 md:px-3 md:py-1 rounded text-xs portrait:text-sm landscape:text-xs md:text-xl min-w-[2.2rem] md:min-w-[4rem] text-center shadow-sm tracking-wide ${routeBadgeColor}`}>
-                          {route.route}
-                        </span>
-                        <Navigation className="w-3.5 h-3.5 md:w-5 md:h-5 text-gray-300 shrink-0 hidden sm:block" />
-                        <span className="font-bold text-gray-700 text-[11px] portrait:text-[13px] landscape:text-[11px] md:text-xl truncate flex-1 tracking-tight">
-                          {route.dest}
-                        </span>
-                      </div>
+                    const isLWB = route.route.startsWith('A') || route.route.startsWith('E') || route.route.startsWith('NA');
+                    const routeBadgeColor = route.etas[0]?.co === 'CTB' ? 'bg-blue-600 dark:bg-blue-700' : (isLWB ? 'bg-orange-500 dark:bg-orange-600' : 'bg-red-600 dark:bg-red-700');
 
-                      {/* 🔥 橫向螢幕微調：方格高度稍微縮減 */}
-                      <div className="flex gap-1 md:gap-3 w-full h-[60px] portrait:h-[65px] landscape:h-[55px] sm:h-[70px] md:h-[100px] lg:h-[110px]">
-                        {route.etas.map((eta, eIdx) => {
-                          const etaData = getCompactEta(eta.time);
-                          const mins = etaData.val;
-                          
-                          let boxStyle = 'bg-white border-gray-200';
-                          let textStyle = 'text-slate-600';
+                    return (
+                      <div key={rIdx} className="bg-white dark:bg-gray-800 p-1.5 md:p-3 rounded-lg md:rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:border-red-300 dark:hover:border-red-500 transition-colors flex flex-col gap-1.5 md:gap-3">
+                        
+                        <div className="flex items-center gap-1 md:gap-2 mb-0.5">
+                          <span className={`text-white font-black px-1.5 py-0.5 md:px-3 md:py-1 rounded text-xs portrait:text-sm landscape:text-xs md:text-xl min-w-[2.2rem] md:min-w-[4rem] text-center shadow-sm tracking-wide ${routeBadgeColor}`}>
+                            {route.route}
+                          </span>
+                          <Navigation className="w-3.5 h-3.5 md:w-5 md:h-5 text-gray-300 dark:text-gray-500 shrink-0 hidden sm:block" />
+                          <span className="font-bold text-gray-700 dark:text-gray-200 text-[11px] portrait:text-[13px] landscape:text-[11px] md:text-xl truncate flex-1 tracking-tight">
+                            {route.dest}
+                          </span>
+                        </div>
 
-                          if (mins >= 0 && mins <= 5) {
-                            boxStyle = 'bg-red-50/80 border-red-100 shadow-sm';
-                            textStyle = 'text-red-600';
-                          } else if (mins > 5 && mins <= 10) {
-                            boxStyle = 'bg-amber-50 border-amber-100 shadow-sm';
-                            textStyle = 'text-amber-600';
-                          }
+                        <div className="flex gap-1 md:gap-3 w-full h-[60px] portrait:h-[65px] landscape:h-[55px] sm:h-[70px] md:h-[100px] lg:h-[110px]">
+                          {route.etas.map((eta, eIdx) => {
+                            const etaData = getCompactEta(eta.time);
+                            const mins = etaData.val;
+                            
+                            let boxStyle = 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700';
+                            let textStyle = 'text-slate-600 dark:text-gray-300';
 
-                          const isText = isNaN(etaData.text);
-                          // 🔥 橫向螢幕微調：字體縮細少少，確保一行四個都塞得落
-                          const giantClass = isText 
-                            ? 'text-[1.5rem] portrait:text-[1.6rem] landscape:text-[1.3rem] sm:text-[1.8rem] md:text-[3rem] lg:text-[3.5rem]' 
-                            : 'text-[3.2rem] portrait:text-[3.5rem] landscape:text-[2.8rem] sm:text-[4rem] md:text-[5.5rem] lg:text-[6.8rem]';
+                            if (mins >= 0 && mins <= 5) {
+                              boxStyle = 'bg-red-50/80 dark:bg-red-900/20 border-red-100 dark:border-red-800/50 shadow-sm';
+                              textStyle = 'text-red-600 dark:text-red-400';
+                            } else if (mins > 5 && mins <= 10) {
+                              boxStyle = 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800/50 shadow-sm';
+                              textStyle = 'text-amber-600 dark:text-amber-400';
+                            }
 
-                          return (
-                            <div 
-                              key={eIdx}
-                              className={`flex-1 flex flex-col items-center justify-center rounded-md border ${boxStyle} overflow-hidden transition-all duration-300 relative`}
-                            >
-                              {hasAnyRmk && eta.rmk && (
-                                <div className="absolute top-0.5 md:top-1 w-full flex justify-center px-1 z-10">
-                                  <span className={`text-[7px] md:text-[9px] font-bold px-1 py-0.5 rounded-sm truncate max-w-full ${
-                                    eta.co === 'CTB' ? 'text-blue-600 bg-blue-100/90' : 'text-red-600 bg-red-100/90'
-                                  }`}>
-                                    {eta.rmk}
+                            const isText = isNaN(etaData.text);
+                            const giantClass = isText 
+                              ? 'text-[1.5rem] portrait:text-[1.6rem] landscape:text-[1.3rem] sm:text-[1.8rem] md:text-[3rem] lg:text-[3.5rem]' 
+                              : 'text-[3.2rem] portrait:text-[3.5rem] landscape:text-[2.8rem] sm:text-[4rem] md:text-[5.5rem] lg:text-[6.8rem]';
+
+                            return (
+                              <div 
+                                key={eIdx}
+                                className={`flex-1 flex flex-col items-center justify-center rounded-md border ${boxStyle} overflow-hidden transition-all duration-300 relative`}
+                              >
+                                {hasAnyRmk && eta.rmk && (
+                                  <div className="absolute top-0.5 md:top-1 w-full flex justify-center px-1 z-10">
+                                    <span className={`text-[7px] md:text-[9px] font-bold px-1 py-0.5 rounded-sm truncate max-w-full ${
+                                      eta.co === 'CTB' ? 'text-blue-600 bg-blue-100/90 dark:text-blue-300 dark:bg-blue-900/80' : 'text-red-600 bg-red-100/90 dark:text-red-300 dark:bg-red-900/80'
+                                    }`}>
+                                      {eta.rmk}
+                                    </span>
+                                  </div>
+                                )}
+
+                                <div className={`flex items-center justify-center w-full transition-all duration-300 ${!showDetailedTime ? 'h-full' : 'mt-1 flex-1'}`}>
+                                  <span 
+                                    className={`${showDetailedTime ? 'text-lg portrait:text-xl landscape:text-base md:text-3xl leading-none' : `${giantClass} leading-[0.85]`} tracking-tighter ${textStyle} transition-all duration-300`}
+                                    style={{ 
+                                      fontFamily: '"Arial Black", Impact, "PingFang HK", "Microsoft JhengHei", sans-serif',
+                                      fontWeight: 900 
+                                    }}
+                                  >
+                                    {etaData.text}
                                   </span>
                                 </div>
-                              )}
-
-                              <div className={`flex items-center justify-center w-full transition-all duration-300 ${!showDetailedTime ? 'h-full' : 'mt-1 flex-1'}`}>
-                                <span 
-                                  className={`${showDetailedTime ? 'text-lg portrait:text-xl landscape:text-base md:text-3xl leading-none' : `${giantClass} leading-[0.85]`} tracking-tighter ${textStyle} transition-all duration-300`}
-                                  style={{ 
-                                    fontFamily: '"Arial Black", Impact, "PingFang HK", "Microsoft JhengHei", sans-serif',
-                                    fontWeight: 900 
-                                  }}
-                                >
-                                  {etaData.text}
-                                </span>
+                                
+                                {showDetailedTime && (
+                                  <span className="text-[9px] md:text-sm text-gray-400 dark:text-gray-500 leading-none mb-1 md:mb-2 font-medium transition-all duration-300">
+                                    {formatTime(eta.time)}
+                                  </span>
+                                )}
                               </div>
-                              
-                              {showDetailedTime && (
-                                <span className="text-[9px] md:text-sm text-gray-400 leading-none mb-1 md:mb-2 font-medium transition-all duration-300">
-                                  {formatTime(eta.time)}
-                                </span>
-                              )}
+                            );
+                          })}
+                          
+                          {Array.from({ length: Math.max(0, 2 - route.etas.length) }).map((_, i) => (
+                            <div key={`empty-${i}`} className="flex-1 flex items-center justify-center rounded-md border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 transition-colors duration-300">
+                              <span className="text-gray-200 dark:text-gray-600 text-sm">-</span>
                             </div>
-                          );
-                        })}
-                        
-                        {Array.from({ length: Math.max(0, 2 - route.etas.length) }).map((_, i) => (
-                          <div key={`empty-${i}`} className="flex-1 flex items-center justify-center rounded-md border border-gray-100 bg-white">
-                            <span className="text-gray-200 text-sm">-</span>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+
                       </div>
-
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
