@@ -82,7 +82,8 @@ export default function App() {
       lat: 22.2782, lng: 114.1738
     },
     {
-      ids: ["E74202351AF7F37D"],
+      ids: ["E74202351AF7F37D"], 
+      ctbIds: ["002430"], // 🔥 已更新為正確的盧押道城巴 ID
       region: "灣仔",
       name: "盧押道",
       desc: "往 寶達",
@@ -90,7 +91,8 @@ export default function App() {
       lat: 22.2774, lng: 114.1711
     },
     {
-      ids: ["04B6438688E12AC0"],
+      ids: ["04B6438688E12AC0"], 
+      ctbIds: ["003039"], // 🔥 已更新為正確的祥和苑城巴 ID
       region: "觀塘",
       name: "祥和苑",
       desc: "往 港島 (金鐘/上環)",
@@ -129,7 +131,7 @@ export default function App() {
           console.error(err);
           setGpsError('無法獲取位置，請允許瀏覽器定位權限');
           setLocating(false);
-          setTimeout(() => setActiveTab('楊屋村'), 2000);
+          setTimeout(() => setActiveTab('灣仔'), 2000);
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
       );
@@ -141,16 +143,28 @@ export default function App() {
     setError(null);
     try {
       const fetchPromises = LOCATIONS.map(loc => {
-        const fetches = loc.ids.map(id => 
-          fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${id}`)
-            .then(res => {
-              if (!res.ok) throw new Error('Network error');
-              return res.json();
-            })
-            .catch(() => ({ data: [] }))
-        );
+        // 1. 九巴 API
+        const kmbFetches = (loc.ids || []).map(id => {
+          return fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${id}`)
+            .then(res => res.ok ? res.json() : { data: [] })
+            .catch(() => ({ data: [] }));
+        });
+
+        // 2. 城巴 API (需要 ID + Route)
+        const ctbFetches = [];
+        if (loc.ctbIds && loc.ctbIds.length > 0) {
+          loc.ctbIds.forEach(id => {
+            loc.routes.forEach(route => {
+              ctbFetches.push(
+                fetch(`https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${id}/${route}`)
+                  .then(res => res.ok ? res.json() : { data: [] })
+                  .catch(() => ({ data: [] }))
+              );
+            });
+          });
+        }
         
-        return Promise.all(fetches).then(results => {
+        return Promise.all([...kmbFetches, ...ctbFetches]).then(results => {
           const mergedData = results.flatMap(res => res.data || []);
           return { data: mergedData };
         });
@@ -163,18 +177,20 @@ export default function App() {
         const groupedRoutes = {};
 
         allEtas.forEach(eta => {
-          if (loc.routes.includes(eta.route) && eta.eta) {
+          const etaRoute = eta.route || eta.route_no || eta.Route; 
+          
+          if (loc.routes.includes(etaRoute) && eta.eta) {
             
-            if (loc.ignoreDest && loc.ignoreDest.some(destWord => eta.dest_tc.includes(destWord))) {
+            if (loc.ignoreDest && loc.ignoreDest.some(destWord => eta.dest_tc && eta.dest_tc.includes(destWord))) {
               return; 
             }
             
-            const key = eta.route; 
+            const key = etaRoute; 
             
             if (!groupedRoutes[key]) {
               groupedRoutes[key] = {
-                route: eta.route,
-                dest: eta.dest_tc, 
+                route: etaRoute,
+                dest: eta.dest_tc || loc.desc.replace('往 ', ''), 
                 etas: []
               };
             }
@@ -188,7 +204,8 @@ export default function App() {
             if (!isDuplicate) {
               groupedRoutes[key].etas.push({
                 time: new Date(eta.eta),
-                rmk: eta.rmk_tc && eta.rmk_tc !== "原定班次" ? eta.rmk_tc : null
+                rmk: eta.rmk_tc && eta.rmk_tc !== "原定班次" && eta.rmk_tc !== "九巴時段" ? eta.rmk_tc : null,
+                co: eta.co || (eta.dir ? 'CTB' : 'KMB') 
               });
             }
           }
@@ -395,7 +412,9 @@ export default function App() {
                             >
                               {hasAnyRmk && eta.rmk && (
                                 <div className="absolute top-1 w-full flex justify-center px-1">
-                                  <span className="text-[8px] md:text-[9px] font-bold text-red-600 bg-red-100/90 px-1 rounded-sm truncate max-w-full">
+                                  <span className={`text-[8px] md:text-[9px] font-bold px-1 rounded-sm truncate max-w-full ${
+                                    eta.co === 'CTB' ? 'text-blue-600 bg-blue-100/90' : 'text-red-600 bg-red-100/90'
+                                  }`}>
                                     {eta.rmk}
                                   </span>
                                 </div>
