@@ -541,19 +541,20 @@ export default function App() {
 
                     {/* 右側：分鐘數 */}
                     <div className="flex flex-col items-end justify-center shrink-0 min-w-[50px]">
-                      {/* 🔥 利用 h-[40px] md:h-[54px] 強制鎖死顯示框高度，就算文字細咗都唔會改變整行行高 */}
+                      {/* 利用固定高度框，保證字體細咗都唔會改變整行行高 */}
                       <div className="flex items-center justify-end h-[40px] md:h-[54px]">
                         {eta1 && (
                           eta1.val < 0 ? (
-                            <span className={`text-xl md:text-2xl font-bold tracking-tighter ${t('text-gray-400', 'text-gray-500')}`}>
+                            <span className={`text-xl md:text-2xl tracking-tighter font-normal ${t('text-gray-400', 'text-gray-500')}`}>
                               已開出
                             </span>
                           ) : eta1.val === 0 ? (
-                            <span className={`text-xl md:text-2xl font-bold tracking-tighter ${t('text-[#C63C31]', 'text-red-500')}`}>
+                            <span className={`text-xl md:text-2xl tracking-tighter font-normal ${t('text-[#C63C31]', 'text-red-500')}`}>
                               即將
                             </span>
                           ) : (
-                            <span className={`text-[3rem] md:text-[4rem] font-medium tracking-tighter leading-[0.85] ${eta1Color}`} style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}>
+                            // 🔥 移除咗 Arial Black 粗體設定，使用最標準普通字體 (font-normal)
+                            <span className={`text-[3rem] md:text-[4rem] font-normal tracking-tighter leading-[0.85] ${eta1Color}`}>
                               {eta1.text}
                             </span>
                           )
@@ -561,7 +562,7 @@ export default function App() {
                       </div>
                       
                       {eta2 && (
-                        <div className={`text-[11px] md:text-sm mt-1 tracking-tighter leading-none ${t('text-gray-500', 'text-gray-400')}`}>
+                        <div className={`text-[11px] md:text-sm mt-1 tracking-tighter font-normal leading-none ${t('text-gray-500', 'text-gray-400')}`}>
                           {eta2.val < 0 ? '已開出' : eta2.text}
                         </div>
                       )}
