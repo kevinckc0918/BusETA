@@ -15,6 +15,7 @@ export default function App() {
   const [showDetailedTime, setShowDetailedTime] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
 
+  // 暗黑主題狀態
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
       if (typeof window !== 'undefined') {
@@ -22,7 +23,7 @@ export default function App() {
         if (savedTheme === 'light') return false; 
       }
     } catch (e) {
-      console.warn("預覽環境限制了 localStorage，將維持預設暗黑模式");
+      console.warn("預覽環境限制了 localStorage");
     }
     return true; 
   });
@@ -96,13 +97,12 @@ export default function App() {
       lat: 22.4177, lng: 114.0627
     },
     {
-      // 🔥 無論入咗幾多支唔同坑位嘅 ID，下面嘅 ignoreDest 都會自動幫你過濾錯方向嘅車
       ids: ["C3D2F84C0F0FF415", "CC1A19B90FFC1703", "C88DEC0AF0D1102B"], 
       region: "灣仔",
       name: "菲林明道",
       desc: "往 元朗(西)",
       routes: ['968', 'P968', 'N368'], 
-      ignoreDest: ['中環', '港澳', '銅鑼灣', '天后'], // 🔥 自動篩走對面線(去市區)嘅班次
+      ignoreDest: ['中環', '港澳', '銅鑼灣', '天后'],
       lat: 22.2782, lng: 114.1738
     },
     {
@@ -202,14 +202,11 @@ export default function App() {
           const etaRoute = eta.route || eta.route_no || eta.Route; 
           
           if (loc.routes.includes(etaRoute) && eta.eta) {
-            
-            // 🔥 過濾不想要的班次 (例如去錯方向)
             if (loc.ignoreDest && loc.ignoreDest.some(destWord => eta.dest_tc && eta.dest_tc.includes(destWord))) {
               return; 
             }
             
             const key = etaRoute; 
-            
             if (!groupedRoutes[key]) {
               groupedRoutes[key] = {
                 route: etaRoute,
@@ -219,7 +216,6 @@ export default function App() {
             }
 
             const etaTimeMs = new Date(eta.eta).getTime();
-
             const isDuplicate = groupedRoutes[key].etas.some(existingEta => 
               Math.abs(existingEta.time.getTime() - etaTimeMs) < 60000
             );
@@ -270,7 +266,7 @@ export default function App() {
     const now = new Date();
     const diffMs = etaDate - now;
     const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 0) return { text: '已走', val: -1 }; 
+    if (diffMins < 0) return { text: '走咗啦', val: -1 }; 
     if (diffMins === 0) return { text: '即將', val: 0 };
     return { text: diffMins.toString(), val: diffMins }; 
   };
@@ -296,6 +292,14 @@ export default function App() {
 
   const visibleLocations = displayLocations.filter(loc => loc.routesData.length > 0);
 
+  // 🔥 將數據攤平 (Flatten) 方便做相間橫間 (Zebra Stripes)
+  const flatRoutes = [];
+  visibleLocations.forEach(loc => {
+    loc.routesData.forEach(route => {
+      flatRoutes.push({ loc, route });
+    });
+  });
+
   const SearchModal = () => {
     const [routeInput, setRouteInput] = useState('');
     const [stops, setStops] = useState([]);
@@ -308,7 +312,6 @@ export default function App() {
       
       try {
         let allStops = [];
-
         const kmbOutRes = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/route-stop/${routeInput}/outbound/1`).then(r=>r.json()).catch(()=>({data:[]}));
         const kmbInRes = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/route-stop/${routeInput}/inbound/1`).then(r=>r.json()).catch(()=>({data:[]}));
         
@@ -316,13 +319,7 @@ export default function App() {
         if (kmbStopsData.length > 0) {
           const kmbPromises = kmbStopsData.map(async (s) => {
             const detail = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop/${s.stop}`).then(r=>r.json()).catch(()=>({data:{}}));
-            return {
-              co: 'KMB',
-              dir: s.bound === 'O' ? '去程' : '回程',
-              seq: s.seq,
-              id: s.stop,
-              name: detail.data?.name_tc || '未知站名'
-            };
+            return { co: 'KMB', dir: s.bound === 'O' ? '去程' : '回程', seq: s.seq, id: s.stop, name: detail.data?.name_tc || '未知站名' };
           });
           const resolvedKmb = await Promise.all(kmbPromises);
           allStops = [...allStops, ...resolvedKmb];
@@ -335,13 +332,7 @@ export default function App() {
         if (ctbStopsData.length > 0) {
           const ctbPromises = ctbStopsData.map(async (s) => {
             const detail = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/stop/${s.stop}`).then(r=>r.json()).catch(()=>({data:{}}));
-            return {
-              co: 'CTB',
-              dir: s.dir === 'O' ? '去程' : '回程',
-              seq: s.seq,
-              id: s.stop,
-              name: detail.data?.name_tc || '未知站名'
-            };
+            return { co: 'CTB', dir: s.dir === 'O' ? '去程' : '回程', seq: s.seq, id: s.stop, name: detail.data?.name_tc || '未知站名' };
           });
           const resolvedCtb = await Promise.all(ctbPromises);
           allStops = [...allStops, ...resolvedCtb];
@@ -356,7 +347,7 @@ export default function App() {
         setStops(allStops);
       } catch (err) {
         console.error(err);
-        alert("搜尋失敗，請檢查網絡或路線是否存在");
+        alert("搜尋失敗");
       } finally {
         setFetching(false);
       }
@@ -372,7 +363,6 @@ export default function App() {
         document.body.removeChild(textArea);
         alert(`已複製 ${co} ID: ${id}`);
       } catch (err) {
-        console.error('複製失敗:', err);
         alert(`無法自動複製，請手動抄寫 ID: ${id}`);
       }
     };
@@ -380,99 +370,44 @@ export default function App() {
     return (
       <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-colors ${t('bg-black/60', 'bg-black/80')}`}>
         <div className={`rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden transition-colors ${t('bg-white', 'bg-gray-800')}`}>
-          
           <div className={`border-b p-4 flex items-center justify-between transition-colors ${t('bg-gray-100 border-gray-200', 'bg-gray-900 border-gray-700')}`}>
             <div className="flex items-center gap-2">
-              <Search className={`w-5 h-5 md:w-6 md:h-6 ${t('text-red-600', 'text-red-500')}`} />
-              <h2 className={`text-lg md:text-xl font-bold tracking-wide ${t('text-gray-800', 'text-gray-100')}`}>全能路線尋站系統</h2>
+              <Search className={`w-5 h-5 ${t('text-red-600', 'text-red-500')}`} />
+              <h2 className={`text-lg font-bold tracking-wide ${t('text-gray-800', 'text-gray-100')}`}>全能路線尋站系統</h2>
             </div>
-            <button 
-              onClick={() => setShowSearchModal(false)}
-              className={`p-1.5 rounded-full transition-colors ${t('bg-gray-200 hover:bg-red-100 text-gray-600 hover:text-red-600', 'bg-gray-800 hover:bg-red-900/40 text-gray-300 hover:text-red-400')}`}
-            >
-              <X className="w-5 h-5 md:w-6 md:h-6" />
+            <button onClick={() => setShowSearchModal(false)} className={`p-1.5 rounded-full transition-colors ${t('bg-gray-200 hover:bg-red-100 text-gray-600 hover:text-red-600', 'bg-gray-800 hover:bg-red-900/40 text-gray-300 hover:text-red-400')}`}>
+              <X className="w-5 h-5" />
             </button>
           </div>
-
-          <div className="p-4 md:p-6 flex flex-col flex-1 overflow-hidden">
-            <p className={`text-sm mb-4 ${t('text-gray-500', 'text-gray-400')}`}>
-              請輸入路線（例如：601、A36），系統會搵出沿線所有九巴及城巴車站嘅真實 ID。
-            </p>
-            
+          <div className="p-4 flex flex-col flex-1 overflow-hidden">
             <div className="flex gap-2 mb-4 shrink-0">
-              <input 
-                type="text" 
-                value={routeInput}
-                onChange={(e) => setRouteInput(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === 'Enter' && searchRoute()}
-                placeholder="輸入巴士路線..."
-                className={`border rounded-lg px-4 py-2.5 flex-1 outline-none text-lg font-bold transition-colors ${t('border-gray-300 bg-white text-gray-800 focus:border-red-500 focus:ring-red-200', 'border-gray-600 bg-gray-700 text-gray-100 focus:border-red-500 focus:ring-red-900/50')}`}
-              />
-              <button 
-                onClick={searchRoute}
-                disabled={fetching}
-                className={`text-white px-5 md:px-8 py-2.5 rounded-lg font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 whitespace-nowrap shadow-sm ${t('bg-red-600 hover:bg-red-700', 'bg-red-700 hover:bg-red-600')}`}
-              >
+              <input type="text" value={routeInput} onChange={(e) => setRouteInput(e.target.value.toUpperCase())} onKeyDown={(e) => e.key === 'Enter' && searchRoute()} placeholder="輸入巴士路線..." className={`border rounded-lg px-4 py-2 flex-1 outline-none text-lg font-bold ${t('border-gray-300 bg-white text-gray-800 focus:border-red-500', 'border-gray-600 bg-gray-700 text-gray-100 focus:border-red-500')}`} />
+              <button onClick={searchRoute} disabled={fetching} className={`text-white px-6 py-2 rounded-lg font-bold transition-all flex items-center gap-2 disabled:opacity-50 ${t('bg-red-600 hover:bg-red-700', 'bg-red-700 hover:bg-red-600')}`}>
                 {fetching ? <RefreshCw className="w-5 h-5 animate-spin" /> : '搜尋'}
               </button>
             </div>
-
-            <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
-              {fetching && (
-                <div className={`py-12 text-center flex flex-col items-center justify-center h-full ${t('text-gray-500', 'text-gray-400')}`}>
-                  <RefreshCw className={`w-10 h-10 animate-spin mb-3 ${t('text-red-500', 'text-red-400')}`} />
-                  <p className="font-medium">正在連線巴士公司伺服器...</p>
-                </div>
-              )}
-              
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
               {!fetching && stops.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-4">
                   {stops.map(stop => (
-                    <div key={`${stop.co}-${stop.dir}-${stop.seq}`} className={`p-3 rounded-lg border flex flex-col justify-between transition-colors shadow-sm ${
-                      stop.co === 'KMB' 
-                        ? t('bg-red-50 border-red-100 hover:border-red-300', 'bg-red-900/10 border-red-900/30 hover:border-red-700') 
-                        : t('bg-blue-50 border-blue-100 hover:border-blue-300', 'bg-blue-900/10 border-blue-900/30 hover:border-blue-700')
-                    }`}>
+                    <div key={`${stop.co}-${stop.dir}-${stop.seq}`} className={`p-3 rounded-lg border flex flex-col justify-between shadow-sm ${stop.co === 'KMB' ? t('bg-red-50 border-red-100', 'bg-red-900/10 border-red-900/30') : t('bg-blue-50 border-blue-100', 'bg-blue-900/10 border-blue-900/30')}`}>
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${stop.co === 'KMB' ? t('bg-red-600', 'bg-red-700') : t('bg-blue-600', 'bg-blue-700')}`}>
-                            {stop.co}
-                          </span>
-                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${
-                            stop.co === 'KMB' ? t('bg-white text-red-700 border-red-200', 'bg-gray-800 text-red-400 border-red-800') : t('bg-white text-blue-700 border-blue-200', 'bg-gray-800 text-blue-400 border-blue-800')
-                          }`}>
-                            {stop.dir} - #{stop.seq}
-                          </span>
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${stop.co === 'KMB' ? t('bg-red-600', 'bg-red-700') : t('bg-blue-600', 'bg-blue-700')}`}>{stop.co}</span>
+                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${stop.co === 'KMB' ? t('bg-white text-red-700 border-red-200', 'bg-gray-800 text-red-400 border-red-800') : t('bg-white text-blue-700 border-blue-200', 'bg-gray-800 text-blue-400 border-blue-800')}`}>{stop.dir} - #{stop.seq}</span>
                         </div>
                         <h3 className={`font-bold text-base mt-2 leading-tight ${t('text-gray-800', 'text-gray-200')}`}>{stop.name}</h3>
                       </div>
-                      <div className={`mt-4 flex items-center justify-between px-2 py-1.5 rounded border shadow-sm ${
-                        stop.co === 'KMB' ? t('bg-white border-red-200', 'bg-gray-900 border-red-900/50') : t('bg-white border-blue-200', 'bg-gray-900 border-blue-900/50')
-                      }`}>
+                      <div className={`mt-3 flex items-center justify-between px-2 py-1.5 rounded border shadow-sm ${stop.co === 'KMB' ? t('bg-white border-red-200', 'bg-gray-900 border-red-900/50') : t('bg-white border-blue-200', 'bg-gray-900 border-blue-900/50')}`}>
                         <code className={`text-sm font-mono font-bold ${stop.co === 'KMB' ? t('text-red-800', 'text-red-400') : t('text-blue-800', 'text-blue-400')}`}>{stop.id}</code>
-                        <button 
-                          onClick={() => copyToClipboard(stop.id, stop.co)}
-                          className={`px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1 transition-colors ${
-                            stop.co === 'KMB' ? t('bg-red-100 hover:bg-red-200 text-red-700', 'bg-red-900/40 hover:bg-red-900/60 text-red-300') : t('bg-blue-100 hover:bg-blue-200 text-blue-700', 'bg-blue-900/40 hover:bg-blue-900/60 text-blue-300')
-                          }`}
-                        >
-                          <Copy className="w-3 h-3" /> 複製
-                        </button>
+                        <button onClick={() => copyToClipboard(stop.id, stop.co)} className={`px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1 ${stop.co === 'KMB' ? t('bg-red-100 text-red-700', 'bg-red-900/40 text-red-300') : t('bg-blue-100 text-blue-700', 'bg-blue-900/40 text-blue-300')}`}><Copy className="w-3 h-3" /> 複製</button>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-              
-              {!fetching && stops.length === 0 && routeInput && (
-                <div className={`py-12 text-center h-full flex flex-col items-center justify-center ${t('text-gray-400', 'text-gray-500')}`}>
-                  <Bus className="w-12 h-12 opacity-20 mb-3" />
-                  <p>搵唔到資料，請確認路線是否正確。</p>
-                </div>
-              )}
             </div>
           </div>
-
         </div>
       </div>
     );
@@ -483,213 +418,159 @@ export default function App() {
       
       {showSearchModal && <SearchModal />}
 
-      <header className={`p-3 shadow-md sticky top-0 z-20 flex justify-between items-center transition-colors duration-300 ${t('bg-red-600', 'bg-red-800')}`}>
-        <div className="max-w-7xl mx-auto w-full flex justify-between items-center">
+      {/* Header */}
+      <header className={`p-3 shadow-md sticky top-0 z-20 flex justify-between items-center transition-colors duration-300 ${t('bg-[#E32636]', 'bg-red-900')}`}>
+        <div className="max-w-4xl mx-auto w-full flex justify-between items-center">
           <div className="flex items-center gap-2 text-white drop-shadow-sm">
             <Bus className="w-5 h-5 md:w-6 md:h-6" />
-            <h1 className="text-lg md:text-xl font-bold tracking-wide text-white">楊屋村巴士到站</h1>
+            <h1 className="text-lg md:text-xl font-bold tracking-wide text-white">香港巴士時間</h1>
           </div>
           <div className="flex items-center gap-1.5 md:gap-3">
-            <span className={`text-xs hidden md:inline-block font-medium ${t('text-red-100', 'text-red-200')}`}>
-              最後更新: {lastUpdated ? formatTime(lastUpdated) : '--:--'}
+            <span className={`text-xs hidden sm:inline-block font-medium ${t('text-red-100', 'text-red-200')}`}>
+              更新: {lastUpdated ? formatTime(lastUpdated) : '--:--'}
             </span>
-            
-            <button 
-              onClick={() => setIsDarkMode(!isDarkMode)} 
-              className={`p-1.5 md:p-2 rounded-full transition-colors ${t('text-white bg-red-500/50 hover:bg-red-500', 'text-white bg-red-900/50 hover:bg-red-700')}`}
-              title="切換日夜模式"
-            >
+            <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-1.5 rounded-full transition-colors ${t('text-white bg-white/20 hover:bg-white/30', 'text-white bg-black/30 hover:bg-black/40')}`}>
               {isDarkMode ? <Sun className="w-4 h-4 md:w-5 md:h-5" /> : <Moon className="w-4 h-4 md:w-5 md:h-5" />}
             </button>
-
-            <button 
-              onClick={() => setShowSearchModal(true)} 
-              className={`p-1.5 md:p-2 rounded-full transition-colors ${t('text-white bg-red-500/50 hover:bg-red-500', 'text-white bg-red-900/50 hover:bg-red-700')}`}
-              title="搜尋車站 ID"
-            >
+            <button onClick={() => setShowSearchModal(true)} className={`p-1.5 rounded-full transition-colors ${t('text-white bg-white/20 hover:bg-white/30', 'text-white bg-black/30 hover:bg-black/40')}`}>
               <Search className="w-4 h-4 md:w-5 md:h-5" />
             </button>
-
-            <button 
-              onClick={() => setShowDetailedTime(!showDetailedTime)} 
-              className={`p-1.5 md:p-2 rounded-full transition-colors flex items-center gap-1 ${showDetailedTime ? t('bg-red-800 text-white shadow-inner', 'bg-red-950 text-white shadow-inner') : t('text-white bg-red-500/50 hover:bg-red-500', 'text-white bg-red-900/50 hover:bg-red-700')}`}
-              title="切換確實時間"
-            >
-              <Clock className="w-4 h-4 md:w-5 md:h-5" />
-            </button>
-
-            <button 
-              onClick={fetchData} 
-              disabled={loading}
-              className={`p-1.5 md:p-2 rounded-full transition-colors ${t('text-white hover:bg-red-500 bg-red-500/50', 'text-white hover:bg-red-700 bg-red-900/50')}`}
-            >
+            <button onClick={fetchData} disabled={loading} className={`p-1.5 rounded-full transition-colors ${t('text-white bg-white/20 hover:bg-white/30', 'text-white bg-black/30 hover:bg-black/40')}`}>
               <RefreshCw className={`w-4 h-4 md:w-5 md:h-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
       </header>
 
+      {/* Tabs */}
       <div className={`shadow-sm border-b sticky top-[56px] md:top-[64px] z-10 overflow-x-auto transition-colors duration-300 ${t('bg-white border-gray-200', 'bg-gray-800 border-gray-700')}`}>
-        <div className="max-w-7xl mx-auto px-2 py-2 flex gap-2 whitespace-nowrap scrollbar-hide">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex gap-3 whitespace-nowrap scrollbar-hide">
           {REGIONS.map(region => (
             <button
               key={region}
               onClick={() => setActiveTab(region)}
-              className={`px-4 py-2.5 rounded-full text-sm md:text-base font-bold flex items-center gap-1.5 transition-all ${
+              className={`px-5 py-1.5 rounded-full text-sm font-bold flex items-center gap-1.5 transition-all ${
                 activeTab === region 
-                  ? t('bg-red-600 text-white shadow-md', 'bg-red-700 text-white shadow-md') 
+                  ? t('bg-[#E32636] text-white shadow-md', 'bg-red-700 text-white shadow-md') 
                   : t('bg-gray-100 text-gray-500 hover:bg-gray-200', 'bg-gray-700 text-gray-300 hover:bg-gray-600')
               }`}
             >
-              {region === '附近' ? <LocateFixed className="w-4 h-4" /> : <Map className="w-4 h-4" />}
+              {region === '附近' ? <LocateFixed className="w-3.5 h-3.5" /> : null}
               {region}
             </button>
           ))}
         </div>
       </div>
 
-      <main className="w-full max-w-7xl mx-auto p-2 md:p-4 space-y-4">
+      {/* Main List View */}
+      <main className="w-full max-w-4xl mx-auto md:mt-4 bg-white dark:bg-gray-800 md:shadow-md md:rounded-xl overflow-hidden transition-colors duration-300">
         
+        {/* Table Header */}
+        <div className={`flex justify-between items-center px-5 py-2 border-b text-xs font-bold transition-colors ${t('bg-white border-red-200 text-red-500', 'bg-gray-800 border-red-900/50 text-red-400')}`}>
+          <span>路線</span>
+          <span>分鐘</span>
+        </div>
+
         {error && (
-          <div className={`p-3 rounded-lg flex items-start gap-2 text-sm ${t('bg-red-50 border border-red-200 text-red-700', 'bg-red-900/30 border border-red-800 text-red-400')}`}>
+          <div className={`p-3 m-4 rounded-lg flex items-start gap-2 text-sm ${t('bg-red-50 border border-red-200 text-red-700', 'bg-red-900/30 border border-red-800 text-red-400')}`}>
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <p>{error}</p>
           </div>
         )}
 
-        {activeTab === '附近' && (
-          <div className="mb-2">
-            {locating && (
-              <div className={`p-3 rounded-lg flex items-center justify-center gap-2 text-sm ${t('text-blue-600 bg-blue-50', 'text-blue-400 bg-blue-900/20')}`}>
-                <Compass className="w-4 h-4 animate-spin" /> 正在獲取您的位置...
-              </div>
-            )}
-            {gpsError && (
-              <div className={`p-3 rounded-lg flex items-center justify-center gap-2 text-sm ${t('text-orange-600 bg-orange-50', 'text-orange-400 bg-orange-900/20')}`}>
-                <AlertCircle className="w-4 h-4" /> {gpsError}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-col gap-4">
-          
-          {!loading && !locating && visibleLocations.length === 0 && (
-            <div className={`py-20 text-center flex flex-col items-center justify-center rounded-xl shadow-sm border transition-colors duration-300 ${t('bg-white border-gray-200 text-gray-400', 'bg-gray-800 border-gray-700 text-gray-500')}`}>
+        {/* List Content */}
+        <div className="flex flex-col">
+          {!loading && flatRoutes.length === 0 && (
+            <div className={`py-20 text-center flex flex-col items-center justify-center transition-colors duration-300 ${t('text-gray-400', 'text-gray-500')}`}>
               <Bus className="w-12 h-12 opacity-20 mb-3" />
               <p className={`text-lg font-medium ${t('text-gray-500', 'text-gray-400')}`}>
-                {activeTab === '附近' && userLocation ? '附近 5 公里內沒有設定的車站，或暫無班次' : '該地區目前無即將到站班次'}
+                該地區目前無即將到站班次
               </p>
-              <p className="text-sm mt-1">可能是非服務時間，請切換地區或稍後再試</p>
             </div>
           )}
 
-          {visibleLocations.map((loc, locIdx) => (
-            <div key={locIdx} className={`rounded-xl shadow-sm border flex flex-col overflow-hidden transition-colors duration-300 ${t('bg-white border-gray-200', 'bg-gray-800 border-gray-700')}`}>
-              
-              <div className={`border-b px-3 md:px-4 py-2.5 md:py-3 flex items-center gap-2 transition-colors duration-300 ${t('bg-gray-50 border-gray-200', 'bg-gray-800/80 border-gray-700')}`}>
-                <MapPin className={`w-4 h-4 md:w-5 md:h-5 ${t('text-red-500', 'text-red-400')}`} />
-                <h2 className={`font-bold text-base md:text-xl ${t('text-gray-800', 'text-gray-100')}`}>{loc.name}</h2>
-                <span className={`text-[10px] md:text-sm ml-auto px-2 py-1 md:px-2.5 rounded-md flex items-center gap-1 font-bold ${t('text-gray-500 bg-gray-200/80', 'text-gray-400 bg-gray-700')}`}>
-                  {loc.distance ? `${loc.distance.toFixed(1)} km` : loc.desc}
-                </span>
-              </div>
+          {flatRoutes.map((item, index) => {
+            const { route, loc } = item;
+            const eta1 = route.etas[0] ? getCompactEta(route.etas[0].time) : null;
+            const eta2 = route.etas[1] ? getCompactEta(route.etas[1].time) : null;
+            
+            // 🔥 完美還原白、淺粉紅相間底色
+            const rowBg = index % 2 === 0 
+              ? t('bg-white', 'bg-gray-800') 
+              : t('bg-[#F2D7E3]/60', 'bg-[#4a1d32]/40');
 
-              <div className={`grid grid-cols-2 portrait:grid-cols-2 landscape:grid-cols-4 lg:grid-cols-4 gap-2 md:gap-4 p-2 md:p-4 transition-colors duration-300 ${t('bg-white', 'bg-gray-900')}`}>
-                {loc.routesData.map((route, rIdx) => {
-                  const hasAnyRmk = route.etas.some(e => e.rmk);
+            // 判斷巴士公司，顯示細 Badge (替代輕鐵圖案嘅位置)
+            const isLWB = route.route.startsWith('A') || route.route.startsWith('E') || route.route.startsWith('NA');
+            const coBadge = route.etas[0]?.co === 'CTB' ? '城巴' : (isLWB ? '龍運' : '九巴');
+            const coColor = route.etas[0]?.co === 'CTB' ? t('bg-blue-600', 'bg-blue-700') : (isLWB ? t('bg-orange-500', 'bg-orange-600') : t('bg-[#D1B16D]', 'bg-[#9c8147]'));
 
-                  const isLWB = route.route.startsWith('A') || route.route.startsWith('E') || route.route.startsWith('NA');
-                  const routeBadgeColor = route.etas[0]?.co === 'CTB' 
-                    ? t('bg-blue-600', 'bg-blue-700') 
-                    : (isLWB ? t('bg-orange-500', 'bg-orange-600') : t('bg-red-600', 'bg-red-700'));
+            return (
+              <div key={`${loc.name}-${route.route}-${index}`} className={`flex justify-between items-center px-4 py-3 md:py-4 transition-colors duration-300 ${rowBg}`}>
+                
+                {/* 左側：路線及目的地 */}
+                <div className="flex flex-col flex-1 min-w-0 pr-4">
+                  <div className="flex items-center gap-2">
+                    <span 
+                      className={`text-4xl md:text-5xl tracking-tighter ${t('text-gray-900', 'text-gray-100')}`}
+                      style={{ fontFamily: '"Arial Black", Impact, sans-serif', fontWeight: 900 }}
+                    >
+                      {route.route}
+                    </span>
+                    <span className={`text-[9px] text-white px-1.5 py-0.5 rounded font-bold self-start mt-2 ${coColor}`}>
+                      {coBadge}
+                    </span>
+                  </div>
+                  
+                  <div className={`text-sm md:text-base font-bold mt-1 truncate ${t('text-gray-800', 'text-gray-200')}`}>
+                    往 {route.dest}
+                  </div>
+                  
+                  <div className={`text-[10px] md:text-xs truncate flex items-center gap-1 ${t('text-gray-500', 'text-gray-400')}`}>
+                    {loc.name} {route.etas[0]?.rmk ? `(${route.etas[0].rmk})` : ''}
+                  </div>
+                </div>
 
-                  return (
-                    <div key={rIdx} className={`p-1.5 md:p-3 rounded-lg md:rounded-xl border shadow-sm transition-colors flex flex-col gap-1.5 md:gap-3 ${t('bg-white border-gray-200 hover:border-red-300', 'bg-gray-800 border-gray-700 hover:border-red-500')}`}>
-                      
-                      <div className="flex items-center gap-1 md:gap-2 mb-0.5">
-                        <span className={`text-white font-black px-1.5 py-0.5 md:px-3 md:py-1 rounded text-xs portrait:text-sm landscape:text-xs md:text-xl min-w-[2.2rem] md:min-w-[4rem] text-center shadow-sm tracking-wide ${routeBadgeColor}`}>
-                          {route.route}
+                {/* 右側：分鐘數 */}
+                <div className="flex flex-col items-end shrink-0 min-w-[70px]">
+                  {eta1 && (
+                    <div className="flex items-baseline gap-1">
+                      {eta1.val < 0 ? (
+                        // 🔥 走咗啦專屬樣式
+                        <span className={`text-2xl md:text-3xl font-black tracking-tight ${t('text-gray-400', 'text-gray-500')}`} style={{ fontFamily: '"PingFang HK", "Microsoft JhengHei", sans-serif' }}>
+                          走咗啦
                         </span>
-                        <Navigation className={`w-3.5 h-3.5 md:w-5 md:h-5 shrink-0 hidden sm:block ${t('text-gray-300', 'text-gray-500')}`} />
-                        <span className={`font-bold text-[11px] portrait:text-[13px] landscape:text-[11px] md:text-xl truncate flex-1 tracking-tight ${t('text-gray-700', 'text-gray-200')}`}>
-                          {route.dest}
+                      ) : eta1.val === 0 ? (
+                        // 🔥 即將專屬樣式 (參考圖中無特別紅色，維持深藍/紅都可，呢度轉用鮮紅色以示緊急)
+                        <span className={`text-4xl md:text-5xl font-black tracking-tighter ${t('text-red-600', 'text-red-500')}`} style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}>
+                          即將
                         </span>
-                      </div>
-
-                      <div className="flex gap-1 md:gap-3 w-full h-[60px] portrait:h-[65px] landscape:h-[55px] sm:h-[70px] md:h-[100px] lg:h-[110px]">
-                        {route.etas.map((eta, eIdx) => {
-                          const etaData = getCompactEta(eta.time);
-                          const mins = etaData.val;
-                          
-                          let boxStyle = t('bg-white border-gray-200', 'bg-gray-800 border-gray-700');
-                          let textStyle = t('text-slate-600', 'text-gray-300');
-
-                          if (mins >= 0 && mins <= 5) {
-                            boxStyle = t('bg-red-50/80 border-red-100 shadow-sm', 'bg-red-900/20 border-red-900/50 shadow-sm');
-                            textStyle = t('text-red-600', 'text-red-400');
-                          } else if (mins > 5 && mins <= 10) {
-                            boxStyle = t('bg-amber-50 border-amber-100 shadow-sm', 'bg-amber-900/20 border-amber-900/50 shadow-sm');
-                            textStyle = t('text-amber-600', 'text-amber-400');
-                          }
-
-                          const isText = isNaN(etaData.text);
-                          const giantClass = isText 
-                            ? 'text-[1.5rem] portrait:text-[1.6rem] landscape:text-[1.3rem] sm:text-[1.8rem] md:text-[3rem] lg:text-[3.5rem]' 
-                            : 'text-[3.2rem] portrait:text-[3.5rem] landscape:text-[2.8rem] sm:text-[4rem] md:text-[5.5rem] lg:text-[6.8rem]';
-
-                          return (
-                            <div 
-                              key={eIdx}
-                              className={`flex-1 flex flex-col items-center justify-center rounded-md border ${boxStyle} overflow-hidden transition-all duration-300 relative`}
-                            >
-                              {hasAnyRmk && eta.rmk && (
-                                <div className="absolute top-0.5 md:top-1 w-full flex justify-center px-1 z-10">
-                                  <span className={`text-[7px] md:text-[9px] font-bold px-1 py-0.5 rounded-sm truncate max-w-full ${
-                                    eta.co === 'CTB' ? t('text-blue-600 bg-blue-100/90', 'text-blue-300 bg-blue-900/80') : t('text-red-600 bg-red-100/90', 'text-red-300 bg-red-900/80')
-                                  }`}>
-                                    {eta.rmk}
-                                  </span>
-                                </div>
-                              )}
-
-                              <div className={`flex items-center justify-center w-full transition-all duration-300 ${!showDetailedTime ? 'h-full' : 'mt-1 flex-1'}`}>
-                                <span 
-                                  className={`${showDetailedTime ? 'text-lg portrait:text-xl landscape:text-base md:text-3xl leading-none' : `${giantClass} leading-[0.85]`} tracking-tighter ${textStyle} transition-all duration-300`}
-                                  style={{ 
-                                    fontFamily: '"Arial Black", Impact, "PingFang HK", "Microsoft JhengHei", sans-serif',
-                                    fontWeight: 900 
-                                  }}
-                                >
-                                  {etaData.text}
-                                </span>
-                              </div>
-                              
-                              {showDetailedTime && (
-                                <span className={`text-[9px] md:text-sm leading-none mb-1 md:mb-2 font-medium transition-all duration-300 ${t('text-gray-400', 'text-gray-500')}`}>
-                                  {formatTime(eta.time)}
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
-                        
-                        {Array.from({ length: Math.max(0, 2 - route.etas.length) }).map((_, i) => (
-                          <div key={`empty-${i}`} className={`flex-1 flex items-center justify-center rounded-md border transition-colors duration-300 ${t('border-gray-100 bg-white', 'border-gray-700 bg-gray-800')}`}>
-                            <span className={`text-sm ${t('text-gray-200', 'text-gray-600')}`}>-</span>
-                          </div>
-                        ))}
-                      </div>
-
+                      ) : (
+                        // 正常分鐘
+                        <span className={`text-4xl md:text-5xl font-black tracking-tighter ${t('text-[#1E3A8A]', 'text-blue-400')}`} style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}>
+                          {eta1.text}
+                        </span>
+                      )}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
+                  )}
+                  
+                  {/* 下一班車 */}
+                  {eta2 ? (
+                    <div className={`text-sm md:text-base font-bold mt-0.5 tracking-tight ${t('text-gray-600', 'text-gray-400')}`} style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}>
+                      {eta2.val < 0 ? '走咗啦' : eta2.text}
+                    </div>
+                  ) : route.etas[0] && showDetailedTime ? (
+                     <div className={`text-[10px] mt-1 ${t('text-gray-400', 'text-gray-500')}`}>
+                       {formatTime(route.etas[0].time)}
+                     </div>
+                  ) : null}
+                </div>
 
+              </div>
+            );
+          })}
+        </div>
       </main>
+
     </div>
   );
 }
