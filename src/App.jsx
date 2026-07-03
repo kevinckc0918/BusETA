@@ -7,7 +7,6 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState(null);
   
-  // 🔥 新增「全部」作為預設選項
   const [activeTab, setActiveTab] = useState('全部');
   const [userLocation, setUserLocation] = useState(null);
   const [locating, setLocating] = useState(false);
@@ -25,7 +24,7 @@ export default function App() {
         if (savedTheme === 'light') return false; 
       }
     } catch (e) {}
-    return false; // 預設光亮模式，以展示完美嘅白粉紅橫間
+    return false; // 預設光亮模式
   });
 
   useEffect(() => {
@@ -37,7 +36,6 @@ export default function App() {
 
   const t = (lightClass, darkClass) => isDarkMode ? darkClass : lightClass;
 
-  // 處理全螢幕切換
   const toggleFullscreen = () => {
     try {
       if (!document.fullscreenElement) {
@@ -142,7 +140,6 @@ export default function App() {
     }
   ];
 
-  // 底部導航欄分頁
   const TABS = ['全部', '附近', '楊屋村', '元朗西', '大欖', '灣仔', '觀塘'];
 
   const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -170,7 +167,6 @@ export default function App() {
           setLocating(false);
         },
         (err) => {
-          console.error(err);
           setGpsError('無法獲取位置');
           setLocating(false);
           setTimeout(() => setActiveTab('全部'), 2000);
@@ -218,12 +214,10 @@ export default function App() {
 
         allEtas.forEach(eta => {
           const etaRoute = eta.route || eta.route_no || eta.Route; 
-          
           if (loc.routes.includes(etaRoute) && eta.eta) {
             if (loc.ignoreDest && loc.ignoreDest.some(destWord => eta.dest_tc && eta.dest_tc.includes(destWord))) {
               return; 
             }
-            
             const key = etaRoute; 
             if (!groupedRoutes[key]) {
               groupedRoutes[key] = {
@@ -232,7 +226,6 @@ export default function App() {
                 etas: []
               };
             }
-
             const etaTimeMs = new Date(eta.eta).getTime();
             const isDuplicate = groupedRoutes[key].etas.some(existingEta => 
               Math.abs(existingEta.time.getTime() - etaTimeMs) < 60000
@@ -253,7 +246,6 @@ export default function App() {
           group.etas = group.etas.slice(0, 2); 
           return group;
         });
-
         routesList.sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }));
 
         return { ...loc, routesData: routesList };
@@ -287,7 +279,6 @@ export default function App() {
     return date.toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
-  // 🔥 根據選擇嘅分頁過濾資料
   let displayLocations = [];
   if (activeTab === '附近') {
     if (userLocation) {
@@ -299,7 +290,6 @@ export default function App() {
   } else if (activeTab === '全部') {
     displayLocations = locationsData;
   } else {
-    // 兼容「大欖」搜尋「大欖隧道」
     displayLocations = locationsData.filter(loc => loc.region.includes(activeTab));
   }
 
@@ -423,99 +413,81 @@ export default function App() {
       {showSearchModal && <SearchModal />}
 
       {/* 🔴 頂部紅色 Header */}
-      <header className={`p-3 md:p-4 shadow-md sticky top-0 z-20 flex justify-between items-center transition-colors duration-300 ${t('bg-[#CA3F32]', 'bg-red-950 border-b border-red-900')}`}>
+      <header className={`p-2.5 md:p-3 shadow-md sticky top-0 z-20 flex justify-between items-center transition-colors duration-300 ${t('bg-[#CA3F32]', 'bg-red-950 border-b border-red-900')}`}>
         <div className="w-full max-w-4xl mx-auto flex justify-between items-center relative">
-          
-          {/* 左側圖示區 */}
-          <div className="flex items-center gap-2 md:gap-4">
-            <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-1.5 rounded-full transition-colors ${t('text-white/90 hover:text-white', 'text-red-200 hover:text-white')}`} title="切換日夜模式">
+          <div className="flex items-center gap-1 md:gap-3">
+            <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-1.5 rounded-full transition-colors ${t('text-white/90 hover:text-white', 'text-red-200 hover:text-white')}`}>
               {isDarkMode ? <Sun className="w-5 h-5 md:w-6 md:h-6" /> : <Moon className="w-5 h-5 md:w-6 md:h-6" />}
             </button>
-            <button onClick={toggleFullscreen} className={`p-1.5 rounded-full hidden sm:block transition-colors ${t('text-white/90 hover:text-white', 'text-red-200 hover:text-white')}`} title="全螢幕模式">
+            <button onClick={toggleFullscreen} className={`p-1.5 rounded-full hidden sm:block transition-colors ${t('text-white/90 hover:text-white', 'text-red-200 hover:text-white')}`}>
               {isFullscreen ? <Minimize className="w-5 h-5 md:w-6 md:h-6" /> : <MonitorSmartphone className="w-5 h-5 md:w-6 md:h-6" />}
             </button>
           </div>
 
-          {/* 中間置中標題 */}
           <h1 className="text-lg md:text-2xl font-bold tracking-widest text-white absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap drop-shadow-sm">
             楊屋村巴士到站預報
           </h1>
 
-          {/* 右側圖示區 */}
-          <div className="flex items-center gap-2 md:gap-4">
-            <button onClick={() => setShowSearchModal(true)} className={`p-1.5 rounded-full transition-colors ${t('text-white/90 hover:text-white', 'text-red-200 hover:text-white')}`} title="搜尋車站 ID">
+          <div className="flex items-center gap-1 md:gap-3">
+            <button onClick={() => setShowSearchModal(true)} className={`p-1.5 rounded-full transition-colors ${t('text-white/90 hover:text-white', 'text-red-200 hover:text-white')}`}>
               <Search className="w-5 h-5 md:w-6 md:h-6" />
             </button>
-            <button onClick={fetchData} disabled={loading} className={`p-1.5 rounded-full transition-colors ${t('text-white/90 hover:text-white', 'text-red-200 hover:text-white')} ${loading ? 'opacity-50' : ''}`} title="重新整理">
+            <button onClick={fetchData} disabled={loading} className={`p-1.5 rounded-full transition-colors ${t('text-white/90 hover:text-white', 'text-red-200 hover:text-white')} ${loading ? 'opacity-50' : ''}`}>
               <RefreshCw className={`w-5 h-5 md:w-6 md:h-6 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
       </header>
 
-      {/* 🔴 主要內容區 (Padding bottom 預留畀底部導航) */}
-      <main className="w-full max-w-4xl mx-auto pb-24 transition-colors duration-300">
+      {/* 🔴 主要內容區 */}
+      <main className="w-full max-w-4xl mx-auto pb-20 transition-colors duration-300">
         
         {error && (
-          <div className={`p-3 m-4 rounded-lg flex items-start gap-2 text-sm ${t('bg-red-50 border border-red-200 text-red-700', 'bg-red-900/30 border border-red-800 text-red-400')}`}>
+          <div className={`p-2 m-2 rounded-lg flex items-start gap-2 text-sm ${t('bg-red-50 border border-red-200 text-red-700', 'bg-red-900/30 border border-red-800 text-red-400')}`}>
             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
             <p>{error}</p>
           </div>
         )}
 
         {activeTab === '附近' && (
-          <div className="m-4">
-            {locating && (
-              <div className={`p-3 rounded-lg flex items-center justify-center gap-2 text-sm ${t('text-blue-600 bg-blue-50', 'text-blue-400 bg-blue-900/20')}`}>
-                <Compass className="w-4 h-4 animate-spin" /> 正在獲取您的位置...
-              </div>
-            )}
-            {gpsError && (
-              <div className={`p-3 rounded-lg flex items-center justify-center gap-2 text-sm ${t('text-orange-600 bg-orange-50', 'text-orange-400 bg-orange-900/20')}`}>
-                <AlertCircle className="w-4 h-4" /> {gpsError}
-              </div>
-            )}
+          <div className="m-2">
+            {locating && <div className={`p-2 rounded flex items-center justify-center gap-2 text-sm ${t('text-blue-600 bg-blue-50', 'text-blue-400 bg-blue-900/20')}`}><Compass className="w-4 h-4 animate-spin" /> 正在獲取位置...</div>}
+            {gpsError && <div className={`p-2 rounded flex items-center justify-center gap-2 text-sm ${t('text-orange-600 bg-orange-50', 'text-orange-400 bg-orange-900/20')}`}><AlertCircle className="w-4 h-4" /> {gpsError}</div>}
           </div>
         )}
 
         {!loading && !locating && visibleLocations.length === 0 && (
-          <div className={`py-20 mt-4 text-center flex flex-col items-center justify-center transition-colors duration-300 ${t('text-gray-400', 'text-gray-500')}`}>
-            <Bus className="w-12 h-12 opacity-20 mb-3" />
-            <p className={`text-lg font-medium ${t('text-gray-500', 'text-gray-400')}`}>
-              該地區目前無即將到站班次
-            </p>
+          <div className={`py-12 mt-4 text-center flex flex-col items-center justify-center transition-colors duration-300 ${t('text-gray-400', 'text-gray-500')}`}>
+            <Bus className="w-10 h-10 opacity-20 mb-2" />
+            <p className={`text-base font-medium ${t('text-gray-500', 'text-gray-400')}`}>該地區目前無即將到站班次</p>
           </div>
         )}
 
-        {/* 迴圈渲染每個車站區塊 */}
+        {/* 渲染每個車站 */}
         {visibleLocations.map(loc => (
-          <div key={loc.name} className="mb-2">
+          <div key={loc.name} className="mb-0">
             
-            {/* 🔴 置中紅色藥丸車站名 */}
-            <div className={`flex justify-center py-4 md:py-6 sticky top-[52px] md:top-[60px] z-10 ${t('bg-white/95', 'bg-[#111827]/95')} backdrop-blur-sm`}>
-              <span className={`px-5 py-1.5 md:px-6 md:py-2 rounded-full text-sm md:text-base font-bold tracking-widest shadow-sm ${t('bg-[#C63C31] text-white', 'bg-red-900 text-red-100 border border-red-800')}`}>
+            {/* 🔴 極限壓縮：紅色藥丸車站名 */}
+            <div className={`flex justify-center py-2 sticky top-[48px] md:top-[56px] z-10 ${t('bg-white/95', 'bg-[#111827]/95')} backdrop-blur-sm`}>
+              <span className={`px-4 py-1 md:px-5 md:py-1.5 rounded-full text-xs md:text-sm font-bold tracking-widest shadow-sm ${t('bg-[#C63C31] text-white', 'bg-red-900 text-red-100 border border-red-800')}`}>
                 {loc.name}
               </span>
             </div>
 
-            {/* 🔴 表頭 (路線 | 分鐘) */}
-            <div className={`flex justify-between items-center px-4 md:px-6 py-2 border-b border-t text-xs md:text-sm font-bold tracking-widest transition-colors ${t('bg-white border-gray-100 text-[#C63C31]', 'bg-[#111827] border-gray-800 text-red-500')}`}>
+            {/* 🔴 極限壓縮：表頭 (路線 | 分鐘) */}
+            <div className={`flex justify-between items-center px-4 md:px-6 py-1 border-b border-t text-[10px] md:text-xs font-bold tracking-widest transition-colors ${t('bg-white border-gray-100 text-[#C63C31]', 'bg-[#111827] border-gray-800 text-red-500')}`}>
               <span>路線</span>
               <span>分鐘</span>
             </div>
 
-            {/* 路線列表 */}
             <div className="flex flex-col">
               {loc.routesData.map((route, index) => {
                 const eta1 = route.etas[0] ? getCompactEta(route.etas[0].time) : null;
                 const eta2 = route.etas[1] ? getCompactEta(route.etas[1].time) : null;
                 
-                // 🔴 白、淺粉紅相間底色 (Zebra Stripes)
-                const rowBg = index % 2 === 0 
-                  ? t('bg-white', 'bg-[#111827]') 
-                  : t('bg-[#FCEAEF]', 'bg-[#2A1620]'); 
+                // 🔴 白、淺粉紅相間底色
+                const rowBg = index % 2 === 0 ? t('bg-white', 'bg-[#111827]') : t('bg-[#FCEAEF]', 'bg-[#2A1620]');
 
-                // 🔥 極清晰公司標籤
                 const isLWB = route.route.startsWith('A') || route.route.startsWith('E') || route.route.startsWith('NA');
                 const coName = route.etas[0]?.co === 'CTB' ? '城巴' : (isLWB ? '龍運' : '九巴');
                 const coBadgeClass = route.etas[0]?.co === 'CTB' 
@@ -523,54 +495,63 @@ export default function App() {
                   : (isLWB ? t('bg-[#F7931E] text-white', 'bg-[#c47112] text-gray-100') : t('bg-[#E32636] text-white', 'bg-red-800 text-gray-100'));
 
                 return (
-                  <div key={`${route.route}-${index}`} className={`flex justify-between items-center px-4 md:px-6 py-4 md:py-6 transition-colors duration-300 ${rowBg}`}>
+                  // 🔥 核心佈局：極限縮小高度 (py-1.5)，三分天下
+                  <div key={`${route.route}-${index}`} className={`flex justify-between items-center px-3 md:px-5 py-1.5 md:py-2 border-b transition-colors duration-300 ${t('border-gray-50', 'border-gray-800/50')} ${rowBg}`}>
                     
-                    {/* 左側：路線及目的地 */}
-                    <div className="flex flex-col flex-1 min-w-0 pr-4">
-                      <div className="flex items-center gap-3">
-                        <span 
-                          className={`text-[3.2rem] md:text-[4rem] leading-none tracking-tighter ${t('text-[#111827]', 'text-gray-100')}`}
-                          style={{ fontFamily: '"Arial Black", Impact, sans-serif', fontWeight: 900 }}
-                        >
-                          {route.route}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded text-[10px] md:text-xs font-bold tracking-widest shadow-sm self-center ${coBadgeClass}`}>
-                          {coName}
-                        </span>
-                      </div>
+                    {/* 左＋中 Wrapper */}
+                    <div className="flex items-center flex-1 min-w-0 pr-2">
                       
-                      <div className={`text-base md:text-lg font-bold mt-2 truncate tracking-wide ${t('text-[#374151]', 'text-gray-300')}`}>
-                        往 {route.dest}
+                      {/* 左側：路線及車站名 */}
+                      <div className="flex flex-col shrink-0 w-[45%] sm:w-[40%] max-w-[150px]">
+                        <div className="flex items-start gap-1.5">
+                          {/* 🔥 特大路線號碼，壓扁行高 leading-[0.8] */}
+                          <span 
+                            className={`text-[3.25rem] md:text-[4rem] leading-[0.8] font-black tracking-tighter ${t('text-[#0B132B]', 'text-gray-100')}`}
+                            style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}
+                          >
+                            {route.route}
+                          </span>
+                          {/* 標籤上移對齊 */}
+                          <span className={`px-1.5 py-[2px] rounded text-[8px] md:text-[9px] font-bold shadow-sm whitespace-nowrap self-start mt-1.5 ${coBadgeClass}`}>
+                            {coName}
+                          </span>
+                        </div>
+                        {/* 車站名緊貼 */}
+                        <div className={`text-[9px] md:text-[11px] truncate leading-tight mt-1 pr-1 ${t('text-gray-400', 'text-gray-500')}`}>
+                          {loc.name} {route.etas[0]?.rmk ? `(${route.etas[0].rmk})` : ''}
+                        </div>
                       </div>
-                      
-                      <div className={`text-[11px] md:text-xs truncate mt-1 ${t('text-[#9CA3AF]', 'text-gray-500')}`}>
-                        {loc.name} {route.etas[0]?.rmk ? `(${route.etas[0].rmk})` : ''}
+
+                      {/* 中間：目的地 */}
+                      <div className="flex-1 min-w-0 pl-1">
+                        <div className={`text-[13px] md:text-base font-bold truncate tracking-tight ${t('text-[#2C3E50]', 'text-gray-300')}`}>
+                          往 {route.dest}
+                        </div>
                       </div>
+
                     </div>
 
                     {/* 右側：分鐘數 */}
-                    <div className="flex flex-col items-end justify-center shrink-0 min-w-[80px]">
+                    <div className="flex flex-col items-end justify-center shrink-0 min-w-[50px]">
                       {eta1 && (
-                        <div className="flex items-baseline">
-                          {eta1.val < 0 ? (
-                            <span className={`text-3xl md:text-4xl font-black tracking-tighter leading-none ${t('text-[#9CA3AF]', 'text-gray-600')}`} style={{ fontFamily: '"PingFang HK", "Microsoft JhengHei", sans-serif' }}>
-                              走咗啦
-                            </span>
-                          ) : eta1.val === 0 ? (
-                            <span className={`text-5xl md:text-[4rem] font-black tracking-tighter leading-none ${t('text-[#C63C31]', 'text-red-500')}`} style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}>
-                              即將
-                            </span>
-                          ) : (
-                            // 🔴 巨大深藍色 (Navy Blue)
-                            <span className={`text-[3.8rem] md:text-[4.5rem] font-black tracking-tighter leading-none ${t('text-[#1E3A8A]', 'text-blue-300')}`} style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}>
-                              {eta1.text}
-                            </span>
-                          )}
-                        </div>
+                        eta1.val < 0 ? (
+                          <span className={`text-xl md:text-2xl font-black tracking-tighter leading-[0.8] ${t('text-gray-400', 'text-gray-500')}`} style={{ fontFamily: '"PingFang HK", "Microsoft JhengHei", sans-serif' }}>
+                            走咗啦
+                          </span>
+                        ) : eta1.val === 0 ? (
+                          <span className={`text-[2.75rem] md:text-[3.5rem] font-black tracking-tighter leading-[0.8] ${t('text-[#C63C31]', 'text-red-500')}`} style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}>
+                            即將
+                          </span>
+                        ) : (
+                          // 🔥 特大分鐘數，壓扁行高
+                          <span className={`text-[3rem] md:text-[4rem] font-black tracking-tighter leading-[0.85] ${t('text-[#1E3A8A]', 'text-blue-300')}`} style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}>
+                            {eta1.text}
+                          </span>
+                        )
                       )}
                       
                       {eta2 && (
-                        <div className={`text-xl md:text-2xl font-bold mt-2 md:mt-3 tracking-tighter leading-none ${t('text-[#6C7A9C]', 'text-blue-500/70')}`} style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}>
+                        <div className={`text-[11px] md:text-sm font-bold mt-1 tracking-tighter leading-none ${t('text-[#6C7A9C]', 'text-blue-500/70')}`} style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}>
                           {eta2.val < 0 ? '走咗啦' : eta2.text}
                         </div>
                       )}
@@ -584,23 +565,23 @@ export default function App() {
         ))}
       </main>
 
-      {/* 🔴 完美還原：底部固定導航欄 (Bottom Tabs) */}
+      {/* 🔴 底部導航欄 */}
       <div className={`fixed bottom-0 w-full z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] transition-colors duration-300 ${t('bg-[#CA3F32]', 'bg-gray-900 border-t border-gray-800')}`}>
-        <div className="max-w-4xl mx-auto px-2 py-2.5 md:py-3 flex gap-2 overflow-x-auto scrollbar-hide items-center justify-start sm:justify-center">
+        <div className="max-w-4xl mx-auto px-2 py-2 md:py-3 flex gap-2 overflow-x-auto scrollbar-hide items-center justify-start sm:justify-center">
           {TABS.map(tab => {
             const isActive = activeTab === tab;
             return (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-5 py-2 md:px-8 md:py-2.5 rounded-md md:rounded-lg text-sm md:text-base font-bold tracking-widest whitespace-nowrap transition-all duration-200 ${
-                  isActive 
-                    ? t('bg-white text-[#CA3F32] shadow-sm', 'bg-red-900 text-white shadow-sm border-transparent') 
-                    : t('bg-transparent text-white border border-white/50 hover:bg-white/10', 'bg-transparent text-gray-400 border border-gray-700 hover:bg-gray-800')
-                }`}
-              >
-                {tab}
-              </button>
+               <button
+                 key={tab}
+                 onClick={() => setActiveTab(tab)}
+                 className={`px-5 py-2 md:px-8 md:py-2.5 rounded-md md:rounded-lg text-sm md:text-base font-bold tracking-widest whitespace-nowrap transition-all duration-200 ${
+                   isActive 
+                     ? t('bg-white text-[#CA3F32] shadow-sm', 'bg-red-900 text-white shadow-sm border-transparent') 
+                     : t('bg-transparent text-white border border-white/50 hover:bg-white/10', 'bg-transparent text-gray-400 border border-gray-700 hover:bg-gray-800')
+                 }`}
+               >
+                 {tab}
+               </button>
             );
           })}
         </div>
