@@ -412,6 +412,7 @@ export default function App() {
       
       {showSearchModal && <SearchModal />}
 
+      {/* 頂部紅色 Header */}
       <header className={`p-2.5 md:p-3 shadow-md sticky top-0 z-20 flex justify-between items-center transition-colors duration-300 ${t('bg-[#CA3F32]', 'bg-red-950 border-b border-red-900')}`}>
         <div className="w-full max-w-4xl mx-auto flex justify-between items-center relative">
           <div className="flex items-center gap-1 md:gap-3">
@@ -438,6 +439,7 @@ export default function App() {
         </div>
       </header>
 
+      {/* 主要內容區 */}
       <main className="w-full max-w-4xl mx-auto pb-20 transition-colors duration-300">
         
         {error && (
@@ -461,15 +463,18 @@ export default function App() {
           </div>
         )}
 
+        {/* 渲染每個車站 */}
         {visibleLocations.map(loc => (
           <div key={loc.name} className="mb-0">
             
+            {/* 置中紅色藥丸車站名 */}
             <div className={`flex justify-center py-2 sticky top-[48px] md:top-[56px] z-10 ${t('bg-white/95', 'bg-[#111827]/95')} backdrop-blur-sm`}>
               <span className={`px-4 py-1 md:px-5 md:py-1.5 rounded-full text-xs md:text-sm font-bold tracking-widest shadow-sm ${t('bg-[#C63C31] text-white', 'bg-red-900 text-red-100 border border-red-800')}`}>
                 {loc.name}
               </span>
             </div>
 
+            {/* 表頭 (路線 | 分鐘) */}
             <div className={`flex justify-between items-center px-4 md:px-6 py-1.5 md:py-2 border-b border-t text-sm md:text-base font-bold tracking-widest transition-colors ${t('bg-white border-gray-100 text-[#C63C31]', 'bg-[#111827] border-gray-800 text-red-500')}`}>
               <span>路線</span>
               <span>分鐘</span>
@@ -480,6 +485,7 @@ export default function App() {
                 const eta1 = route.etas[0] ? getCompactEta(route.etas[0].time) : null;
                 const eta2 = route.etas[1] ? getCompactEta(route.etas[1].time) : null;
                 
+                // 白、淺粉紅相間底色
                 const rowBg = index % 2 === 0 ? t('bg-white', 'bg-[#111827]') : t('bg-[#FCEAEF]', 'bg-[#2A1620]');
 
                 const isLWB = route.route.startsWith('A') || route.route.startsWith('E') || route.route.startsWith('NA');
@@ -488,13 +494,23 @@ export default function App() {
                   ? t('bg-blue-600 text-white', 'bg-blue-800 text-gray-100') 
                   : (isLWB ? t('bg-[#F7931E] text-white', 'bg-[#c47112] text-gray-100') : t('bg-[#E32636] text-white', 'bg-red-800 text-gray-100'));
 
+                // 🔥 動態計算主到站時間嘅字體顏色
+                let eta1Color = t('text-black', 'text-white'); // 預設黑/白 (大於10分鐘)
+                if (eta1 && eta1.val > 0) {
+                  if (eta1.val <= 5) {
+                    eta1Color = t('text-[#C63C31]', 'text-red-500'); // 5分鐘或以內：紅色
+                  } else if (eta1.val <= 10) {
+                    eta1Color = t('text-orange-500', 'text-orange-400'); // 6至10分鐘：橙色
+                  }
+                }
+
                 return (
                   <div key={`${route.route}-${index}`} className={`flex justify-between items-center px-3 md:px-5 py-1.5 md:py-2 border-b transition-colors duration-300 ${t('border-gray-50', 'border-gray-800/50')} ${rowBg}`}>
                     
                     {/* 左＋中 Wrapper */}
                     <div className="flex items-center flex-1 min-w-0 pr-2">
                       
-                      {/* 🔥 左側：加闊咗安全區 (w-[145px] sm:w-[160px])，確保路線號碼唔會逼爆去中間 */}
+                      {/* 左側：加闊咗安全區 */}
                       <div className="flex flex-col shrink-0 w-[145px] sm:w-[160px]">
                         <div className="flex items-center gap-1.5">
                           <span 
@@ -514,7 +530,7 @@ export default function App() {
                         )}
                       </div>
 
-                      {/* 🔥 中間：目的地向右推，並加上 pl-3 md:pl-4 保持安全距離 */}
+                      {/* 中間：目的地 */}
                       <div className="flex-1 min-w-0 pl-3 md:pl-4">
                         <div className={`text-[15px] md:text-lg font-bold truncate tracking-tight ${t('text-[#2C3E50]', 'text-gray-300')}`}>
                           往 {route.dest}
@@ -531,11 +547,13 @@ export default function App() {
                             已開出
                           </span>
                         ) : eta1.val === 0 ? (
-                          <span className={`text-[2.75rem] md:text-[3.5rem] font-bold tracking-tighter leading-[0.8] ${t('text-[#C63C31]', 'text-red-500')}`}>
+                          // 🔥 「即將」字體縮細，同「已開出」一樣大細
+                          <span className={`text-xl md:text-2xl font-bold tracking-tighter leading-[0.8] ${t('text-[#C63C31]', 'text-red-500')}`}>
                             即將
                           </span>
                         ) : (
-                          <span className={`text-[3rem] md:text-[4rem] font-medium tracking-tighter leading-[0.85] ${t('text-black', 'text-white')}`}>
+                          // 🔥 加入動態 eta1Color
+                          <span className={`text-[3rem] md:text-[4rem] font-medium tracking-tighter leading-[0.85] ${eta1Color}`}>
                             {eta1.text}
                           </span>
                         )
