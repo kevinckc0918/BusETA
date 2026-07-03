@@ -135,7 +135,7 @@ export default function App() {
       region: "觀塘",
       name: "祥和苑",
       desc: "往 港島 (金鐘/上環)",
-      routes: ['601P'],
+      routes: ['601', '601P'],
       lat: 22.3197, lng: 114.2274
     }
   ];
@@ -218,6 +218,15 @@ export default function App() {
             if (loc.ignoreDest && loc.ignoreDest.some(destWord => eta.dest_tc && eta.dest_tc.includes(destWord))) {
               return; 
             }
+            
+            const etaTimeMs = new Date(eta.eta).getTime();
+            const nowMs = Date.now();
+            
+            // 強制過濾超過 1 分鐘嘅「已開出」班次
+            if (etaTimeMs - nowMs < -60000) {
+              return; 
+            }
+
             const key = etaRoute; 
             if (!groupedRoutes[key]) {
               groupedRoutes[key] = {
@@ -226,7 +235,7 @@ export default function App() {
                 etas: []
               };
             }
-            const etaTimeMs = new Date(eta.eta).getTime();
+            
             const isDuplicate = groupedRoutes[key].etas.some(existingEta => 
               Math.abs(existingEta.time.getTime() - etaTimeMs) < 60000
             );
@@ -262,7 +271,7 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000);
+    const interval = setInterval(fetchData, 15000); 
     return () => clearInterval(interval);
   }, [fetchData]);
 
@@ -357,7 +366,7 @@ export default function App() {
         document.body.removeChild(textArea);
         alert(`已複製 ${co} ID: ${id}`);
       } catch (err) {
-        alert(`無法自動複製，請手動抄寫 ID: ${id}`);
+        alert(`無法自動複製，請手 manual 抄寫 ID: ${id}`);
       }
     };
 
@@ -541,19 +550,20 @@ export default function App() {
 
                     {/* 右側：分鐘數 */}
                     <div className="flex flex-col items-end justify-center shrink-0 min-w-[50px]">
-                      {/* 利用固定高度框，保證字體細咗都唔會改變整行行高 */}
+                      {/* 🔥 利用固定高度框，保證字體細咗都唔會改變整行行高 */}
                       <div className="flex items-center justify-end h-[40px] md:h-[54px]">
                         {eta1 && (
                           eta1.val < 0 ? (
-                            <span className={`text-xl md:text-2xl tracking-tighter font-normal ${t('text-gray-400', 'text-gray-500')}`}>
+                            // 🔥 確保「已開出」同「即將」嘅 class 完全一模一樣 (text-xl md:text-2xl, font-bold)
+                            <span className={`text-xl md:text-2xl font-bold tracking-tighter ${t('text-gray-400', 'text-gray-500')}`}>
                               已開出
                             </span>
                           ) : eta1.val === 0 ? (
-                            <span className={`text-xl md:text-2xl tracking-tighter font-normal ${t('text-[#C63C31]', 'text-red-500')}`}>
+                            // 🔥 確保「已開出」同「即將」嘅 class 完全一模一樣 (text-xl md:text-2xl, font-bold)
+                            <span className={`text-xl md:text-2xl font-bold tracking-tighter ${t('text-[#C63C31]', 'text-red-500')}`}>
                               即將
                             </span>
                           ) : (
-                            // 🔥 移除咗 Arial Black 粗體設定，使用最標準普通字體 (font-normal)
                             <span className={`text-[3rem] md:text-[4rem] font-normal tracking-tighter leading-[0.85] ${eta1Color}`}>
                               {eta1.text}
                             </span>
@@ -563,7 +573,7 @@ export default function App() {
                       
                       {eta2 && (
                         <div className={`text-[11px] md:text-sm mt-1 tracking-tighter font-normal leading-none ${t('text-gray-500', 'text-gray-400')}`}>
-                          {eta2.val < 0 ? '已開出' : eta2.text}
+                          {eta2.val < 0 ? '已開出' : (eta2.val === 0 ? '即將' : eta2.text)}
                         </div>
                       )}
                     </div>
