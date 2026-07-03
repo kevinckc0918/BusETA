@@ -510,7 +510,7 @@ export default function App() {
                     {/* 左＋中 Wrapper */}
                     <div className="flex items-center flex-1 min-w-0 pr-2">
                       
-                      {/* 左側 */}
+                      {/* 左側：加闊咗安全區 */}
                       <div className="flex flex-col shrink-0 w-[145px] sm:w-[160px]">
                         <div className="flex items-center gap-1.5">
                           <span 
@@ -541,22 +541,24 @@ export default function App() {
 
                     {/* 右側：分鐘數 */}
                     <div className="flex flex-col items-end justify-center shrink-0 min-w-[50px]">
-                      {/* 🔥 「已開出」同「即將」嘅字體大細同高度，完全與數字對齊 */}
-                      {eta1 && (
-                        eta1.val < 0 ? (
-                          <span className={`text-[3rem] md:text-[4rem] font-medium tracking-tighter leading-[0.85] ${t('text-gray-400', 'text-gray-500')}`}>
-                            已開出
-                          </span>
-                        ) : eta1.val === 0 ? (
-                          <span className={`text-[3rem] md:text-[4rem] font-medium tracking-tighter leading-[0.85] ${t('text-[#C63C31]', 'text-red-500')}`}>
-                            即將
-                          </span>
-                        ) : (
-                          <span className={`text-[3rem] md:text-[4rem] font-medium tracking-tighter leading-[0.85] ${eta1Color}`}>
-                            {eta1.text}
-                          </span>
-                        )
-                      )}
+                      {/* 🔥 利用 h-[40px] md:h-[54px] 強制鎖死顯示框高度，就算文字細咗都唔會改變整行行高 */}
+                      <div className="flex items-center justify-end h-[40px] md:h-[54px]">
+                        {eta1 && (
+                          eta1.val < 0 ? (
+                            <span className={`text-xl md:text-2xl font-bold tracking-tighter ${t('text-gray-400', 'text-gray-500')}`}>
+                              已開出
+                            </span>
+                          ) : eta1.val === 0 ? (
+                            <span className={`text-xl md:text-2xl font-bold tracking-tighter ${t('text-[#C63C31]', 'text-red-500')}`}>
+                              即將
+                            </span>
+                          ) : (
+                            <span className={`text-[3rem] md:text-[4rem] font-medium tracking-tighter leading-[0.85] ${eta1Color}`} style={{ fontFamily: '"Arial Black", Impact, sans-serif' }}>
+                              {eta1.text}
+                            </span>
+                          )
+                        )}
+                      </div>
                       
                       {eta2 && (
                         <div className={`text-[11px] md:text-sm mt-1 tracking-tighter leading-none ${t('text-gray-500', 'text-gray-400')}`}>
