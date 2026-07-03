@@ -474,7 +474,7 @@ export default function App() {
               </span>
             </div>
 
-            {/* 🔥 已加大字體：表頭 (路線 | 分鐘) */}
+            {/* 表頭 (路線 | 分鐘) */}
             <div className={`flex justify-between items-center px-4 md:px-6 py-1.5 md:py-2 border-b border-t text-sm md:text-base font-bold tracking-widest transition-colors ${t('bg-white border-gray-100 text-[#C63C31]', 'bg-[#111827] border-gray-800 text-red-500')}`}>
               <span>路線</span>
               <span>分鐘</span>
@@ -494,34 +494,41 @@ export default function App() {
                   ? t('bg-blue-600 text-white', 'bg-blue-800 text-gray-100') 
                   : (isLWB ? t('bg-[#F7931E] text-white', 'bg-[#c47112] text-gray-100') : t('bg-[#E32636] text-white', 'bg-red-800 text-gray-100'));
 
+                // 🔥 智能字體縮放：字數越多，字體稍微縮細，確保唔會逼爆
+                const routeLen = route.route.length;
+                let routeTextSize = 'text-[3.25rem] md:text-[4.2rem]'; // 預設 1-2 個字
+                if (routeLen >= 4) {
+                  routeTextSize = 'text-[2.4rem] md:text-[3.2rem]'; // 4 個字或以上 (e.g. 251C)
+                } else if (routeLen === 3) {
+                  routeTextSize = 'text-[2.8rem] md:text-[3.6rem]'; // 3 個字 (e.g. 64K, 68F)
+                }
+
                 return (
                   <div key={`${route.route}-${index}`} className={`flex justify-between items-center px-3 md:px-5 py-1.5 md:py-2 border-b transition-colors duration-300 ${t('border-gray-50', 'border-gray-800/50')} ${rowBg}`}>
                     
                     {/* 左＋中 Wrapper */}
                     <div className="flex items-center flex-1 min-w-0 pr-2">
                       
-                      {/* 左側：路線及標籤 */}
-                      <div className="flex flex-col shrink-0 w-[45%] sm:w-[40%] max-w-[150px]">
-                        <div className="flex items-start gap-1.5">
-                          {/* 取消粗體字 */}
-                          <span className={`text-[3.25rem] md:text-[4rem] leading-[0.8] tracking-tight ${t('text-black', 'text-white')}`}>
+                      {/* 🔥 左側：固定安全闊度，保證唔會疊住中間 */}
+                      <div className="flex flex-col shrink-0 w-[125px] xs:w-[135px] sm:w-[150px]">
+                        <div className="flex items-center gap-1 md:gap-1.5">
+                          {/* 路線號碼 */}
+                          <span 
+                            className={`${routeTextSize} leading-[0.8] tracking-tighter ${t('text-black', 'text-white')}`}
+                            style={{ fontFamily: '"Arial Rounded MT Bold", "Nunito", "Varela Round", sans-serif', fontWeight: 900 }}
+                          >
                             {route.route}
                           </span>
-                          <span className={`px-1.5 py-[2px] rounded text-[8px] md:text-[9px] font-bold shadow-sm whitespace-nowrap self-start mt-1.5 ${coBadgeClass}`}>
+                          {/* 公司標籤 */}
+                          <span className={`px-1.5 py-[2px] rounded text-[8px] md:text-[9px] font-bold shadow-sm whitespace-nowrap self-start mt-1 ${coBadgeClass}`}>
                             {coName}
                           </span>
                         </div>
-                        {/* 隱藏車站名稱，只顯示特殊備註 */}
-                        {route.etas[0]?.rmk && (
-                          <div className={`text-[9px] md:text-[11px] truncate leading-tight mt-1 pr-1 ${t('text-gray-500', 'text-gray-400')}`}>
-                            {route.etas[0].rmk}
-                          </div>
-                        )}
                       </div>
 
                       {/* 中間：目的地 */}
-                      <div className="flex-1 min-w-0 pl-1">
-                        <div className={`text-[13px] md:text-base font-bold truncate tracking-tight ${t('text-[#2C3E50]', 'text-gray-300')}`}>
+                      <div className="flex-1 min-w-0 pl-1 md:pl-2">
+                        <div className={`text-[15px] md:text-lg font-bold truncate tracking-tight ${t('text-[#2C3E50]', 'text-gray-300')}`}>
                           往 {route.dest}
                         </div>
                       </div>
@@ -536,12 +543,12 @@ export default function App() {
                             已開出
                           </span>
                         ) : eta1.val === 0 ? (
-                          <span className={`text-[2.75rem] md:text-[3.5rem] tracking-tighter leading-[0.8] ${t('text-[#C63C31]', 'text-red-500')}`}>
+                          <span className={`text-[2.75rem] md:text-[3.5rem] font-bold tracking-tighter leading-[0.8] ${t('text-[#C63C31]', 'text-red-500')}`}>
                             即將
                           </span>
                         ) : (
-                          // 轉回純黑色數字，取消粗體
-                          <span className={`text-[3rem] md:text-[4rem] tracking-tighter leading-[0.85] ${t('text-black', 'text-white')}`}>
+                          // 純黑色數字，取消粗體
+                          <span className={`text-[3rem] md:text-[4rem] font-medium tracking-tighter leading-[0.85] ${t('text-black', 'text-white')}`}>
                             {eta1.text}
                           </span>
                         )
