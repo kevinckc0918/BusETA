@@ -125,7 +125,9 @@ export default function App() {
   const [locationsData, setLocationsData] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('ALL'); 
+  
+  // 💡 預設分頁改回 'NEARBY'，讓附近變成打開首選
+  const [activeTab, setActiveTab] = useState('NEARBY'); 
   const [photoIndex, setPhotoIndex] = useState(0);
   const [now, setNow] = useState(new Date());
 
@@ -208,8 +210,8 @@ export default function App() {
   });
 
   const [standMonitorId, setStandMonitorId] = useState(() => {
-    try { return localStorage.getItem('kmb_stand_monitor_id') || 'ALL_FAVORITES'; } 
-    catch { return 'ALL_FAVORITES'; }
+    try { return localStorage.getItem('kmb_stand_monitor_id') || 'NEARBY_STOPS'; } 
+    catch { return 'NEARBY_STOPS'; }
   });
 
   // === 搜尋彈窗狀態 ===
@@ -249,13 +251,17 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem('kmb_nearby_radius', nearbyRadius.toString()); } catch {} }, [nearbyRadius]);
   useEffect(() => { if (standMonitorId) try { localStorage.setItem('kmb_stand_monitor_id', standMonitorId); } catch {} }, [standMonitorId]);
 
+  // 💡 分頁管理：強制將 ALL(最愛) 放第一格，NEARBY(附近) 放第二格，後續接自訂群組
   const availableGroups = useMemo(() => {
     const groupsSet = new Set(locations.map(loc => loc.groupName || '預設'));
-    return ['ALL', ...Array.from(groupsSet), 'NEARBY']; 
+    return ['ALL', 'NEARBY', ...Array.from(groupsSet)]; 
   }, [locations]);
 
+  // 如果目前選取的 Tab 不在清單中，預設跳回 NEARBY
   useEffect(() => {
-    if (activeTab !== 'ALL' && activeTab !== 'NEARBY' && !availableGroups.includes(activeTab)) setActiveTab('ALL');
+    if (activeTab !== 'ALL' && activeTab !== 'NEARBY' && !availableGroups.includes(activeTab)) {
+      setActiveTab('NEARBY');
+    }
   }, [availableGroups, activeTab]);
 
   useEffect(() => {
@@ -404,7 +410,6 @@ export default function App() {
     } catch (err) { setError('到站預報載入失敗'); } finally { setLoading(false); }
   }, [locations]);
 
-  // 監聽 locations 的變化並自動觸發更新
   useEffect(() => {
     fetchCustomLocationsData();
     const interval = setInterval(fetchCustomLocationsData, 30000);
@@ -438,7 +443,6 @@ export default function App() {
       .slice(0, 15); 
   }, [allKmbRoutes, routeQuery]);
 
-  // === 編輯與刪除 ===
   const handleDeleteLocation = (locId, e) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     setLocations(locations.filter(loc => loc.id !== locId));
@@ -510,13 +514,13 @@ export default function App() {
       setLocations(parsed);
       setBackupSuccess('🎉 成功從備份中還原最愛看板配置！');
       setImportText('');
-      setTimeout(() => { setIsSettingsModalOpen(false); setBackupSuccess(''); }, 1500);
+      setTimeout(() => { setIsSettingsModalOpen(false); setBackupSuccess(''); fetchCustomLocationsData(); }, 1500);
     } catch (e) { setBackupError(`匯入驗證失敗: ${e.message || '格式錯誤'}`); }
   };
 
   const handleResetToPreload = () => {
     setLocations(DEFAULT_LOCATIONS); setShowResetConfirm(false); setBackupSuccess('已成功重設為原裝最愛路線範例！');
-    setTimeout(() => { setBackupSuccess(''); }, 2000);
+    setTimeout(() => { setBackupSuccess(''); fetchCustomLocationsData(); }, 2000);
   };
 
   const handleOpenSearchModal = async () => {
@@ -562,7 +566,6 @@ export default function App() {
     setSelectedStop(stopItem); setCustomStopName(stopItem.name_tc); setCustomStopDesc(`往 ${selectedDirection.dest_tc}`); setSearchStep(4);
   };
 
-  // 🛠️ 深度修復：確保加入新路線時狀態為純淨 Immutable
   const handleConfirmAddStop = () => {
     if (!selectedStop) return;
     const finalGroupName = customGroupName === 'NEW' ? (customGroupInput.trim() || '自訂') : customGroupName;
@@ -617,7 +620,7 @@ export default function App() {
   };
 
   // ========================================================
-  // 🚌 核心升級：巴士路線行渲染 (解決 iOS 防護導致的顏色覆蓋)
+  // 🚌 核心升級：巴士路線行渲染
   // ========================================================
   const renderRow = (route, rIdx, isNearbySource = false, layoutType = 'LIST') => {
     const isEven = rIdx % 2 === 0;
@@ -628,11 +631,10 @@ export default function App() {
     const isMissed = primaryMins !== null && primaryMins < 0;
     const isImminent = primaryMins === 0;
 
-    // 💡 行內樣式決定字體顏色，具備最高優先權，絕對不會被 Tailwind 或是 iOS Safari 電話辨識覆蓋！
-    let etaColorStyle = { color: isDarkMode ? '#f4f4f5' : '#0f172a' }; // 預設 深灰/白
+    let etaColorStyle = { color: isDarkMode ? '#f4f4f5' : '#0f172a' }; 
     if (primaryMins !== null && primaryMins >= 0) {
-      if (primaryMins <= 5) etaColorStyle = { color: '#e3342f' };       // 0-5分鐘：紅色
-      else if (primaryMins <= 10) etaColorStyle = { color: '#f97316' }; // 6-10分鐘：橙色
+      if (primaryMins <= 5) etaColorStyle = { color: '#e3342f' };       
+      else if (primaryMins <= 10) etaColorStyle = { color: '#f97316' }; 
     }
 
     const isStand = layoutType === 'STAND';
@@ -698,6 +700,7 @@ export default function App() {
         {/* ================= 🛰️ 附近巴士站專屬分頁 ================= */}
         {activeTab === 'NEARBY' && (
           <div className="flex flex-col gap-4 px-3 sm:px-0 mt-3 sm:mt-0">
+            {/* 提示使用者點擊定位 */}
             {(!userCoords || gpsLoading) ? (
               <div className={`p-8 rounded-2xl border text-center flex flex-col items-center justify-center gap-3 ${theme.emptyStateBg}`}>
                 <MapPin className="w-8 h-8 text-blue-500 animate-bounce" />
@@ -718,6 +721,7 @@ export default function App() {
               </div>
             )}
 
+            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -784,10 +788,7 @@ export default function App() {
   const renderStandMode = () => {
     let displayRoutes = [];
     let title = "我的最愛";
-    if (standMonitorId === 'ALL_FAVORITES') {
-      groupedFavoritesData.forEach(g => displayRoutes.push(...g.routesData));
-      title = "全部最愛";
-    } else if (standMonitorId === 'NEARBY_STOPS') {
+    if (standMonitorId === 'NEARBY_STOPS') {
       nearbyStopsData.forEach(s => {
         const withStopName = s.routesData.map(r => ({ ...r, stopName: s.name }));
         displayRoutes.push(...withStopName);
@@ -796,6 +797,10 @@ export default function App() {
     } else {
       const match = groupedFavoritesData.find(g => g.groupName === standMonitorId);
       if (match) { displayRoutes = match.routesData; title = match.groupName; }
+      else { 
+        groupedFavoritesData.forEach(g => displayRoutes.push(...g.routesData));
+        title = "全部最愛";
+      }
     }
 
     return (
@@ -845,9 +850,9 @@ export default function App() {
                 onChange={(e) => setStandMonitorId(e.target.value)}
                 className={`w-full text-xs font-bold py-1.5 px-3 rounded-lg border appearance-none outline-none ${theme.inputBg}`}
               >
+                {nearbyStopsData.length > 0 && <option value="NEARBY_STOPS">🛰️ 附近巴士站</option>}
                 <option value="ALL_FAVORITES">★ 全部最愛</option>
                 {groupedFavoritesData.map(g => <option key={g.groupName} value={g.groupName}>📁 分組: {g.groupName}</option>)}
-                {nearbyStopsData.length > 0 && <option value="NEARBY_STOPS">🛰️ 附近巴士站</option>}
               </select>
               <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-2 pointer-events-none opacity-60" />
             </div>
@@ -873,7 +878,6 @@ export default function App() {
 
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
-      {/* 💡 只單獨取消 a 標籤的電話藍字樣式，確保保留 Tailwind 的 className 上色邏輯 */}
       <style>{`
         a[href^="tel"], a[href^="tel"]:hover, a[href^="tel"]:active, a[href^="tel"]:focus { 
           color: inherit; 
@@ -914,7 +918,7 @@ export default function App() {
                 onClick={() => { setActiveTab(group); if (group === 'NEARBY' && !userCoords && !gpsLoading) findNearbyStops(); }} 
                 className={`px-4 py-2.5 rounded-xl text-xs font-bold text-center transition-all duration-200 shrink-0 ${activeTab === group ? theme.tabActive : theme.tabInactive}`}
               >
-                {group === 'NEARBY' ? '🛰️ 附近' : group === 'ALL' ? '★ 我的最愛' : group}
+                {group === 'NEARBY' ? '🛰️ 附近' : group === 'ALL' ? '★ 全部最愛' : group}
               </button>
             ))}
           </div>
