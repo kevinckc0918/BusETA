@@ -139,10 +139,10 @@ export default function App() {
     bottomBar: isDarkMode ? 'bg-red-950/95' : 'bg-[#e3342f]',
     pillBg: isDarkMode ? 'bg-red-900 text-white' : 'bg-[#e3342f] text-white',
     rowEven: isDarkMode ? 'bg-zinc-900/60' : 'bg-white',
-    rowOdd: isDarkMode ? 'bg-red-950/20' : 'bg-[#fae0e5]', // 淺色模式加深粉紅斑馬紋
+    rowOdd: isDarkMode ? 'bg-red-950/20' : 'bg-[#fae0e5]',
     routeNum: isDarkMode ? 'text-zinc-100' : 'text-slate-900',
     routeDest: isDarkMode ? 'text-zinc-300' : 'text-slate-800', 
-    etaPrimaryDefault: isDarkMode ? 'text-zinc-100' : 'text-slate-800', // 預設 11分鐘以上的深色
+    etaPrimaryDefault: isDarkMode ? 'text-zinc-100' : 'text-slate-800', 
     etaSecondary: isDarkMode ? 'text-zinc-400' : 'text-slate-500',
     etaMissed: isDarkMode ? 'text-zinc-500' : 'text-slate-400',
     tabActive: isDarkMode ? 'bg-white text-red-950 shadow-md scale-105 font-black' : 'bg-white text-[#e3342f] shadow-md scale-105 font-black',
@@ -618,7 +618,6 @@ export default function App() {
     const isMissed = primaryMins !== null && primaryMins < 0;
     const isImminent = primaryMins === 0;
 
-    // 💡 智慧 ETA 顏色邏輯 (完全使用 Tailwind)
     let dynamicEtaColorClass = theme.etaPrimaryDefault; 
     if (primaryMins !== null && primaryMins >= 0) {
       if (primaryMins <= 5) {
@@ -640,13 +639,12 @@ export default function App() {
     return (
       <div key={rIdx} className={`flex justify-between items-center ${rowPadding} transition-colors border-b border-gray-500/5 ${rowBg}`}>
         
+        {/* 💡 移除包覆號碼的多餘 div，並加入 text-left block 確保左側 100% 對齊無誤差 */}
         <div className="flex flex-col items-start justify-center flex-1 min-w-0 pr-3">
-          <div className="flex items-center gap-2">
-            <span className={`${routeNumSize} font-black tracking-tighter leading-none ${theme.routeNum}`}>
-              {route.route}
-            </span>
-          </div>
-          <span className={`${destSize} font-extrabold mt-1 sm:mt-1.5 ${theme.routeDest} truncate w-full`}>
+          <span className={`${routeNumSize} font-black tracking-tighter leading-none ios-num-fix ${theme.routeNum} text-left block`}>
+            {route.route}
+          </span>
+          <span className={`${destSize} font-extrabold mt-1 sm:mt-1.5 ${theme.routeDest} truncate w-full text-left block`}>
             往 {route.dest}
           </span>
         </div>
@@ -659,15 +657,15 @@ export default function App() {
             ) : isMissed ? (
               <span className={`${primaryTextSize} font-black tracking-wide leading-none ${theme.etaMissed}`}>已開出</span>
             ) : isImminent ? (
-              <span className={`${primaryTextSize} font-black tracking-wide animate-pulse leading-none ${dynamicEtaColorClass}`}>即將到站</span>
+              <span className={`${primaryTextSize} font-black tracking-wide animate-pulse leading-none ios-num-fix ${dynamicEtaColorClass}`}>即將到站</span>
             ) : (
-              <span className={`${primaryNumSize} font-black tracking-tighter leading-none ${dynamicEtaColorClass}`}>{primaryMins}</span>
+              <span className={`${primaryNumSize} font-black tracking-tighter leading-none ios-num-fix ${dynamicEtaColorClass}`}>{primaryMins}</span>
             )}
           </div>
           
           <div className="flex items-end justify-end mt-1.5 sm:mt-2">
             {secondaryMins !== null && secondaryMins >= 0 ? (
-              <span className={`${secondarySize} font-extrabold ${theme.etaSecondary} leading-none`}>
+              <span className={`${secondarySize} font-extrabold ${theme.etaSecondary} ios-num-fix leading-none`}>
                 {secondaryMins}
               </span>
             ) : (
@@ -691,7 +689,6 @@ export default function App() {
         {/* ================= 🛰️ 附近巴士站專屬分頁 ================= */}
         {activeTab === 'NEARBY' && (
           <div className="flex flex-col gap-4 px-3 sm:px-0 mt-3 sm:mt-0">
-            {/* 提示使用者點擊定位 */}
             {(!userCoords || gpsLoading) ? (
               <div className={`p-8 rounded-2xl border text-center flex flex-col items-center justify-center gap-3 ${theme.emptyStateBg}`}>
                 <MapPin className="w-8 h-8 text-blue-500 animate-bounce" />
@@ -712,7 +709,6 @@ export default function App() {
               </div>
             )}
 
-            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -752,7 +748,6 @@ export default function App() {
               {filteredGroups.map((group, gIdx) => (
                 <div key={gIdx} className={`sm:rounded-2xl overflow-hidden shadow-sm border-b sm:border ${theme.groupCardBg}`}>
                   
-                  {/* 💡 放大字體與增加行高的緊湊型一體化表頭 */}
                   <div className={`flex justify-between items-center px-5 py-3 sm:py-4 text-base sm:text-lg font-black border-b ${theme.groupHeaderText}`}>
                     <span className="flex-1 text-left">路線</span>
                     
@@ -872,18 +867,14 @@ export default function App() {
 
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
-      {/* 💡 注入專為 Safari 的電話防護，確保不覆蓋顏色 (移除 !important 的顏色繼承干擾) */}
       <style>{`
-        /* 解決 iOS 橫向滑動與隱藏卷軸 */
+        /* iPad Safari 防止連結變色/底線覆蓋 */
+        a[href^="tel"], a[href^="tel"]:hover, a[href^="tel"]:active, a[href^="tel"]:focus,
+        .ios-num-fix, .ios-num-fix * { color: inherit !important; text-decoration: none !important; pointer-events: none !important; -webkit-text-fill-color: currentColor !important; }
+        
+        /* 解決 iOS 橫向滑動與隱藏卷軸 (原生體驗) */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-        
-        /* 僅針對生成的電話連結進行隱藏化 */
-        a[href^="tel"], a[href^="tel"]:hover, a[href^="tel"]:active, a[href^="tel"]:focus {
-          color: inherit !important;
-          text-decoration: none !important;
-          pointer-events: none !important;
-        }
       `}</style>
 
       <header className={`px-4 py-3 flex items-center justify-between border-b shadow-sm z-20 shrink-0 transition-colors ${theme.topBar}`}>
