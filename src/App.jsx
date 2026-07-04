@@ -28,12 +28,12 @@ import {
 } from 'lucide-react';
 
 // ==========================================
-// 🖼️ 預設高畫質幻燈片 (FALLBACK BEAUTIFUL PHOTOS)
+// 🖼️ 預設高畫質幻燈片 (已修改為本地路徑)
 // ==========================================
 const DEFAULT_PHOTOS = [
-  "/photo01.jpg", 
-  "/photo03.jpg", 
-  "/photo03.jpg"  
+  "/photo01.jpg",
+  "/photo02.jpg",
+  "/photo03.jpg"
 ];
 
 const WEATHER_BG = "/victoria-harbour.jpg";
@@ -421,7 +421,7 @@ export default function App() {
       setGpsLoading(false);
 
       if (sortedNearby.length === 0) {
-        setGpsMessage(`定位成功，但你附近 ${nearbyRadius} 米內似乎沒有巴士站點。建議到設定中調大搜尋半徑。`);
+        setGpsMessage(`定位成功，但你附近 ${nearbyRadius} 米內似乎沒有九巴站點。建議到設定中調大搜尋半徑。`);
       } else {
         setGpsMessage('');
       }
@@ -877,6 +877,54 @@ export default function App() {
     return cache;
   };
 
+  // === 🛠️ 關鍵修復：編輯管理（同步瞬時清空渲染狀態以防止 iPad 等快取定格） ===
+  const handleDeleteLocation = (locId, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    // 1. 同步更新本地儲存最愛站點 list
+    const updatedLocations = locations.filter(loc => loc.id !== locId);
+    setLocations(updatedLocations);
+    
+    // 2. ⚡【關鍵修正】：瞬間同步將 API 渲染資料清空，提供 0 毫秒物理刪除視覺效果
+    setLocationsData(prev => prev.filter(loc => loc.id !== locId));
+  };
+
+  const handleDeleteRouteInLocation = (locId, routeNum, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    // 1. 同步最愛配置數據結構中的線路
+    const updatedLocations = locations.map(loc => {
+      if (loc.id === locId) {
+        return {
+          ...loc,
+          routes: loc.routes.filter(r => r.route !== routeNum)
+        };
+      }
+      return loc;
+    }).filter(loc => loc.routes.length > 0); 
+    setLocations(updatedLocations);
+
+    // 2. ⚡【關鍵修正】：瞬間對當前主畫面渲染的 API 資料集進行篩選，防止移除後畫面殘留
+    setLocationsData(prev => {
+      return prev.map(loc => {
+        if (loc.id === locId) {
+          const nextRoutesData = loc.routesData.filter(r => r.route !== routeNum);
+          return {
+            ...loc,
+            routesData: nextRoutesData
+          };
+        }
+        return loc;
+      }).filter(loc => loc.routesData.length > 0);
+    });
+  };
+
   // === 🚌 巴士路線行渲染 (極限壓縮版) ===
   const renderRow = (route, rIdx, isNearbySource = false) => {
     const isEven = rIdx % 2 === 0;
@@ -1038,7 +1086,7 @@ export default function App() {
             {filteredGroups.map((group, gIdx) => (
               <div key={gIdx} className={`mb-4 rounded-xl overflow-hidden border transition-all ${theme.cardBg}`}>
                 
-                {/* 1. 分組標題區 */}
+                {/* 1. 分組標題區：僅一個，極大省去高度 */}
                 <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-500/10 bg-slate-500/5">
                   <div className="flex items-center gap-1.5">
                     <Folder className="w-4 h-4 text-red-500 shrink-0" />
@@ -1379,7 +1427,7 @@ export default function App() {
                               <span className="text-[10px] opacity-60">{loc.desc} (分組: {loc.groupName || '預設'})</span>
                             </div>
                             <button 
-                              onClick={() => handleDeleteLocation(loc.id)}
+                              onClick={(e) => handleDeleteLocation(loc.id, e)}
                               className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-950/40 rounded-lg transition-all"
                               title="刪除此巴士站及所有底下路線"
                             >
@@ -1392,11 +1440,11 @@ export default function App() {
                             {loc.routes.map((r, rIdx) => (
                               <span 
                                 key={rIdx} 
-                                className="inline-flex items-center gap-1 bg-white dark:bg-zinc-800 text-xs font-black px-2.5 py-1 rounded-lg border border-gray-500/10 shadow-sm"
+                                className="inline-flex items-center gap-1 bg-white dark:bg-zinc-800 text-xs font-black px-2.5 py-1 rounded-lg border border-gray-500/10 shadow-sm text-slate-800 dark:text-zinc-200"
                               >
                                 {r.route} 
                                 <button 
-                                  onClick={() => handleDeleteRouteInLocation(loc.id, r.route)}
+                                  onClick={(e) => handleDeleteRouteInLocation(loc.id, r.route, e)}
                                   className="text-red-500 hover:text-red-700 ml-1 font-bold text-[10px]"
                                   title="移除單一線路"
                                 >
