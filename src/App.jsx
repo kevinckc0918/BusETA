@@ -1,612 +1,1458 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Bus, RefreshCw, AlertCircle, Navigation, MapPin, Compass, Clock, Search, Copy, X, Moon, Sun, MonitorSmartphone, Minimize } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { 
+  Bus, 
+  RefreshCw, 
+  Moon, 
+  Sun, 
+  MonitorSmartphone, 
+  CloudSun, 
+  AlertTriangle, 
+  Image as ImageIcon, 
+  Plus, 
+  Trash2, 
+  X, 
+  ChevronRight, 
+  Check, 
+  Settings, 
+  ChevronDown,
+  Navigation,
+  MapPin,
+  Folder,
+  Layers
+} from 'lucide-react';
+
+// ==========================================
+// 🖼️ 預設高畫質幻燈片 (FALLBACK BEAUTIFUL PHOTOS)
+// ==========================================
+const DEFAULT_PHOTOS = [
+  "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=1200&auto=format&fit=crop&q=80", 
+  "https://images.unsplash.com/photo-1542397284385-601017645536?w=1200&auto=format&fit=crop&q=80", 
+  "https://images.unsplash.com/photo-1518156677180-95a2893f3e9f?w=1200&auto=format&fit=crop&q=80", 
+  "https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?w=1200&auto=format&fit=crop&q=80"  
+];
+
+const WEATHER_BG = "https://images.unsplash.com/photo-1542397284385-601017645536?w=1200&auto=format&fit=crop&q=80";
+
+// ==========================================
+// 🚌 預設預載的自訂巴士站數據 (使用者自訂的最愛)
+// ==========================================
+const DEFAULT_LOCATIONS = [
+  {
+    id: "67D38E584B919815",
+    filterId: "PARKYOHO",
+    groupName: "峻巒",
+    name: "峻巒總站",
+    desc: "往市區",
+    routes: [
+      { route: "68", dir: "O", dest: "元朗公園", serviceType: "1" },
+      { route: "68F", dir: "O", dest: "元朗公園", serviceType: "1" },
+      { route: "268M", dir: "O", dest: "荃灣西站", serviceType: "1" }
+    ]
+  },
+  {
+    id: "0C943B7308FF4DCC",
+    filterId: "YOHO",
+    groupName: "形點",
+    name: "形點 II",
+    desc: "往峻巒",
+    routes: [
+      { route: "68", dir: "I", dest: "峻巒", serviceType: "1" }
+    ]
+  },
+  {
+    id: "7917E395940F86AF",
+    filterId: "YOHO",
+    groupName: "形點",
+    name: "形點 I",
+    desc: "往峻巒",
+    routes: [
+      { route: "68F", dir: "I", dest: "峻巒", serviceType: "1" }
+    ]
+  }
+];
+
+// 📐 經緯度兩點距離計算函數
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3; 
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return Math.round(R * c); 
+}
+
+// 📅 格式化中文日期格式 (例如: 2026年7月4日 星期六)
+function formatChineseDate(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  const weekday = weekdays[date.getDay()];
+  return `${year}年${month}月${day}日 ${weekday}`;
+}
+
+// 🌩️ 天氣警告代碼對應顏色樣式 (已移至最上方宣告，避免 module 載入時的 TDZ 未宣告引用錯誤)
+const getWarningStyle = (code) => {
+  switch(code) {
+    case 'WRAINA': return 'bg-yellow-400 text-yellow-950 border border-yellow-500'; 
+    case 'WRAINR': return 'bg-red-600 text-white'; 
+    case 'WRAINB': return 'bg-black text-white border-2 border-gray-400'; 
+    case 'WTS': return 'bg-yellow-600 text-yellow-950'; 
+    case 'WHOT': return 'bg-red-500 text-white'; 
+    case 'WCOLD': return 'bg-blue-400 text-blue-950'; 
+    case 'TC1': case 'TC3': case 'TC8NE': case 'TC8NW': case 'TC8SE': case 'TC8SW': case 'TC9': case 'TC10':
+      return 'bg-zinc-800 text-white'; 
+    case 'WFIREY': return 'bg-yellow-500 text-yellow-950';
+    case 'WFIRER': return 'bg-red-500 text-white';
+    default: return 'bg-white/20 text-white backdrop-blur-md';
+  }
+};
 
 export default function App() {
+  // === 基礎狀態管理 ===
   const [loading, setLoading] = useState(true);
   const [locationsData, setLocationsData] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState(null);
-  
-  const [activeTab, setActiveTab] = useState('全部');
-  const [userLocation, setUserLocation] = useState(null);
-  const [locating, setLocating] = useState(false);
-  const [gpsError, setGpsError] = useState(null);
-  
-  const [showDetailedTime, setShowDetailedTime] = useState(false);
-  const [showSearchModal, setShowSearchModal] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [activeTab, setActiveTab] = useState('ALL'); // ⭐ 預設改為「全部最愛」
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [now, setNow] = useState(new Date());
 
-  // 暗黑主題狀態
-  const [isDarkMode, setIsDarkMode] = useState(() => {
+  // === ⚙️ 時間計算 Helper ===
+  const getEtaMinutes = (etaDate) => Math.floor((etaDate - now) / 60000);
+
+  // === 🛰️ GPS 定位與附近巴士站專用狀態 ===
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [userCoords, setUserCoords] = useState(null); 
+  const [nearbyStops, setNearbyStops] = useState([]); 
+  const [nearbyStopsData, setNearbyStopsData] = useState([]); 
+  const [gpsMessage, setGpsMessage] = useState('');
+
+  // === 用家自訂巴士站數據 (從 LocalStorage 讀取) ===
+  const [locations, setLocations] = useState(() => {
     try {
-      if (typeof window !== 'undefined') {
-        const savedTheme = localStorage.getItem('busTheme');
-        if (savedTheme === 'light') return false; 
-      }
-    } catch (e) {}
-    return false; // 預設光亮模式
+      const saved = localStorage.getItem('kmb_custom_locations');
+      return saved ? JSON.parse(saved) : DEFAULT_LOCATIONS;
+    } catch {
+      return DEFAULT_LOCATIONS;
+    }
   });
 
+  // === 天氣與天文台數據 ===
+  const [weatherInfo, setWeatherInfo] = useState({ temp: '--', icon: null, warnings: [] });
+  
+  // === 個性化設定 (LocalStorage 持久化) ===
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('kmb_theme') || 'false'); } catch { return false; }
+  });
+
+  const [isStandMode, setIsStandMode] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('kmb_stand_mode') || 'false'); } catch { return false; }
+  });
+
+  const [leftPanelMode, setLeftPanelMode] = useState(() => {
+    try { return localStorage.getItem('kmb_left_mode') || 'WEATHER'; } catch { return 'WEATHER'; }
+  });
+
+  // 座枱模式下要鎖定監控的巴士站或分組名稱
+  const [standMonitorId, setStandMonitorId] = useState(() => {
+    try { 
+      return localStorage.getItem('kmb_stand_monitor_id') || 'ALL_FAVORITES'; 
+    } catch { 
+      return 'ALL_FAVORITES'; 
+    }
+  });
+
+  // === 搜尋與新增巴士站彈窗狀態 ===
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [searchStep, setSearchStep] = useState(1); 
+  
+  const [allKmbRoutes, setAllKmbRoutes] = useState([]); 
+  const [loadingRoutes, setLoadingRoutes] = useState(false);
+  const [routeQuery, setRouteQuery] = useState('');
+  
+  const [selectedRoute, setSelectedRoute] = useState(null); 
+  const [routeDirections, setRouteDirections] = useState([]); 
+  const [selectedDirection, setSelectedDirection] = useState(null); 
+  
+  const [loadingStops, setLoadingStops] = useState(false);
+  const [routeStops, setRouteStops] = useState([]); 
+  const [selectedStop, setSelectedStop] = useState(null); 
+
+  // 步驟四自訂設定
+  const [customStopName, setCustomStopName] = useState('');
+  const [customStopDesc, setCustomStopDesc] = useState('');
+  const [customGroupName, setCustomGroupName] = useState('預設');
+  const [customGroupInput, setCustomGroupInput] = useState('');
+
+  // === 儲存設定至 LocalStorage ===
   useEffect(() => {
-    try {
-      localStorage.setItem('busTheme', isDarkMode ? 'dark' : 'light');
-      document.body.style.backgroundColor = isDarkMode ? '#111827' : '#ffffff';
-    } catch (e) {}
+    try { localStorage.setItem('kmb_custom_locations', JSON.stringify(locations)); } catch {}
+  }, [locations]);
+
+  useEffect(() => {
+    try { localStorage.setItem('kmb_theme', JSON.stringify(isDarkMode)); } catch {}
   }, [isDarkMode]);
 
-  const t = (lightClass, darkClass) => isDarkMode ? darkClass : lightClass;
-
-  const toggleFullscreen = () => {
-    try {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(e => console.error(e));
-      } else {
-        if (document.exitFullscreen) document.exitFullscreen().then(() => setIsFullscreen(false));
-      }
-    } catch (e) {}
-  };
+  useEffect(() => {
+    try { localStorage.setItem('kmb_stand_mode', JSON.stringify(isStandMode)); } catch {}
+  }, [isStandMode]);
 
   useEffect(() => {
-    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    try { localStorage.setItem('kmb_left_mode', leftPanelMode); } catch {}
+  }, [leftPanelMode]);
+
+  useEffect(() => {
+    if (standMonitorId) {
+      try { localStorage.setItem('kmb_stand_monitor_id', standMonitorId); } catch {}
+    }
+  }, [standMonitorId]);
+
+  // === 動態生成分組分頁 (Tabs) ===
+  const availableGroups = useMemo(() => {
+    const groupsSet = new Set(locations.map(loc => loc.groupName || '預設'));
+    return ['ALL', ...Array.from(groupsSet), 'NEARBY']; 
+  }, [locations]);
+
+  // 如果目前選取的 Tab 不在現有分組中，重設為 ALL
+  useEffect(() => {
+    if (activeTab !== 'ALL' && activeTab !== 'NEARBY' && !availableGroups.includes(activeTab)) {
+      setActiveTab('ALL');
+    }
+  }, [availableGroups, activeTab]);
+
+  // === 即時時鐘 ===
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
-  const LOCATIONS = [
-    {
-      ids: ["6386333EDAC64C96", "2E73B26A07205432"], 
-      region: "楊屋村",
-      name: "楊屋村 (西行)",
-      desc: "往 元朗市中心 / 機場",
-      routes: ['54', '64K', '251C', '76K', '77K', '68', '68F', 'A36'],
-      ignoreDest: ['康樂路', '八鄉'],
-      lat: 22.4357, lng: 114.0483
-    },
-    {
-      ids: ["36DC37F6A54BA5E0"], 
-      region: "楊屋村",
-      name: "東成里 (東/南行)",
-      desc: "往 峻巒 / 青衣", 
-      routes: ['68E', '68', '68F'], 
-      lat: 22.4371, lng: 114.0478
-    },
-    {
-      ids: ["DAFFF59B0718B464", "FAB0AB2B6DCEE7F2", "C7ACD35D5D7C153B"],
-      region: "元朗西",
-      name: "元朗（西）總站",
-      desc: "往 港島 / 錦田 / 大埔",
-      routes: ['968', 'N368', '54', '64K'],
-      ignoreDest: ['元朗'],
-      lat: 22.4442, lng: 114.0256
-    },
-    {
-      ids: ["6E85D42922E5A10C"], 
-      region: "元朗西",
-      name: "元朗廣場",
-      desc: "往 錦田 / 大埔",
-      routes: ['54', '64K', '251C'],
-      lat: 22.4446, lng: 114.0227
-    },
-    {
-      ids: ["4EE417C5EF5FEF4E"], 
-      region: "元朗西",
-      name: "元朗喜利徑",
-      desc: "往 上水",
-      routes: ['76K'],
-      lat: 22.4443, lng: 114.0242
-    },
-    {
-      ids: ["E481F7170B1F6FC3"],
-      region: "大欖隧道",
-      name: "大欖隧道 (B1)",
-      desc: "往 元朗公園 (北行)",
-      routes: ['68E'],
-      lat: 22.4176, lng: 114.0622
-    },
-    {
-      ids: ["211D93217331B040"],
-      region: "大欖隧道",
-      name: "大欖隧道 (A3)",
-      desc: "往 港島 (南行)",
-      routes: ['968', 'N368'],
-      lat: 22.4177, lng: 114.0627
-    },
-    {
-      ids: ["C3D2F84C0F0FF415", "CC1A19B90FFC1703", "C88DEC0AF0D1102B"], 
-      region: "灣仔",
-      name: "菲林明道",
-      desc: "往 元朗(西)",
-      routes: ['968', 'P968', 'N368'], 
-      ignoreDest: ['中環', '港澳', '銅鑼灣', '天后'],
-      lat: 22.2782, lng: 114.1738
-    },
-    {
-      ids: ["E74202351AF7F37D"], 
-      ctbIds: ["002430"], 
-      region: "灣仔",
-      name: "盧押道",
-      desc: "往 寶達",
-      routes: ['601', '601P'],
-      lat: 22.2774, lng: 114.1711
-    },
-    {
-      ids: ["04B6438688E12AC0"], 
-      ctbIds: ["003039"], 
-      region: "觀塘",
-      name: "祥和苑",
-      desc: "往 港島 (金鐘/上環)",
-      routes: ['601', '601P'],
-      lat: 22.3197, lng: 114.2274
+  // === 幻燈片輪播計時器 ===
+  useEffect(() => {
+    if (!isStandMode || leftPanelMode !== 'PHOTO') return;
+    const photoTimer = setInterval(() => {
+      setPhotoIndex((prev) => (prev + 1) % DEFAULT_PHOTOS.length);
+    }, 10000);
+    return () => clearInterval(photoTimer);
+  }, [isStandMode, leftPanelMode]);
+
+  // === 🌩️ 獲取香港天文台實時天氣 ===
+  const fetchWeather = useCallback(async () => {
+    try {
+      const fetchHkoApi = async (dataType) => {
+        const res = await fetch(`https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=${dataType}&lang=tc`);
+        const text = await res.text();
+        return text ? JSON.parse(text) : null;
+      };
+
+      const [rhrData, warnData] = await Promise.all([
+        fetchHkoApi('rhrread'), 
+        fetchHkoApi('warnsum')  
+      ]);
+
+      const hkoTemp = rhrData?.temperature?.data?.find(d => d.place === '香港天文台')?.value 
+                      || rhrData?.temperature?.data?.[0]?.value || '--';
+      const iconId = rhrData?.icon?.[0];
+
+      const activeWarnings = [];
+      if (warnData && typeof warnData === 'object') {
+        Object.values(warnData).forEach(w => {
+          if (w.code && w.name) activeWarnings.push({ code: w.code, name: w.name });
+        });
+      }
+
+      setWeatherInfo({ 
+        temp: hkoTemp, 
+        icon: iconId, 
+        warnings: activeWarnings
+      });
+    } catch (err) {
+      console.warn('天氣數據載入失敗', err);
     }
-  ];
-
-  const TABS = ['全部', '附近', '楊屋村', '元朗西', '大欖', '灣仔', '觀塘'];
-
-  const getDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; 
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
+  }, []);
 
   useEffect(() => {
-    if (activeTab === '附近') {
-      if (!navigator.geolocation) {
-        setGpsError('不支援定位');
-        return;
-      }
-      setLocating(true);
-      setGpsError(null);
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          setLocating(false);
-        },
-        (err) => {
-          setGpsError('無法獲取位置');
-          setLocating(false);
-          setTimeout(() => setActiveTab('全部'), 2000);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-      );
-    }
-  }, [activeTab]);
+    fetchWeather();
+    const weatherTimer = setInterval(fetchWeather, 300000); 
+    return () => clearInterval(weatherTimer);
+  }, [fetchWeather]);
 
-  const fetchData = useCallback(async () => {
+  // === 💾 下載全港巴士站數據庫 ===
+  const getOrFetchAllStops = async () => {
+    try {
+      const cached = localStorage.getItem('kmb_all_stops_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.timestamp && Date.now() - parsed.timestamp < 3 * 24 * 60 * 60 * 1000) {
+          return parsed.stops;
+        }
+      }
+    } catch {}
+
+    try {
+      const res = await fetch('https://data.etabus.gov.hk/v1/transport/kmb/stop');
+      if (res.ok) {
+        const d = await res.json();
+        const rawStops = d.data || [];
+        const miniStops = rawStops.map(s => ({
+          id: s.stop,
+          name: s.name_tc,
+          lat: parseFloat(s.lat),
+          lng: parseFloat(s.long)
+        })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
+
+        try {
+          localStorage.setItem('kmb_all_stops_cache', JSON.stringify({
+            timestamp: Date.now(),
+            stops: miniStops
+          }));
+        } catch (e) {
+          console.warn("寫入快取失敗:", e);
+        }
+        return miniStops;
+      }
+    } catch (e) {
+      console.error("無法載入全港巴士站點檔案:", e);
+    }
+    return [];
+  };
+
+  // === 📡 GPS 定位搜尋 (用家按先執行) ===
+  const findNearbyStops = useCallback(async (customCoords = null) => {
+    setGpsLoading(true);
+    setGpsMessage('正在取得你的 GPS 定位位置...');
+    setError(null);
+
+    const getPosition = () => {
+      return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 15000
+        });
+      });
+    };
+
+    try {
+      let lat, lng;
+      if (customCoords) {
+        lat = customCoords.lat;
+        lng = customCoords.lng;
+      } else {
+        const pos = await getPosition();
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+      }
+
+      setUserCoords({ lat, lng });
+      setGpsMessage('定位成功！正在搜索周邊巴士站...');
+
+      const allStops = await getOrFetchAllStops();
+      if (allStops.length === 0) {
+        throw new Error('無法取得巴士地圖資料庫');
+      }
+
+      const withDistance = allStops.map(stop => ({
+        ...stop,
+        distance: calculateDistance(lat, lng, stop.lat, stop.lng)
+      }));
+
+      const sortedNearby = withDistance
+        .sort((a, b) => a.distance - b.distance)
+        .filter(s => s.distance <= 1200)
+        .slice(0, 4);
+
+      setNearbyStops(sortedNearby);
+      setGpsLoading(false);
+
+      if (sortedNearby.length === 0) {
+        setGpsMessage('定位成功，但你附近 1.2 公里內似乎沒有巴士站點。');
+      } else {
+        setGpsMessage('');
+      }
+    } catch (err) {
+      console.warn('GPS 定位失敗:', err);
+      setGpsLoading(false);
+      let errorText = '無法取得定位。請開啟 GPS 或手動允許定位權限。';
+      if (err.code === 1) errorText = '定位授權遭拒。請在瀏覽器設定中允許此網頁讀取位置。';
+      else if (err.code === 3) errorText = 'GPS 定位超時，請重試。';
+      setGpsMessage(errorText);
+    }
+  }, []);
+
+  // === 🔄 獲取附近站點實時 ETA ===
+  const fetchNearbyStopsLiveETA = useCallback(async () => {
+    if (nearbyStops.length === 0) return;
+    try {
+      const stopPromises = nearbyStops.map(stop => 
+        fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stop.id}`)
+          .then(res => res.ok ? res.json() : { data: [] })
+          .catch(() => ({ data: [] }))
+      );
+
+      const results = await Promise.all(stopPromises);
+      
+      const processed = nearbyStops.map((stop, idx) => {
+        const rawEtas = results[idx].data || [];
+        const routeGroups = {};
+        
+        rawEtas.forEach(eta => {
+          if (!eta.eta || !eta.route) return;
+          const key = `${eta.route}-${eta.dir}-${eta.dest_tc}`;
+          if (!routeGroups[key]) {
+            routeGroups[key] = {
+              route: eta.route,
+              dest: eta.dest_tc.includes('荃灣西') ? '荃灣西站' : eta.dest_tc,
+              dir: eta.dir,
+              etas: []
+            };
+          }
+          routeGroups[key].etas.push(eta);
+        });
+
+        const routesDataList = Object.values(routeGroups).map(group => {
+          group.etas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
+          return {
+            route: group.route,
+            dest: group.dest,
+            etas: group.etas.slice(0, 2).map(e => ({
+              time: new Date(e.eta),
+              rmk: e.rmk_tc !== "原定班次" ? e.rmk_tc : null
+            }))
+          };
+        });
+
+        routesDataList.sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }));
+
+        return {
+          id: stop.id,
+          name: stop.name,
+          distance: stop.distance,
+          routesData: routesDataList
+        };
+      });
+
+      setNearbyStopsData(processed);
+      setLastUpdated(new Date());
+    } catch (e) {
+      console.error("獲取附近巴士站 ETA 失敗:", e);
+    }
+  }, [nearbyStops]);
+
+  useEffect(() => {
+    fetchNearbyStopsLiveETA();
+    const timer = setInterval(fetchNearbyStopsLiveETA, 30000);
+    return () => clearInterval(timer);
+  }, [fetchNearbyStopsLiveETA]);
+
+  // === 🚌 獲取收藏的實時 ETA 數據 ===
+  const fetchCustomLocationsData = useCallback(async () => {
+    if (locations.length === 0) {
+      setLocationsData([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const fetchPromises = LOCATIONS.map(loc => {
-        const kmbFetches = (loc.ids || []).map(id => {
-          return fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${id}`)
-            .then(res => res.ok ? res.json() : { data: [] })
-            .catch(() => ({ data: [] }));
-        });
+      const uniqueStopIds = Array.from(new Set(locations.map(loc => loc.id)));
+      
+      const stopPromises = uniqueStopIds.map(stopId => 
+        fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stopId}`)
+          .then(res => res.ok ? res.json() : { data: [] })
+          .catch(() => ({ data: [] }))
+      );
 
-        const ctbFetches = [];
-        if (loc.ctbIds && loc.ctbIds.length > 0) {
-          loc.ctbIds.forEach(id => {
-            loc.routes.forEach(route => {
-              ctbFetches.push(
-                fetch(`https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${id}/${route}`)
-                  .then(res => res.ok ? res.json() : { data: [] })
-                  .catch(() => ({ data: [] }))
-              );
-            });
-          });
-        }
-        
-        return Promise.all([...kmbFetches, ...ctbFetches]).then(results => {
-          const mergedData = results.flatMap(res => res.data || []);
-          return { data: mergedData };
-        });
+      const results = await Promise.all(stopPromises);
+      
+      const etasByStop = {};
+      uniqueStopIds.forEach((stopId, idx) => {
+        etasByStop[stopId] = results[idx].data || [];
       });
 
-      const results = await Promise.all(fetchPromises);
+      const processedData = locations.map(loc => {
+        const allEtas = etasByStop[loc.id] || [];
+        const routesList = [];
 
-      const processedData = LOCATIONS.map((loc, idx) => {
-        const allEtas = results[idx].data || [];
-        const groupedRoutes = {};
+        loc.routes.forEach(routeObj => {
+          const validEtas = allEtas.filter(eta => 
+            eta.route === routeObj.route && 
+            eta.eta && 
+            (routeObj.dir ? eta.dir === routeObj.dir : true)
+          );
 
-        allEtas.forEach(eta => {
-          const etaRoute = eta.route || eta.route_no || eta.Route; 
-          if (loc.routes.includes(etaRoute) && eta.eta) {
-            if (loc.ignoreDest && loc.ignoreDest.some(destWord => eta.dest_tc && eta.dest_tc.includes(destWord))) {
-              return; 
-            }
+          if (validEtas.length > 0) {
+            validEtas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
+            const primaryDest = validEtas[0].dest_tc || routeObj.dest || "目的地";
             
-            const etaTimeMs = new Date(eta.eta).getTime();
-            const nowMs = Date.now();
-            
-            // 強制過濾超過 1 分鐘嘅「已開出」班次
-            if (etaTimeMs - nowMs < -60000) {
-              return; 
-            }
-
-            const key = etaRoute; 
-            if (!groupedRoutes[key]) {
-              groupedRoutes[key] = {
-                route: etaRoute,
-                dest: eta.dest_tc || loc.desc.replace('往 ', ''), 
-                etas: []
-              };
-            }
-            
-            const isDuplicate = groupedRoutes[key].etas.some(existingEta => 
-              Math.abs(existingEta.time.getTime() - etaTimeMs) < 60000
-            );
-
-            if (!isDuplicate) {
-              groupedRoutes[key].etas.push({
-                time: new Date(eta.eta),
-                rmk: eta.rmk_tc && eta.rmk_tc !== "原定班次" && eta.rmk_tc !== "九巴時段" ? eta.rmk_tc : null,
-                co: eta.co || (eta.dir ? 'CTB' : 'KMB') 
-              });
-            }
+            routesList.push({
+              route: routeObj.route,
+              dest: primaryDest.includes('荃灣西') ? '荃灣西站' : primaryDest,
+              etas: validEtas.slice(0, 2).map(e => ({
+                time: new Date(e.eta),
+                rmk: e.rmk_tc !== "原定班次" ? e.rmk_tc : null
+              }))
+            });
+          } else {
+            routesList.push({
+              route: routeObj.route,
+              dest: routeObj.dest || "未有班次",
+              etas: []
+            });
           }
         });
 
-        const routesList = Object.values(groupedRoutes).map(group => {
-          group.etas.sort((a, b) => a.time - b.time);
-          group.etas = group.etas.slice(0, 2); 
-          return group;
-        });
         routesList.sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }));
-
         return { ...loc, routesData: routesList };
       });
 
       setLocationsData(processedData);
       setLastUpdated(new Date());
     } catch (err) {
-      setError('獲取數據失敗，請檢查網絡。');
+      setError('到站預報載入失敗');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locations]);
 
+  // === 🚀 預設初始化：只載入自訂最愛，附近功能懶加載 ===
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 15000); 
+    fetchCustomLocationsData();
+    const interval = setInterval(fetchCustomLocationsData, 30000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchCustomLocationsData]);
 
-  const getCompactEta = (etaDate) => {
-    const now = new Date();
-    const diffMs = etaDate - now;
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 0) return { text: '已開出', val: -1 }; 
-    if (diffMins === 0) return { text: '即將', val: 0 };
-    return { text: diffMins.toString(), val: diffMins }; 
-  };
-
-  const formatTime = (date) => {
-    return date.toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false });
-  };
-
-  let displayLocations = [];
-  if (activeTab === '附近') {
-    if (userLocation) {
-      displayLocations = locationsData
-        .map(loc => ({ ...loc, distance: getDistance(userLocation.lat, userLocation.lng, loc.lat, loc.lng) }))
-        .filter(loc => loc.distance < 5) 
-        .sort((a, b) => a.distance - b.distance); 
-    }
-  } else if (activeTab === '全部') {
-    displayLocations = locationsData;
-  } else {
-    displayLocations = locationsData.filter(loc => loc.region.includes(activeTab));
-  }
-
-  const visibleLocations = displayLocations.filter(loc => loc.routesData.length > 0);
-
-  const SearchModal = () => {
-    const [routeInput, setRouteInput] = useState('');
-    const [stops, setStops] = useState([]);
-    const [fetching, setFetching] = useState(false);
-
-    const searchRoute = async () => {
-      if (!routeInput) return;
-      setFetching(true);
-      setStops([]);
+  // === 💡 關鍵重構：將相同分組 (GroupName) 進行極限壓縮與歸類 ===
+  const groupedFavoritesData = useMemo(() => {
+    const groups = {};
+    locationsData.forEach(loc => {
+      const gName = loc.groupName || '預設';
+      if (!groups[gName]) {
+        groups[gName] = {
+          groupName: gName,
+          routesData: [] 
+        };
+      }
       
-      try {
-        let allStops = [];
-        const kmbOutRes = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/route-stop/${routeInput}/outbound/1`).then(r=>r.json()).catch(()=>({data:[]}));
-        const kmbInRes = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/route-stop/${routeInput}/inbound/1`).then(r=>r.json()).catch(()=>({data:[]}));
-        
-        const kmbStopsData = [...(kmbOutRes.data || []), ...(kmbInRes.data || [])];
-        if (kmbStopsData.length > 0) {
-          const kmbPromises = kmbStopsData.map(async (s) => {
-            const detail = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop/${s.stop}`).then(r=>r.json()).catch(()=>({data:{}}));
-            return { co: 'KMB', dir: s.bound === 'O' ? '去程' : '回程', seq: s.seq, id: s.stop, name: detail.data?.name_tc || '未知站名' };
-          });
-          const resolvedKmb = await Promise.all(kmbPromises);
-          allStops = [...allStops, ...resolvedKmb];
-        }
+      // 將每個物理站點名稱作為微型標籤附加到路線資料內
+      const routesWithStopMeta = loc.routesData.map(r => ({
+        ...r,
+        stopName: loc.name,
+        stopId: loc.id
+      }));
 
-        const ctbOutRes = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/route-stop/CTB/${routeInput}/outbound`).then(r=>r.json()).catch(()=>({data:[]}));
-        const ctbInRes = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/route-stop/CTB/${routeInput}/inbound`).then(r=>r.json()).catch(()=>({data:[]}));
-        
-        const ctbStopsData = [...(ctbOutRes.data || []), ...(ctbInRes.data || [])];
-        if (ctbStopsData.length > 0) {
-          const ctbPromises = ctbStopsData.map(async (s) => {
-            const detail = await fetch(`https://rt.data.gov.hk/v2/transport/citybus/stop/${s.stop}`).then(r=>r.json()).catch(()=>({data:{}}));
-            return { co: 'CTB', dir: s.dir === 'O' ? '去程' : '回程', seq: s.seq, id: s.stop, name: detail.data?.name_tc || '未知站名' };
-          });
-          const resolvedCtb = await Promise.all(ctbPromises);
-          allStops = [...allStops, ...resolvedCtb];
-        }
-        
-        allStops.sort((a, b) => {
-          if (a.co !== b.co) return a.co.localeCompare(b.co);
-          if (a.dir !== b.dir) return a.dir.localeCompare(b.dir);
-          return a.seq - b.seq;
+      groups[gName].routesData.push(...routesWithStopMeta);
+    });
+
+    // 排序確保大眾化的排序習慣
+    return Object.values(groups).map(g => {
+      g.routesData.sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }));
+      return g;
+    });
+  }, [locationsData]);
+
+  // === 批次取得巴士站名稱 ===
+  const fetchStopNamesInBatch = async (stopIds) => {
+    let cache = {};
+    try {
+      cache = JSON.parse(localStorage.getItem('kmb_stop_names_cache') || '{}');
+    } catch {}
+
+    const missingIds = stopIds.filter(id => !cache[id]);
+    if (missingIds.length > 0) {
+      const fetchSingle = async (id) => {
+        try {
+          const res = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop/${id}`);
+          if (res.ok) {
+            const d = await res.json();
+            return { id, name: d.data?.name_tc || id };
+          }
+        } catch {}
+        return { id, name: id };
+      };
+
+      const chunkSize = 10;
+      for (let i = 0; i < missingIds.length; i += chunkSize) {
+        const batch = missingIds.slice(i, i + chunkSize);
+        const results = await Promise.all(batch.map(fetchSingle));
+        results.forEach(r => {
+          cache[r.id] = r.name;
         });
-
-        setStops(allStops);
-      } catch (err) {
-        alert("搜尋失敗");
-      } finally {
-        setFetching(false);
       }
-    };
 
-    const copyToClipboard = (id, co) => {
       try {
-        const textArea = document.createElement("textarea");
-        textArea.value = id;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        alert(`已複製 ${co} ID: ${id}`);
-      } catch (err) {
-        alert(`無法自動複製，請手 manual 抄寫 ID: ${id}`);
+        localStorage.setItem('kmb_stop_names_cache', JSON.stringify(cache));
+      } catch {}
+    }
+    return cache;
+  };
+
+  // === 🛠️ 編輯管理 ===
+  const handleDeleteLocation = (locId) => {
+    const updated = locations.filter(loc => loc.id !== locId);
+    setLocations(updated);
+  };
+
+  const handleDeleteRouteInLocation = (locId, routeNum) => {
+    const updated = locations.map(loc => {
+      if (loc.id === locId) {
+        return {
+          ...loc,
+          routes: loc.routes.filter(r => r.route !== routeNum)
+        };
       }
+      return loc;
+    }).filter(loc => loc.routes.length > 0); 
+    setLocations(updated);
+  };
+
+  // === 🔍 搜尋與精靈邏輯 ===
+  const handleOpenSearchModal = async () => {
+    setIsSearchModalOpen(true);
+    setSearchStep(1);
+    setRouteQuery('');
+    setSelectedRoute(null);
+    setSelectedDirection(null);
+    setSelectedStop(null);
+    setCustomStopName('');
+    setCustomStopDesc('');
+    setCustomGroupName('預設');
+    setCustomGroupInput('');
+    
+    if (allKmbRoutes.length === 0) {
+      setLoadingRoutes(true);
+      try {
+        const res = await fetch('https://data.etabus.gov.hk/v1/transport/kmb/route/');
+        if (res.ok) {
+          const d = await res.json();
+          setAllKmbRoutes(d.data || []);
+        }
+      } catch (e) {
+        console.error("無法取得路線清單", e);
+      } finally {
+        setLoadingRoutes(false);
+      }
+    }
+  };
+
+  const filteredRoutesList = useMemo(() => {
+    if (!routeQuery) return [];
+    const q = routeQuery.toUpperCase().trim();
+    return allKmbRoutes
+      .filter(r => r.route.toUpperCase().includes(q))
+      .sort((a, b) => {
+        if (a.route === q) return -1;
+        if (b.route === q) return 1;
+        return a.route.localeCompare(b.route, undefined, { numeric: true });
+      })
+      .slice(0, 15); 
+  }, [allKmbRoutes, routeQuery]);
+
+  const handleSelectRoute = (routeItem) => {
+    setSelectedRoute(routeItem);
+    const dirs = allKmbRoutes.filter(r => r.route === routeItem.route);
+    setRouteDirections(dirs);
+    setSearchStep(2);
+  };
+
+  const handleSelectDirection = async (directionItem) => {
+    setSelectedDirection(directionItem);
+    setSearchStep(3);
+    setLoadingStops(true);
+    try {
+      const kDirection = directionItem.bound === 'I' ? 'inbound' : 'outbound';
+      const res = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/route-stop/${directionItem.route}/${kDirection}/${directionItem.service_type}`);
+      if (res.ok) {
+        const d = await res.json();
+        const stopList = d.data || [];
+        
+        const stopIds = stopList.map(s => s.stop);
+        const nameCache = await fetchStopNamesInBatch(stopIds);
+
+        const processedStops = stopList.map(s => ({
+          ...s,
+          name_tc: nameCache[s.stop] || s.stop
+        }));
+        
+        setRouteStops(processedStops);
+      }
+    } catch (e) {
+      console.error("無法取得巴士站清單", e);
+    } finally {
+      setLoadingStops(false);
+    }
+  };
+
+  const handleSelectStop = (stopItem) => {
+    setSelectedStop(stopItem);
+    setCustomStopName(stopItem.name_tc);
+    setCustomStopDesc(`往 ${selectedDirection.dest_tc}`);
+    setSearchStep(4);
+  };
+
+  const handleConfirmAddStop = () => {
+    if (!selectedStop) return;
+
+    const finalGroupName = customGroupName === 'NEW' ? (customGroupInput.trim() || '自訂') : customGroupName;
+    const newRouteConfig = {
+      route: selectedDirection.route,
+      dir: selectedDirection.bound,
+      dest: selectedDirection.dest_tc,
+      serviceType: selectedDirection.service_type
     };
+
+    const existingIndex = locations.findIndex(loc => loc.id === selectedStop.stop);
+
+    let updatedLocations = [...locations];
+    if (existingIndex > -1) {
+      const currentRoutes = updatedLocations[existingIndex].routes;
+      const isRouteDuplicate = currentRoutes.some(r => r.route === newRouteConfig.route && r.dir === newRouteConfig.dir);
+      if (!isRouteDuplicate) {
+        updatedLocations[existingIndex].routes.push(newRouteConfig);
+      }
+      updatedLocations[existingIndex].name = customStopName.trim() || updatedLocations[existingIndex].name;
+      updatedLocations[existingIndex].desc = customStopDesc.trim() || updatedLocations[existingIndex].desc;
+      updatedLocations[existingIndex].groupName = finalGroupName;
+    } else {
+      const newCard = {
+        id: selectedStop.stop,
+        filterId: finalGroupName.toUpperCase().replace(/\s+/g, ''),
+        groupName: finalGroupName,
+        name: customStopName.trim() || selectedStop.name_tc,
+        desc: customStopDesc.trim() || `往 ${selectedDirection.dest_tc}`,
+        routes: [newRouteConfig]
+      };
+      updatedLocations.push(newCard);
+    }
+
+    setLocations(updatedLocations);
+    setIsSearchModalOpen(false);
+    
+    setTimeout(() => {
+      fetchCustomLocationsData();
+    }, 200);
+  };
+
+  // === 巴士路線行渲染 (極限壓縮版) ===
+  const renderRow = (route, rIdx, isNearbySource = false) => {
+    const isEven = rIdx % 2 === 0;
+    const rowBg = isEven ? theme.rowEven : theme.rowOdd;
+    const primaryMins = route.etas[0] ? getEtaMinutes(route.etas[0].time) : null;
+    const secondaryMins = route.etas[1] ? getEtaMinutes(route.etas[1].time) : null;
+    const isMissed = primaryMins !== null && primaryMins < 0;
+    const isImminent = primaryMins === 0;
+
+    let dynamicEtaColor = theme.etaPrimaryDefault;
+    if (primaryMins !== null && primaryMins >= 0) {
+      if (primaryMins <= 5) dynamicEtaColor = isDarkMode ? 'text-red-400 font-black' : 'text-red-600 font-black';
+      else if (primaryMins <= 10) dynamicEtaColor = isDarkMode ? 'text-orange-400 font-bold' : 'text-orange-500 font-bold';
+    }
 
     return (
-      <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-sm transition-colors ${t('bg-black/60', 'bg-black/80')}`}>
-        <div className={`rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden transition-colors ${t('bg-white', 'bg-gray-800')}`}>
-          <div className={`border-b p-4 flex items-center justify-between transition-colors ${t('bg-gray-100 border-gray-200', 'bg-gray-900 border-gray-700')}`}>
-            <div className="flex items-center gap-2">
-              <Search className={`w-5 h-5 ${t('text-[#C63C31]', 'text-red-500')}`} />
-              <h2 className={`text-lg font-bold tracking-wide ${t('text-gray-800', 'text-gray-100')}`}>路線尋站系統</h2>
-            </div>
-            <button onClick={() => setShowSearchModal(false)} className={`p-1.5 rounded-full transition-colors ${t('bg-gray-200 hover:bg-red-100 text-gray-600 hover:text-red-600', 'bg-gray-800 hover:bg-red-900/40 text-gray-300 hover:text-red-400')}`}>
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <div className="p-4 flex flex-col flex-1 overflow-hidden">
-            <div className="flex gap-2 mb-4 shrink-0">
-              <input type="text" value={routeInput} onChange={(e) => setRouteInput(e.target.value.toUpperCase())} onKeyDown={(e) => e.key === 'Enter' && searchRoute()} placeholder="輸入巴士路線..." className={`border rounded-lg px-4 py-2 flex-1 outline-none text-lg font-bold ${t('border-gray-300 bg-white text-gray-800 focus:border-[#C63C31]', 'border-gray-600 bg-gray-700 text-gray-100 focus:border-red-500')}`} />
-              <button onClick={searchRoute} disabled={fetching} className={`text-white px-6 py-2 rounded-lg font-bold transition-all flex items-center gap-2 disabled:opacity-50 ${t('bg-[#C63C31] hover:bg-red-800', 'bg-red-700 hover:bg-red-600')}`}>
-                {fetching ? <RefreshCw className="w-5 h-5 animate-spin" /> : '搜尋'}
+      <div key={rIdx} className={`flex justify-between items-center px-4 py-2 transition-colors relative border-b border-gray-500/5 ${rowBg}`}>
+        <div className="flex flex-col items-start justify-center text-left min-w-0 pr-2">
+          <div className="flex items-center gap-2">
+            <span className={`text-2xl lg:text-3xl font-black tracking-tight leading-none ${theme.routeNum}`}>
+              {route.route}
+            </span>
+            {isEditMode && route.stopId && !isNearbySource && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleDeleteRouteInLocation(route.stopId, route.route); }}
+                className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 rounded transition-all"
+                title="刪除此自訂路線"
+              >
+                <X className="w-3.5 h-3.5" />
               </button>
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-              {!fetching && stops.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-4">
-                  {stops.map(stop => (
-                    <div key={`${stop.co}-${stop.dir}-${stop.seq}`} className={`p-3 rounded-lg border flex flex-col justify-between shadow-sm ${stop.co === 'KMB' ? t('bg-red-50 border-red-100', 'bg-red-900/10 border-red-900/30') : t('bg-blue-50 border-blue-100', 'bg-blue-900/10 border-blue-900/30')}`}>
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold text-white ${stop.co === 'KMB' ? t('bg-[#E32636]', 'bg-red-700') : t('bg-blue-600', 'bg-blue-700')}`}>{stop.co}</span>
-                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${stop.co === 'KMB' ? t('bg-white text-red-700 border-red-200', 'bg-gray-800 text-red-400 border-red-800') : t('bg-white text-blue-700 border-blue-200', 'bg-gray-800 text-blue-400 border-blue-800')}`}>{stop.dir} - #{stop.seq}</span>
-                        </div>
-                        <h3 className={`font-bold text-base mt-2 leading-tight ${t('text-gray-800', 'text-gray-200')}`}>{stop.name}</h3>
-                      </div>
-                      <div className={`mt-3 flex items-center justify-between px-2 py-1.5 rounded border shadow-sm ${stop.co === 'KMB' ? t('bg-white border-red-200', 'bg-gray-900 border-red-900/50') : t('bg-white border-blue-200', 'bg-gray-900 border-blue-900/50')}`}>
-                        <code className={`text-sm font-mono font-bold ${stop.co === 'KMB' ? t('text-red-800', 'text-red-400') : t('text-blue-800', 'text-blue-400')}`}>{stop.id}</code>
-                        <button onClick={() => copyToClipboard(stop.id, stop.co)} className={`px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1 ${stop.co === 'KMB' ? t('bg-red-100 text-red-700', 'bg-red-900/40 text-red-300') : t('bg-blue-100 text-blue-700', 'bg-blue-900/40 text-blue-300')}`}><Copy className="w-3 h-3" /> 複製</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            )}
+          </div>
+          {/* 💡 目的地與縮略站名合併在同一行，節省高達 50% 空間 */}
+          <span className={`text-xs font-bold mt-1 ${theme.routeDest} truncate w-full`}>
+            往 {route.dest} {route.stopName && <span className="opacity-60 text-[11px] font-medium">({route.stopName})</span>}
+          </span>
+        </div>
+        
+        <div className="flex flex-col items-end justify-center h-full min-w-[70px] text-right shrink-0">
+          {primaryMins === null ? (
+            <span className={`text-xl font-black ${theme.etaMissed}`}>-</span>
+          ) : isMissed ? (
+            <div className="flex flex-col items-end leading-none">
+              <span className={`text-xs font-black tracking-wide ${theme.etaMissed}`}>已開出</span>
+              {secondaryMins !== null && secondaryMins >= 0 && (
+                <span className={`text-[10px] font-bold mt-0.5 ${theme.etaSecondary}`}>{secondaryMins} Min</span>
               )}
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-col items-end leading-none">
+              <span className={`${isImminent ? 'text-sm tracking-wide animate-pulse' : 'text-xl md:text-2xl'} font-black transition-colors duration-300 ${dynamicEtaColor}`}>
+                {isImminent ? '即將到站' : `${primaryMins} Min`}
+              </span>
+              <div className={`text-[10px] font-bold mt-0.5 flex items-center gap-1 ${theme.etaSecondary}`}>
+                {secondaryMins !== null && secondaryMins >= 0 ? (
+                  <span>下班: {secondaryMins} M</span>
+                ) : (
+                  <span className="opacity-0">-</span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
   };
 
-  return (
-    <div className={t("min-h-screen bg-white text-gray-800 font-sans transition-colors duration-300", "min-h-screen bg-[#111827] text-gray-100 font-sans transition-colors duration-300")}>
-      
-      {showSearchModal && <SearchModal />}
+  // === 主題配色 ===
+  const theme = {
+    appBg: isDarkMode ? 'bg-zinc-950 text-white' : 'bg-slate-50 text-slate-900',
+    cardBg: isDarkMode ? 'bg-zinc-900/90 border-zinc-800/80 shadow-md' : 'bg-white border-slate-200/80 shadow-sm',
+    topBar: isDarkMode ? 'bg-red-950 border-red-900/50' : 'bg-[#e3342f] border-red-700',
+    bottomBar: isDarkMode ? 'bg-red-950/95' : 'bg-[#e3342f]',
+    pillBg: isDarkMode ? 'bg-red-900 text-white' : 'bg-[#e3342f] text-white',
+    colHeader: isDarkMode ? 'text-red-400 border-red-900/30' : 'text-[#e3342f] border-[#fce4ec]',
+    rowEven: isDarkMode ? 'bg-zinc-900/40' : 'bg-white',
+    rowOdd: isDarkMode ? 'bg-zinc-800/20' : 'bg-[#fdf4f5]',
+    routeNum: isDarkMode ? 'text-zinc-100' : 'text-gray-900',
+    routeDest: isDarkMode ? 'text-zinc-400' : 'text-gray-500',
+    etaPrimaryDefault: isDarkMode ? 'text-zinc-100' : 'text-black', 
+    etaSecondary: isDarkMode ? 'text-zinc-400' : 'text-gray-500',
+    etaMissed: isDarkMode ? 'text-zinc-500' : 'text-gray-400',
+    tabActive: isDarkMode ? 'bg-white text-red-950 shadow-md scale-105 font-black' : 'bg-white text-[#e3342f] shadow-md scale-105 font-black',
+    tabInactive: isDarkMode ? 'border border-white/20 text-white/70 hover:bg-white/10' : 'border border-white/20 text-white/90 hover:bg-white/10'
+  };
 
-      {/* 頂部紅色 Header */}
-      <header className={`p-2.5 md:p-3 shadow-md sticky top-0 z-20 flex justify-between items-center transition-colors duration-300 ${t('bg-[#CA3F32]', 'bg-red-950 border-b border-red-900')}`}>
-        <div className="w-full max-w-4xl mx-auto flex justify-between items-center relative">
-          <div className="flex items-center gap-1 md:gap-3">
-            <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-1.5 rounded-full transition-colors ${t('text-white/90 hover:text-white', 'text-red-200 hover:text-white')}`}>
-              {isDarkMode ? <Sun className="w-5 h-5 md:w-6 md:h-6" /> : <Moon className="w-5 h-5 md:w-6 md:h-6" />}
-            </button>
-            <button onClick={toggleFullscreen} className={`p-1.5 rounded-full hidden sm:block transition-colors ${t('text-white/90 hover:text-white', 'text-red-200 hover:text-white')}`}>
-              {isFullscreen ? <Minimize className="w-5 h-5 md:w-6 md:h-6" /> : <MonitorSmartphone className="w-5 h-5 md:w-6 md:h-6" />}
-            </button>
-          </div>
+  // === 🖥️ 橫向「座枱模式」 ===
+  const renderStandMode = () => {
+    // 獲取當前鎖定監控的分組巴士數據 (座枱模式也共享極限合併視圖)
+    let displayRoutes = [];
+    let title = "我的最愛";
 
-          <h1 className="text-lg md:text-2xl font-bold tracking-widest text-white absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap drop-shadow-sm">
-            楊屋村巴士到站預報
-          </h1>
+    if (standMonitorId === 'ALL_FAVORITES') {
+      groupedFavoritesData.forEach(g => displayRoutes.push(...g.routesData));
+      title = "全部最愛";
+    } else if (standMonitorId === 'NEARBY_STOPS') {
+      nearbyStopsData.forEach(s => {
+        const withStopName = s.routesData.map(r => ({ ...r, stopName: s.name }));
+        displayRoutes.push(...withStopName);
+      });
+      title = "附近巴士站";
+    } else {
+      const match = groupedFavoritesData.find(g => g.groupName === standMonitorId);
+      if (match) {
+        displayRoutes = match.routesData;
+        title = match.groupName;
+      }
+    }
 
-          <div className="flex items-center gap-1 md:gap-3">
-            <button onClick={() => setShowSearchModal(true)} className={`p-1.5 rounded-full transition-colors ${t('text-white/90 hover:text-white', 'text-red-200 hover:text-white')}`}>
-              <Search className="w-5 h-5 md:w-6 md:h-6" />
-            </button>
-            <button onClick={fetchData} disabled={loading} className={`p-1.5 rounded-full transition-colors ${t('text-white/90 hover:text-white', 'text-red-200 hover:text-white')} ${loading ? 'opacity-50' : ''}`}>
-              <RefreshCw className={`w-5 h-5 md:w-6 md:h-6 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* 主要內容區 */}
-      <main className="w-full max-w-4xl mx-auto pb-20 transition-colors duration-300">
+    return (
+      <div className="flex flex-row w-full h-full overflow-hidden relative bg-black">
         
-        {error && (
-          <div className={`p-2 m-2 rounded-lg flex items-start gap-2 text-sm ${t('bg-red-50 border border-red-200 text-red-700', 'bg-red-900/30 border border-red-800 text-red-400')}`}>
-            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-            <p>{error}</p>
-          </div>
-        )}
+        {/* 左側時鐘與天氣 */}
+        <div className="w-[60%] h-full relative overflow-hidden bg-black shadow-[inset_-10px_0_20px_rgba(0,0,0,0.5)] z-0 shrink-0">
+          {leftPanelMode === 'WEATHER' ? (
+            <div className="absolute inset-0 flex flex-col justify-between p-8 md:p-12">
+              <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url(${WEATHER_BG})` }} />
+              <div className="absolute inset-0 bg-gradient-to-br from-black/80 via-black/40 to-black/80" />
+              
+              <div className="relative z-10 text-white drop-shadow-lg">
+                <h2 className="text-lg md:text-xl font-bold text-white/95 mb-1">{formatChineseDate(now)}</h2>
+                <span className="text-[3.5rem] md:text-[5.5rem] font-black leading-none tracking-tight drop-shadow-2xl">
+                  {now.getHours().toString().padStart(2, '0')}:{now.getMinutes().toString().padStart(2, '0')}:{now.getSeconds().toString().padStart(2, '0')}
+                </span>
+              </div>
 
-        {activeTab === '附近' && (
-          <div className="m-2">
-            {locating && <div className={`p-2 rounded flex items-center justify-center gap-2 text-sm ${t('text-blue-600 bg-blue-50', 'text-blue-400 bg-blue-900/20')}`}><Compass className="w-4 h-4 animate-spin" /> 正在獲取位置...</div>}
-            {gpsError && <div className={`p-2 rounded flex items-center justify-center gap-2 text-sm ${t('text-orange-600 bg-orange-50', 'text-orange-400 bg-orange-900/20')}`}><AlertCircle className="w-4 h-4" /> {gpsError}</div>}
-          </div>
-        )}
+              <div className="relative z-10 flex flex-col items-start gap-2 text-white">
+                <div className="flex items-center gap-3">
+                  {weatherInfo.icon && (
+                    <img 
+                      src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} 
+                      alt="Weather" 
+                      className="w-16 h-16 drop-shadow-xl"
+                    />
+                  )}
+                  <div className="flex flex-col">
+                    <span className="text-4xl md:text-5xl font-black">{weatherInfo.temp}°C</span>
+                    <span className="text-[10px] font-bold text-white/70">香港天文台</span>
+                  </div>
+                </div>
 
-        {!loading && !locating && visibleLocations.length === 0 && (
-          <div className={`py-12 mt-4 text-center flex flex-col items-center justify-center transition-colors duration-300 ${t('text-gray-400', 'text-gray-500')}`}>
-            <Bus className="w-10 h-10 opacity-20 mb-2" />
-            <p className={`text-base font-medium ${t('text-gray-500', 'text-gray-400')}`}>該地區目前無即將到站班次</p>
-          </div>
-        )}
+                <div className="flex flex-wrap gap-1.5 max-w-full">
+                  {weatherInfo.warnings.map((warn, idx) => (
+                    <div key={idx} className={`px-2 py-0.5 rounded font-black text-xs animate-pulse ${getWarningStyle(warn.code)}`}>
+                      {warn.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {DEFAULT_PHOTOS.map((src, i) => (
+                <img key={i} src={src} alt="Slideshow" className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${i === photoIndex ? 'opacity-100' : 'opacity-0'}`} />
+              ))}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+            </>
+          )}
+        </div>
 
-        {/* 渲染每個車站 */}
-        {visibleLocations.map(loc => (
-          <div key={loc.name} className="mb-0">
-            
-            {/* 置中紅色藥丸車站名 */}
-            <div className={`flex justify-center py-2 sticky top-[48px] md:top-[56px] z-10 ${t('bg-white/95', 'bg-[#111827]/95')} backdrop-blur-sm`}>
-              <span className={`px-4 py-1 md:px-5 md:py-1.5 rounded-full text-xs md:text-sm font-bold tracking-widest shadow-sm ${t('bg-[#C63C31] text-white', 'bg-red-900 text-red-100 border border-red-800')}`}>
-                {loc.name}
+        {/* 右側極限壓縮巴士面板 */}
+        <div className={`w-[40%] h-full flex flex-col z-10 transition-colors shadow-2xl ${theme.appBg}`}>
+          <div className="px-4 pt-3 pb-2 border-b border-gray-500/10 flex flex-col gap-2 shrink-0">
+            <div className="flex items-center justify-between">
+              <span className="font-extrabold text-xs tracking-wider opacity-60">座枱看板設定</span>
+              <span className="text-[10px] opacity-40 font-mono">
+                {now.toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
               </span>
             </div>
 
-            {/* 表頭 (路線 | 分鐘) */}
-            <div className={`flex justify-between items-center px-4 md:px-6 py-1.5 md:py-2 border-b border-t text-sm md:text-base font-bold tracking-widest transition-colors ${t('bg-white border-gray-100 text-[#C63C31]', 'bg-[#111827] border-gray-800 text-red-500')}`}>
-              <span>路線</span>
-              <span>分鐘</span>
-            </div>
-
-            <div className="flex flex-col">
-              {loc.routesData.map((route, index) => {
-                const eta1 = route.etas[0] ? getCompactEta(route.etas[0].time) : null;
-                const eta2 = route.etas[1] ? getCompactEta(route.etas[1].time) : null;
-                
-                // 白、淺粉紅相間底色
-                const rowBg = index % 2 === 0 ? t('bg-white', 'bg-[#111827]') : t('bg-[#FCEAEF]', 'bg-[#2A1620]');
-
-                const isLWB = route.route.startsWith('A') || route.route.startsWith('E') || route.route.startsWith('NA');
-                const coName = route.etas[0]?.co === 'CTB' ? '城巴' : (isLWB ? '龍運' : '九巴');
-                const coBadgeClass = route.etas[0]?.co === 'CTB' 
-                  ? t('bg-blue-600 text-white', 'bg-blue-800 text-gray-100') 
-                  : (isLWB ? t('bg-[#F7931E] text-white', 'bg-[#c47112] text-gray-100') : t('bg-[#E32636] text-white', 'bg-red-800 text-gray-100'));
-
-                // 動態計算主到站時間嘅字體顏色
-                let eta1Color = t('text-black', 'text-white'); // 預設黑/白 (大於10分鐘)
-                if (eta1 && eta1.val > 0) {
-                  if (eta1.val <= 5) {
-                    eta1Color = t('text-[#C63C31]', 'text-red-500'); // 5分鐘或以內：紅色
-                  } else if (eta1.val <= 10) {
-                    eta1Color = t('text-orange-500', 'text-orange-400'); // 6至10分鐘：橙色
-                  }
-                }
-
-                return (
-                  <div key={`${route.route}-${index}`} className={`flex justify-between items-center px-3 md:px-5 py-1.5 md:py-2 border-b transition-colors duration-300 ${t('border-gray-50', 'border-gray-800/50')} ${rowBg}`}>
-                    
-                    {/* 左＋中 Wrapper */}
-                    <div className="flex items-center flex-1 min-w-0 pr-2">
-                      
-                      {/* 左側：加闊咗安全區 */}
-                      <div className="flex flex-col shrink-0 w-[145px] sm:w-[160px]">
-                        <div className="flex items-center gap-1.5">
-                          <span 
-                            className={`text-[2.75rem] md:text-[3.5rem] leading-[0.8] tracking-tighter ${t('text-[#1A1A1D]', 'text-gray-100')}`}
-                            style={{ fontFamily: '"Arial Rounded MT Bold", "Nunito", "Varela Round", sans-serif', fontWeight: 900 }}
-                          >
-                            {route.route}
-                          </span>
-                          <span className={`px-1.5 py-[2px] rounded text-[8px] md:text-[9px] font-bold shadow-sm whitespace-nowrap self-start mt-1.5 ${coBadgeClass}`}>
-                            {coName}
-                          </span>
-                        </div>
-                        {route.etas[0]?.rmk && (
-                          <div className={`text-[9px] md:text-[11px] truncate leading-tight mt-1 pr-1 ${t('text-gray-500', 'text-gray-400')}`}>
-                            {route.etas[0].rmk}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* 中間：目的地 */}
-                      <div className="flex-1 min-w-0 pl-3 md:pl-4">
-                        <div className={`text-[15px] md:text-lg font-bold truncate tracking-tight ${t('text-[#2C3E50]', 'text-gray-300')}`}>
-                          往 {route.dest}
-                        </div>
-                      </div>
-
-                    </div>
-
-                    {/* 右側：分鐘數 */}
-                    <div className="flex flex-col items-end justify-center shrink-0 min-w-[50px]">
-                      {/* 🔥 利用固定高度框，保證字體細咗都唔會改變整行行高 */}
-                      <div className="flex items-center justify-end h-[40px] md:h-[54px]">
-                        {eta1 && (
-                          eta1.val < 0 ? (
-                            // 🔥 確保「已開出」同「即將」嘅 class 完全一模一樣 (text-xl md:text-2xl, font-bold)
-                            <span className={`text-xl md:text-2xl font-bold tracking-tighter ${t('text-gray-400', 'text-gray-500')}`}>
-                              已開出
-                            </span>
-                          ) : eta1.val === 0 ? (
-                            // 🔥 確保「已開出」同「即將」嘅 class 完全一模一樣 (text-xl md:text-2xl, font-bold)
-                            <span className={`text-xl md:text-2xl font-bold tracking-tighter ${t('text-[#C63C31]', 'text-red-500')}`}>
-                              即將
-                            </span>
-                          ) : (
-                            <span className={`text-[3rem] md:text-[4rem] font-normal tracking-tighter leading-[0.85] ${eta1Color}`}>
-                              {eta1.text}
-                            </span>
-                          )
-                        )}
-                      </div>
-                      
-                      {eta2 && (
-                        <div className={`text-[11px] md:text-sm mt-1 tracking-tighter font-normal leading-none ${t('text-gray-500', 'text-gray-400')}`}>
-                          {eta2.val < 0 ? '已開出' : (eta2.val === 0 ? '即將' : eta2.text)}
-                        </div>
-                      )}
-                    </div>
-
-                  </div>
-                );
-              })}
+            <div className="relative">
+              <select 
+                value={standMonitorId} 
+                onChange={(e) => setStandMonitorId(e.target.value)}
+                className={`w-full text-xs font-bold py-1.5 px-3 rounded-lg border appearance-none outline-none ${
+                  isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-slate-100 border-slate-200 text-slate-800'
+                }`}
+              >
+                <option value="ALL_FAVORITES">★ 全部最愛 (合併顯示)</option>
+                {groupedFavoritesData.map(g => (
+                  <option key={g.groupName} value={g.groupName}>📁 分組: {g.groupName}</option>
+                ))}
+                {nearbyStopsData.length > 0 && (
+                  <option value="NEARBY_STOPS">🛰️ 附近巴士站 (實時 GPS)</option>
+                )}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-2.5 pointer-events-none opacity-60" />
             </div>
           </div>
-        ))}
+
+          <div className={`flex justify-between px-4 py-1.5 text-[10px] font-extrabold border-b shrink-0 ${theme.colHeader}`}>
+            <span>路線 (分組: {title})</span>
+            <span>到站時間</span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto flex flex-col">
+            {displayRoutes.length > 0 ? (
+              displayRoutes.map((route, rIdx) => renderRow(route, rIdx, true))
+            ) : (
+              <div className="p-8 text-center text-xs opacity-50">本項目無即時班次，可於一般模式新增最愛</div>
+            )}
+          </div>
+        </div>
+
+      </div>
+    );
+  };
+
+  // === 📱 列表模式 ===
+  const renderListMode = () => {
+    // 根據目前的 Tab 篩選出要顯示的分組
+    const filteredGroups = groupedFavoritesData.filter(g => activeTab === 'ALL' || g.groupName === activeTab);
+
+    return (
+      <div className="w-full max-w-4xl mx-auto px-3 pt-3 pb-24">
+        
+        {/* 控制與新增區 */}
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[11px] font-bold opacity-60">
+            {activeTab === 'NEARBY' 
+              ? '🛰️ 附近巴士站 (依物理距離排序)' 
+              : isEditMode 
+                ? '🟠 編輯最愛：可刪除個別路線或整組站點' 
+                : '🟢 看板已合併同分組，大幅節省縱向空間'}
+          </span>
+          <div className="flex items-center gap-2">
+            {activeTab !== 'NEARBY' && (
+              <button 
+                onClick={() => setIsEditMode(!isEditMode)}
+                className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
+                  isEditMode ? 'bg-orange-500 text-white shadow-md' : 'bg-slate-200/80 hover:bg-slate-300/80 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-inherit'
+                }`}
+              >
+                <Settings className="w-3 h-3" />
+                {isEditMode ? '完成' : '編輯最愛'}
+              </button>
+            )}
+            
+            {activeTab === 'NEARBY' && (
+              <button 
+                onClick={() => findNearbyStops()}
+                disabled={gpsLoading}
+                className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 text-xs font-bold rounded-lg shadow-sm disabled:opacity-50"
+              >
+                <Navigation className={`w-3 h-3 ${gpsLoading ? 'animate-spin' : ''}`} />
+                重新定位
+              </button>
+            )}
+
+            <button 
+              onClick={handleOpenSearchModal}
+              className="flex items-center gap-1 bg-[#e3342f] text-white hover:bg-red-600 px-3 py-1.5 text-xs font-bold rounded-lg shadow-sm"
+            >
+              <Plus className="w-3 h-3" />
+              手動加路線
+            </button>
+          </div>
+        </div>
+
+        {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold my-3 rounded-lg">{error}</div>}
+        
+        {/* ================= 🛰️ 附近巴士站專屬分頁 (用家按先Search) ================= */}
+        {activeTab === 'NEARBY' && (
+          <div className="flex flex-col gap-4">
+            
+            {/* 提示使用者點擊定位，或在載入時顯示載入狀態 */}
+            {(!userCoords || gpsLoading) ? (
+              <div className="p-8 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-center flex flex-col items-center justify-center gap-3">
+                <MapPin className="w-8 h-8 text-blue-500 animate-bounce" />
+                <h3 className="text-sm font-bold">探索附近巴士站</h3>
+                <p className="text-gray-400 text-xs max-w-xs leading-relaxed">我們將使用 GPS 定位尋找你周圍 1.2 公里內的巴士站點與實時到站時間。</p>
+                <button 
+                  onClick={() => findNearbyStops()}
+                  disabled={gpsLoading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2"
+                >
+                  <Navigation className={`w-3.5 h-3.5 ${gpsLoading ? 'animate-spin' : ''}`} />
+                  {gpsLoading ? '正在定位中...' : '授權並尋找附近站點'}
+                </button>
+                {gpsMessage && <span className="text-xs font-medium text-red-500 mt-2">{gpsMessage}</span>}
+              </div>
+            ) : null}
+
+            {/* 定位成功後載入周邊站點 */}
+            {userCoords && nearbyStopsData.length > 0 ? (
+              nearbyStopsData.map((loc, idx) => (
+                <div key={idx} className={`rounded-xl overflow-hidden border transition-all ${theme.cardBg}`}>
+                  <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-500/10 bg-slate-500/5">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-extrabold shadow-sm ${theme.pillBg}`}>
+                        {loc.name}
+                      </span>
+                      <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded">
+                        距離 {loc.distance} 米
+                      </span>
+                    </div>
+                    <a 
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.name + ' 巴士站')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-blue-600 font-bold"
+                    >
+                      🗺️ 地圖
+                    </a>
+                  </div>
+
+                  <div className="flex flex-col">
+                    {loc.routesData.map((route, rIdx) => renderRow(route, rIdx, true))}
+                  </div>
+                </div>
+              ))
+            ) : userCoords && !gpsLoading && (
+              <div className="text-center py-10 opacity-60">
+                <MapPin className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                <p className="text-xs">周圍 1.2 公里內未找到巴士站點。</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================= ⭐️ 我的收藏 (同分組極限壓縮) ================= */}
+        {activeTab !== 'NEARBY' && (
+          <>
+            {locations.length === 0 && (
+              <div className="text-center py-16 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800">
+                <Bus className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <h3 className="text-sm font-bold mb-1">收藏看板還是空的</h3>
+                <p className="text-gray-400 text-xs mb-4 max-w-xs mx-auto">手動點擊上方「手動加路線」按鈕建立第一個最愛巴士看板！</p>
+                <button 
+                  onClick={handleOpenSearchModal}
+                  className="bg-[#e3342f] text-white hover:bg-red-600 px-4 py-2 text-xs font-bold rounded-lg"
+                >
+                  立即建立
+                </button>
+              </div>
+            )}
+
+            {filteredGroups.map((group, gIdx) => (
+              <div key={gIdx} className={`mb-4 rounded-xl overflow-hidden border transition-all ${theme.cardBg}`}>
+                
+                {/* 1. 分組標題區：僅一個，極大省去高度 */}
+                <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-500/10 bg-slate-500/5">
+                  <div className="flex items-center gap-1.5">
+                    <Folder className="w-4 h-4 text-red-500 shrink-0" />
+                    <span className="font-extrabold text-xs">{group.groupName} 分組</span>
+                    <span className="text-[10px] opacity-50">({group.routesData.length} 條路線)</span>
+                  </div>
+                </div>
+
+                {/* 2. 編輯模式下的「隱藏巴士站物理卡管理列」，便於隨時清除整張最愛物理站 */}
+                {isEditMode && (
+                  <div className="px-4 py-1.5 bg-red-500/5 border-b border-red-500/10 flex flex-wrap gap-1.5 items-center text-[10px]">
+                    <span className="font-bold opacity-60">此組包含站點:</span>
+                    {locations.filter(l => (l.groupName || '預設') === group.groupName).map(s => (
+                      <span key={s.id} className="inline-flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded font-bold text-[9px]">
+                        {s.name}
+                        <button
+                          onClick={() => handleDeleteLocation(s.id)}
+                          className="text-red-500 hover:text-red-700 font-extrabold ml-1"
+                          title="刪除此站點"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* 3. 巴士到站列表 */}
+                <div className="flex flex-col">
+                  {group.routesData.map((route, rIdx) => renderRow(route, rIdx, false))}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
+      
+      {/* 頂部導航 */}
+      <header className={`px-4 py-3 flex items-center justify-between border-b shadow-sm z-20 shrink-0 transition-colors ${theme.topBar}`}>
+        <div className="flex gap-1">
+          <button 
+            className="p-1.5 text-white/80 hover:text-white rounded-full" 
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            title="切換主題"
+          >
+            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+          
+          <button 
+            className={`p-1.5 rounded-full ${isStandMode ? 'bg-white text-red-600 shadow-md' : 'text-white/80 hover:text-white'}`}
+            onClick={() => setIsStandMode(!isStandMode)}
+            title="橫向座枱模式"
+          >
+            <MonitorSmartphone className="w-4 h-4" />
+          </button>
+
+          {isStandMode && (
+            <button 
+              className={`ml-1 p-1.5 rounded-full bg-white/20 text-white border border-white/20 flex items-center gap-1 px-3`}
+              onClick={() => setLeftPanelMode(leftPanelMode === 'WEATHER' ? 'PHOTO' : 'WEATHER')}
+            >
+              {leftPanelMode === 'WEATHER' ? (
+                <><ImageIcon className="w-3.5 h-3.5" /><span className="text-xs font-bold hidden sm:inline">轉相簿</span></>
+              ) : (
+                <><CloudSun className="w-3.5 h-3.5" /><span className="text-xs font-bold hidden sm:inline">轉天氣</span></>
+              )}
+            </button>
+          )}
+        </div>
+        
+        {/* 統一命名為「巴士到站看板」 */}
+        <h1 className="text-sm md:text-base font-black tracking-widest text-white text-center flex-1 pr-6 md:pr-0">
+          巴士到站看板
+        </h1>
+        
+        <div className="flex items-center">
+          <button 
+            onClick={() => { 
+              if (activeTab === 'NEARBY') {
+                if (userCoords) fetchNearbyStopsLiveETA();
+              } else {
+                fetchCustomLocationsData();
+              }
+              fetchWeather(); 
+            }} 
+            className="p-1.5 text-white/85 hover:text-white rounded-full"
+          >
+            <RefreshCw className={`w-4.5 h-4.5 ${loading || gpsLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </header>
+
+      {/* 主面板 */}
+      <main className={`flex-1 w-full overflow-hidden ${isStandMode ? 'flex' : 'overflow-y-auto'}`}>
+        {!isStandMode ? renderListMode() : renderStandMode()}
       </main>
 
-      {/* 底部導航欄 */}
-      <div className={`fixed bottom-0 w-full z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] transition-colors duration-300 ${t('bg-[#CA3F32]', 'bg-gray-900 border-t border-gray-800')}`}>
-        <div className="max-w-4xl mx-auto px-2 py-2 md:py-3 flex gap-2 overflow-x-auto scrollbar-hide items-center justify-start sm:justify-center">
-          {TABS.map(tab => {
-            const isActive = activeTab === tab;
-            return (
-               <button
-                 key={tab}
-                 onClick={() => setActiveTab(tab)}
-                 className={`px-5 py-2 md:px-8 md:py-2.5 rounded-md md:rounded-lg text-sm md:text-base font-bold tracking-widest whitespace-nowrap transition-all duration-200 ${
-                   isActive 
-                     ? t('bg-white text-[#CA3F32] shadow-sm', 'bg-red-900 text-white shadow-sm border-transparent') 
-                     : t('bg-transparent text-white border border-white/50 hover:bg-white/10', 'bg-transparent text-gray-400 border border-gray-700 hover:bg-gray-800')
-                 }`}
-               >
-                 {tab}
-               </button>
-            );
-          })}
+      {/* 底部導航 (只在非座枱模式顯示) */}
+      {!isStandMode && (
+        <footer className={`fixed bottom-0 left-0 w-full p-2.5 shadow-xl border-t border-gray-500/10 transition-colors z-20 ${theme.bottomBar}`}>
+          <div className="max-w-4xl mx-auto flex gap-1.5 overflow-x-auto no-scrollbar scroll-smooth items-center">
+            {availableGroups.map(group => (
+              <button 
+                key={group}
+                onClick={() => {
+                  setActiveTab(group);
+                  // 🚀 附近巴士站「用家按先search」：只有當切換到 NEARBY 且尚未載入過定位時，才調用定位
+                  if (group === 'NEARBY' && !userCoords && !gpsLoading) {
+                    findNearbyStops();
+                  }
+                }} 
+                className={`px-3 py-2 rounded-lg text-xs font-bold text-center transition-all duration-200 shrink-0 ${
+                  activeTab === group ? theme.tabActive : theme.tabInactive
+                }`}
+              >
+                {group === 'NEARBY' ? '🛰️ 附近' : group === 'ALL' ? '★ 我的最愛' : group}
+              </button>
+            ))}
+          </div>
+        </footer>
+      )}
+
+      {/* ========================================================= */}
+      {/* 🔍 步驟式搜尋精靈 (WIZARD MODAL)                          */}
+      {/* ========================================================= */}
+      {isSearchModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
+          <div className={`w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border ${
+            isDarkMode ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-slate-100 text-slate-800'
+          }`}>
+            
+            <div className="px-5 py-4 border-b border-gray-500/10 flex items-center justify-between shrink-0">
+              <h3 className="font-extrabold text-base flex items-center gap-2">
+                <Plus className="w-5 h-5 text-red-500" />
+                新增路線至看板
+              </h3>
+              <button onClick={() => setIsSearchModalOpen(false)} className="p-1 rounded-full hover:bg-gray-500/10">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-500/5 px-5 py-2 flex items-center justify-between text-xs font-bold shrink-0 border-b border-gray-500/10">
+              <span className={searchStep === 1 ? "text-red-500" : "opacity-60"}>1. 搜尋路線</span>
+              <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+              <span className={searchStep === 2 ? "text-red-500" : "opacity-60"}>2. 選方向</span>
+              <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+              <span className={searchStep === 3 ? "text-red-500" : "opacity-60"}>3. 挑中途站</span>
+              <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+              <span className={searchStep === 4 ? "text-red-500" : "opacity-60"}>4. 自訂確認</span>
+            </div>
+
+            <div className="flex-1 p-5 overflow-y-auto">
+              
+              {searchStep === 1 && (
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-black opacity-70">輸入巴士路線名稱搜尋：</label>
+                    <div className="relative">
+                      <input 
+                        type="text"
+                        placeholder="例如: 268M, 68F, 968, B1..."
+                        value={routeQuery}
+                        onChange={(e) => setRouteQuery(e.target.value)}
+                        className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${
+                          isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-slate-100 border-slate-200'
+                        }`}
+                        autoFocus
+                      />
+                      {routeQuery && (
+                        <button onClick={() => setRouteQuery('')} className="absolute right-3 top-2.5 text-xs opacity-50">清除</button>
+                      )}
+                    </div>
+                  </div>
+
+                  {loadingRoutes ? (
+                    <div className="py-10 text-center text-sm font-bold opacity-70 flex items-center justify-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin text-red-500" />
+                      正在加載全港路線...
+                    </div>
+                  ) : filteredRoutesList.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[11px] font-bold opacity-60">搜尋建議：</span>
+                      <div className="grid grid-cols-2 gap-2 max-h-[250px] overflow-y-auto pr-1">
+                        {filteredRoutesList.map((r, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleSelectRoute(r)}
+                            className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all hover:scale-[1.02] ${
+                              isDarkMode 
+                              ? 'bg-zinc-800/50 border-zinc-700/60 hover:bg-zinc-800' 
+                              : 'bg-slate-50 border-slate-200/60 hover:bg-slate-100'
+                            }`}
+                          >
+                            <span className="text-lg font-black leading-none text-red-500">{r.route}</span>
+                            <span className="text-[10px] font-bold opacity-60 truncate">
+                              {r.orig_tc} ⇆ {r.dest_tc}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : routeQuery ? (
+                    <div className="py-8 text-center text-sm font-bold opacity-50">查無此路線，請重試</div>
+                  ) : (
+                    <div className="py-10 text-center text-xs font-bold opacity-40">請在上方輸入想搜尋 of 路線編號</div>
+                  )}
+                </div>
+              )}
+
+              {searchStep === 2 && selectedRoute && (
+                <div className="flex flex-col gap-4">
+                  <div className="bg-red-500/10 p-3.5 rounded-xl border border-red-500/20 text-center">
+                    <span className="text-3xl font-black text-red-500 block mb-1">{selectedRoute.route}</span>
+                    <span className="text-xs font-bold opacity-70">請選擇方向：</span>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    {routeDirections.map((dir, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSelectDirection(dir)}
+                        className={`p-4 rounded-xl border text-left flex items-center justify-between transition-all hover:scale-[1.01] ${
+                          isDarkMode 
+                          ? 'bg-zinc-800/80 border-zinc-700 hover:bg-zinc-800' 
+                          : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        <div className="flex flex-col gap-0.5 min-w-0 pr-2">
+                          <span className="text-xs font-bold opacity-50">方向 {dir.bound === 'I' ? '回程' : '去程'}</span>
+                          <span className="font-extrabold text-sm truncate">
+                            往 {dir.dest_tc} (經 {dir.orig_tc})
+                          </span>
+                        </div>
+                        <ChevronRight className="w-5 h-5 opacity-60 shrink-0" />
+                      </button>
+                    ))}
+                  </div>
+
+                  <button onClick={() => setSearchStep(1)} className="mt-2 text-xs font-bold text-center underline opacity-60">
+                    返回上一步
+                  </button>
+                </div>
+              )}
+
+              {searchStep === 3 && selectedDirection && (
+                <div className="flex flex-col gap-3">
+                  <div className="bg-slate-500/10 p-3 rounded-xl text-center text-xs">
+                    設定 <strong className="text-red-500">{selectedDirection.route}</strong> 往 <strong className="text-red-500">{selectedDirection.dest_tc}</strong> 的站點
+                  </div>
+
+                  {loadingStops ? (
+                    <div className="py-12 text-center text-sm font-bold opacity-70 flex flex-col items-center justify-center gap-2">
+                      <RefreshCw className="w-5 h-5 animate-spin text-red-500" />
+                      <span>正在獲取巴士站點資訊...</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[11px] font-bold opacity-60">沿途巴士站：</span>
+                      <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto pr-1">
+                        {routeStops.map((stop, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleSelectStop(stop)}
+                            className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all ${
+                              isDarkMode ? 'bg-zinc-800/50 border-zinc-800 hover:bg-zinc-800' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs font-black bg-slate-500/10 dark:bg-zinc-800 w-6 h-6 rounded-full flex items-center justify-center shrink-0">
+                                {stop.seq}
+                              </span>
+                              <span className="text-sm font-bold truncate">{stop.name_tc}</span>
+                            </div>
+                            <ChevronRight className="w-4 h-4 opacity-50 shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <button onClick={() => setSearchStep(2)} className="mt-2 text-xs font-bold text-center underline opacity-60">
+                    返回上一步
+                  </button>
+                </div>
+              )}
+
+              {searchStep === 4 && selectedStop && (
+                <div className="flex flex-col gap-4">
+                  <div className="bg-green-500/10 p-4 rounded-xl border border-green-500/20 text-center flex flex-col gap-1">
+                    <span className="text-green-500 font-extrabold text-xs tracking-wider">確認設定</span>
+                    <span className="text-lg font-black">{selectedDirection.route} 號巴士</span>
+                    <span className="text-sm font-bold opacity-80">於「{selectedStop.name_tc}」上車</span>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-black opacity-70">顯示巴士站名稱 (選填)：</label>
+                    <input 
+                      type="text"
+                      placeholder={selectedStop.name_tc}
+                      value={customStopName}
+                      onChange={(e) => setCustomStopName(e.target.value)}
+                      className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${
+                        isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-slate-100 border-slate-200'
+                      }`}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-black opacity-70">方向描述 (選填)：</label>
+                    <input 
+                      type="text"
+                      placeholder={`往 ${selectedDirection.dest_tc}`}
+                      value={customStopDesc}
+                      onChange={(e) => setCustomStopDesc(e.target.value)}
+                      className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${
+                        isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-slate-100 border-slate-200'
+                      }`}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-black opacity-70">放置於看板分類分組：</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={customGroupName}
+                        onChange={(e) => setCustomGroupName(e.target.value)}
+                        className={`py-2 px-3 rounded-lg border font-bold text-sm outline-none ${
+                          isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-slate-100 border-slate-200'
+                        }`}
+                      >
+                        <option value="預設">預設</option>
+                        {Array.from(new Set(locations.map(loc => loc.groupName).filter(n => n && n !== '預設'))).map(group => (
+                          <option key={group} value={group}>{group}</option>
+                        ))}
+                        <option value="NEW">+ 新增分組...</option>
+                      </select>
+
+                      {customGroupName === 'NEW' && (
+                        <input 
+                          type="text"
+                          placeholder="請輸入新分組名稱"
+                          value={customGroupInput}
+                          onChange={(e) => setCustomGroupInput(e.target.value)}
+                          className={`py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${
+                            isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-slate-100 border-slate-200'
+                          }`}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 mt-4 shrink-0">
+                    <button onClick={() => setSearchStep(3)} className="flex-1 bg-slate-200 dark:bg-zinc-800 py-2.5 rounded-xl font-bold text-xs">
+                      返回上一步
+                    </button>
+                    <button onClick={handleConfirmAddStop} className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md">
+                      <Check className="w-4 h-4" />
+                      加入最愛
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
     </div>
   );
