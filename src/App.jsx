@@ -39,7 +39,7 @@ const DEFAULT_PHOTOS = [
 const WEATHER_BG = "/victoria-harbour.jpg";
 
 // ==========================================
-// 🚌 預設預載的自訂巴士站數據 (使用者自訂的最愛)
+// 🚌 預設預載的自訂巴士站數據
 // ==========================================
 const DEFAULT_LOCATIONS = [
   {
@@ -120,23 +120,19 @@ const getWarningStyle = (code) => {
 };
 
 export default function App() {
-  // === 基礎狀態管理 ===
   const [loading, setLoading] = useState(true);
   const [locationsData, setLocationsData] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState(null);
-  
-  // 💡 預設分頁改回 'NEARBY'，讓附近變成打開首選
-  const [activeTab, setActiveTab] = useState('NEARBY'); 
+  const [activeTab, setActiveTab] = useState('ALL'); 
   const [photoIndex, setPhotoIndex] = useState(0);
   const [now, setNow] = useState(new Date());
 
-  // === 個性化設定 ===
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try { return JSON.parse(localStorage.getItem('kmb_theme') || 'false'); } catch { return false; }
   });
 
-  // === 🎨 核心主題配色 (脫離 Tailwind dark: 依賴，解決 iOS 深色模式衝突) ===
+  // === 🎨 核心主題配色 ===
   const theme = {
     appBg: isDarkMode ? 'bg-zinc-950 text-white' : 'bg-slate-50 text-slate-900',
     topBar: isDarkMode ? 'bg-red-950 border-red-900/50' : 'bg-[#e3342f] border-red-700',
@@ -145,7 +141,8 @@ export default function App() {
     rowEven: isDarkMode ? 'bg-zinc-900/60' : 'bg-white',
     rowOdd: isDarkMode ? 'bg-red-950/20' : 'bg-[#fae0e5]', // 淺色模式加深粉紅斑馬紋
     routeNum: isDarkMode ? 'text-zinc-100' : 'text-slate-900',
-    routeDest: isDarkMode ? 'text-zinc-400' : 'text-slate-600',
+    routeDest: isDarkMode ? 'text-zinc-300' : 'text-slate-800', 
+    etaPrimaryDefault: isDarkMode ? 'text-zinc-100' : 'text-slate-800', // 預設 11分鐘以上的深色
     etaSecondary: isDarkMode ? 'text-zinc-400' : 'text-slate-500',
     etaMissed: isDarkMode ? 'text-zinc-500' : 'text-slate-400',
     tabActive: isDarkMode ? 'bg-white text-red-950 shadow-md scale-105 font-black' : 'bg-white text-[#e3342f] shadow-md scale-105 font-black',
@@ -161,17 +158,14 @@ export default function App() {
     controlBtn: isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200' : 'bg-slate-200 hover:bg-slate-300 text-slate-800',
   };
 
-  // === ⚙️ 時間計算 Helper ===
   const getEtaMinutes = (etaDate) => Math.floor((etaDate - now) / 60000);
 
-  // === 🛰️ GPS 定位與附近巴士站專用狀態 ===
   const [gpsLoading, setGpsLoading] = useState(false);
   const [userCoords, setUserCoords] = useState(null); 
   const [nearbyStops, setNearbyStops] = useState([]); 
   const [nearbyStopsData, setNearbyStopsData] = useState([]); 
   const [gpsMessage, setGpsMessage] = useState('');
 
-  // === 用家自訂巴士站數據 ===
   const [locations, setLocations] = useState(() => {
     try {
       const saved = localStorage.getItem('kmb_custom_locations');
@@ -181,7 +175,6 @@ export default function App() {
     }
   });
 
-  // === 🛠️ 全新「設定中心」專用狀態 ===
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState('FAVORITES'); 
   const [shouldReopenSettings, setShouldReopenSettings] = useState(false); 
@@ -196,7 +189,6 @@ export default function App() {
   const [backupSuccess, setBackupSuccess] = useState('');
   const [backupError, setBackupError] = useState('');
 
-  // === 天氣數據 ===
   const [weatherInfo, setWeatherInfo] = useState({ temp: '--', icon: null, warnings: [] });
 
   const [isStandMode, setIsStandMode] = useState(() => {
@@ -210,11 +202,10 @@ export default function App() {
   });
 
   const [standMonitorId, setStandMonitorId] = useState(() => {
-    try { return localStorage.getItem('kmb_stand_monitor_id') || 'NEARBY_STOPS'; } 
-    catch { return 'NEARBY_STOPS'; }
+    try { return localStorage.getItem('kmb_stand_monitor_id') || 'ALL_FAVORITES'; } 
+    catch { return 'ALL_FAVORITES'; }
   });
 
-  // === 搜尋彈窗狀態 ===
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [searchStep, setSearchStep] = useState(1); 
   const [allKmbRoutes, setAllKmbRoutes] = useState([]); 
@@ -232,7 +223,6 @@ export default function App() {
   const [customGroupName, setCustomGroupName] = useState('預設');
   const [customGroupInput, setCustomGroupInput] = useState('');
 
-  // === 🛡️ iPad/Safari 專用：動態禁用電話自動探測 ===
   useEffect(() => {
     const meta = document.createElement('meta');
     meta.name = "format-detection";
@@ -243,7 +233,6 @@ export default function App() {
     };
   }, []);
 
-  // === 儲存設定至 LocalStorage ===
   useEffect(() => { try { localStorage.setItem('kmb_custom_locations', JSON.stringify(locations)); } catch {} }, [locations]);
   useEffect(() => { try { localStorage.setItem('kmb_theme', JSON.stringify(isDarkMode)); } catch {} }, [isDarkMode]);
   useEffect(() => { try { localStorage.setItem('kmb_stand_mode', JSON.stringify(isStandMode)); } catch {} }, [isStandMode]);
@@ -251,16 +240,14 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem('kmb_nearby_radius', nearbyRadius.toString()); } catch {} }, [nearbyRadius]);
   useEffect(() => { if (standMonitorId) try { localStorage.setItem('kmb_stand_monitor_id', standMonitorId); } catch {} }, [standMonitorId]);
 
-  // 💡 分頁管理：強制將 ALL(最愛) 放第一格，NEARBY(附近) 放第二格，後續接自訂群組
   const availableGroups = useMemo(() => {
     const groupsSet = new Set(locations.map(loc => loc.groupName || '預設'));
     return ['ALL', 'NEARBY', ...Array.from(groupsSet)]; 
   }, [locations]);
 
-  // 如果目前選取的 Tab 不在清單中，預設跳回 NEARBY
   useEffect(() => {
     if (activeTab !== 'ALL' && activeTab !== 'NEARBY' && !availableGroups.includes(activeTab)) {
-      setActiveTab('NEARBY');
+      setActiveTab('ALL');
     }
   }, [availableGroups, activeTab]);
 
@@ -631,15 +618,19 @@ export default function App() {
     const isMissed = primaryMins !== null && primaryMins < 0;
     const isImminent = primaryMins === 0;
 
-    let etaColorStyle = { color: isDarkMode ? '#f4f4f5' : '#0f172a' }; 
+    // 💡 智慧 ETA 顏色邏輯 (完全使用 Tailwind)
+    let dynamicEtaColorClass = theme.etaPrimaryDefault; 
     if (primaryMins !== null && primaryMins >= 0) {
-      if (primaryMins <= 5) etaColorStyle = { color: '#e3342f' };       
-      else if (primaryMins <= 10) etaColorStyle = { color: '#f97316' }; 
+      if (primaryMins <= 5) {
+        dynamicEtaColorClass = 'text-[#e3342f] dark:text-red-500'; // 0-5 分鐘 紅色
+      } else if (primaryMins <= 10) {
+        dynamicEtaColorClass = 'text-[#f97316] dark:text-orange-400'; // 6-10 分鐘 橙色
+      }
     }
 
     const isStand = layoutType === 'STAND';
     const routeNumSize = isStand ? 'text-4xl lg:text-5xl' : 'text-5xl sm:text-6xl md:text-7xl';
-    const destSize = isStand ? 'text-xs' : 'text-sm sm:text-base';
+    const destSize = isStand ? 'text-xs' : 'text-base sm:text-lg'; 
     const primaryNumSize = isStand ? 'text-4xl lg:text-5xl' : 'text-5xl sm:text-6xl md:text-7xl';
     const primaryTextSize = isStand ? 'text-2xl' : 'text-3xl sm:text-4xl';
     const secondarySize = isStand ? 'text-lg' : 'text-2xl sm:text-3xl';
@@ -651,12 +642,12 @@ export default function App() {
         
         <div className="flex flex-col items-start justify-center flex-1 min-w-0 pr-3">
           <div className="flex items-center gap-2">
-            <span className={`${routeNumSize} font-black tracking-tighter leading-none ios-num-fix ${theme.routeNum}`}>
+            <span className={`${routeNumSize} font-black tracking-tighter leading-none ${theme.routeNum}`}>
               {route.route}
             </span>
           </div>
-          <span className={`${destSize} font-bold mt-1.5 sm:mt-2 ${theme.routeDest} truncate w-full`}>
-            往 {route.dest} {route.stopName && <span className="opacity-60 text-[0.85em] font-medium">({route.stopName})</span>}
+          <span className={`${destSize} font-extrabold mt-1 sm:mt-1.5 ${theme.routeDest} truncate w-full`}>
+            往 {route.dest}
           </span>
         </div>
         
@@ -668,15 +659,15 @@ export default function App() {
             ) : isMissed ? (
               <span className={`${primaryTextSize} font-black tracking-wide leading-none ${theme.etaMissed}`}>已開出</span>
             ) : isImminent ? (
-              <span style={etaColorStyle} className={`${primaryTextSize} font-black tracking-wide animate-pulse leading-none ios-num-fix`}>即將到站</span>
+              <span className={`${primaryTextSize} font-black tracking-wide animate-pulse leading-none ${dynamicEtaColorClass}`}>即將到站</span>
             ) : (
-              <span style={etaColorStyle} className={`${primaryNumSize} font-black tracking-tighter leading-none ios-num-fix`}>{primaryMins}</span>
+              <span className={`${primaryNumSize} font-black tracking-tighter leading-none ${dynamicEtaColorClass}`}>{primaryMins}</span>
             )}
           </div>
           
           <div className="flex items-end justify-end mt-1.5 sm:mt-2">
             {secondaryMins !== null && secondaryMins >= 0 ? (
-              <span className={`${secondarySize} font-extrabold ${theme.etaSecondary} ios-num-fix leading-none`}>
+              <span className={`${secondarySize} font-extrabold ${theme.etaSecondary} leading-none`}>
                 {secondaryMins}
               </span>
             ) : (
@@ -761,15 +752,15 @@ export default function App() {
               {filteredGroups.map((group, gIdx) => (
                 <div key={gIdx} className={`sm:rounded-2xl overflow-hidden shadow-sm border-b sm:border ${theme.groupCardBg}`}>
                   
-                  <div className={`py-4 flex justify-center border-b ${theme.groupHeaderBg}`}>
-                    <span className="bg-[#e3342f] text-white px-6 py-1.5 rounded-full font-black text-sm md:text-base shadow-sm tracking-widest">
+                  {/* 💡 放大字體與增加行高的緊湊型一體化表頭 */}
+                  <div className={`flex justify-between items-center px-5 py-3 sm:py-4 text-base sm:text-lg font-black border-b ${theme.groupHeaderText}`}>
+                    <span className="flex-1 text-left">路線</span>
+                    
+                    <span className="bg-[#e3342f] text-white px-6 py-1.5 rounded-full text-sm sm:text-base tracking-widest shadow-sm shrink-0">
                       {group.groupName}
                     </span>
-                  </div>
-
-                  <div className={`flex justify-between px-5 py-2.5 text-sm md:text-base font-black border-b ${theme.groupHeaderText}`}>
-                    <span>路線</span>
-                    <span>分鐘</span>
+                    
+                    <span className="flex-1 text-right">分鐘</span>
                   </div>
 
                   <div className="flex flex-col">
@@ -788,7 +779,10 @@ export default function App() {
   const renderStandMode = () => {
     let displayRoutes = [];
     let title = "我的最愛";
-    if (standMonitorId === 'NEARBY_STOPS') {
+    if (standMonitorId === 'ALL_FAVORITES') {
+      groupedFavoritesData.forEach(g => displayRoutes.push(...g.routesData));
+      title = "全部最愛";
+    } else if (standMonitorId === 'NEARBY_STOPS') {
       nearbyStopsData.forEach(s => {
         const withStopName = s.routesData.map(r => ({ ...r, stopName: s.name }));
         displayRoutes.push(...withStopName);
@@ -850,15 +844,15 @@ export default function App() {
                 onChange={(e) => setStandMonitorId(e.target.value)}
                 className={`w-full text-xs font-bold py-1.5 px-3 rounded-lg border appearance-none outline-none ${theme.inputBg}`}
               >
-                {nearbyStopsData.length > 0 && <option value="NEARBY_STOPS">🛰️ 附近巴士站</option>}
                 <option value="ALL_FAVORITES">★ 全部最愛</option>
+                {nearbyStopsData.length > 0 && <option value="NEARBY_STOPS">🛰️ 附近巴士站</option>}
                 {groupedFavoritesData.map(g => <option key={g.groupName} value={g.groupName}>📁 分組: {g.groupName}</option>)}
               </select>
               <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-2 pointer-events-none opacity-60" />
             </div>
           </div>
 
-          <div className={`flex justify-between px-4 py-2 text-[11px] font-black border-b shrink-0 ${theme.groupHeaderText}`}>
+          <div className={`flex justify-between px-4 py-2.5 text-xs font-black border-b shrink-0 ${theme.groupHeaderText}`}>
             <span>路線</span>
             <span>分鐘</span>
           </div>
@@ -878,11 +872,17 @@ export default function App() {
 
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
+      {/* 💡 注入專為 Safari 的電話防護，確保不覆蓋顏色 (移除 !important 的顏色繼承干擾) */}
       <style>{`
-        a[href^="tel"], a[href^="tel"]:hover, a[href^="tel"]:active, a[href^="tel"]:focus { 
-          color: inherit; 
-          text-decoration: none; 
-          pointer-events: none; 
+        /* 解決 iOS 橫向滑動與隱藏卷軸 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        
+        /* 僅針對生成的電話連結進行隱藏化 */
+        a[href^="tel"], a[href^="tel"]:hover, a[href^="tel"]:active, a[href^="tel"]:focus {
+          color: inherit !important;
+          text-decoration: none !important;
+          pointer-events: none !important;
         }
       `}</style>
 
@@ -910,8 +910,8 @@ export default function App() {
       </main>
 
       {!isStandMode && (
-        <footer className={`fixed bottom-0 left-0 w-full p-2.5 shadow-xl border-t border-gray-500/10 transition-colors z-20 ${theme.bottomBar}`}>
-          <div className="max-w-4xl mx-auto flex gap-1.5 overflow-x-auto no-scrollbar scroll-smooth items-center">
+        <footer className={`fixed bottom-0 left-0 w-full p-2.5 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] transition-colors z-20 ${theme.bottomBar}`}>
+          <div className="max-w-4xl mx-auto flex gap-1.5 overflow-x-auto no-scrollbar items-center">
             {availableGroups.map(group => (
               <button 
                 key={group}
