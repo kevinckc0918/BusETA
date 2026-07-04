@@ -235,6 +235,17 @@ export default function App() {
   const [customGroupName, setCustomGroupName] = useState('預設');
   const [customGroupInput, setCustomGroupInput] = useState('');
 
+  // === 🛡️ iPad/Safari 專用：動態禁用電話自動探測 ===
+  useEffect(() => {
+    const meta = document.createElement('meta');
+    meta.name = "format-detection";
+    meta.content = "telephone=no, date=no, address=no, email=no";
+    document.head.appendChild(meta);
+    return () => {
+      try { document.head.removeChild(meta); } catch(e) {}
+    };
+  }, []);
+
   // === 儲存設定至 LocalStorage ===
   useEffect(() => {
     try { localStorage.setItem('kmb_custom_locations', JSON.stringify(locations)); } catch {}
@@ -421,7 +432,7 @@ export default function App() {
       setGpsLoading(false);
 
       if (sortedNearby.length === 0) {
-        setGpsMessage(`定位成功，但你附近 ${nearbyRadius} 米內似乎沒有九巴站點。建議到設定中調大搜尋半徑。`);
+        setGpsMessage(`定位成功，但你附近 ${nearbyRadius} 米內似乎沒有巴士站點。建議到設定中調大搜尋半徑。`);
       } else {
         setGpsMessage('');
       }
@@ -877,18 +888,15 @@ export default function App() {
     return cache;
   };
 
-  // === 🛠️ 關鍵修復：編輯管理（同步瞬時清空渲染狀態以防止 iPad 等快取定格） ===
+  // === 🛠️ 編輯最愛管理 ===
   const handleDeleteLocation = (locId, e) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
     
-    // 1. 同步更新本地儲存最愛站點 list
     const updatedLocations = locations.filter(loc => loc.id !== locId);
     setLocations(updatedLocations);
-    
-    // 2. ⚡【關鍵修正】：瞬間同步將 API 渲染資料清空，提供 0 毫秒物理刪除視覺效果
     setLocationsData(prev => prev.filter(loc => loc.id !== locId));
   };
 
@@ -898,7 +906,6 @@ export default function App() {
       e.stopPropagation();
     }
 
-    // 1. 同步最愛配置數據結構中的線路
     const updatedLocations = locations.map(loc => {
       if (loc.id === locId) {
         return {
@@ -910,7 +917,6 @@ export default function App() {
     }).filter(loc => loc.routes.length > 0); 
     setLocations(updatedLocations);
 
-    // 2. ⚡【關鍵修正】：瞬間對當前主畫面渲染的 API 資料集進行篩選，防止移除後畫面殘留
     setLocationsData(prev => {
       return prev.map(loc => {
         if (loc.id === locId) {
@@ -943,7 +949,8 @@ export default function App() {
     return (
       <div key={rIdx} className={`flex justify-between items-center px-3.5 py-2 transition-colors relative border-b border-gray-500/5 ${rowBg}`}>
         <div className="flex flex-col items-start justify-center text-left min-w-0 pr-1.5">
-          <span className={`text-xl lg:text-2xl font-black tracking-tight leading-none ${theme.routeNum}`}>
+          {/* 💡 加上強制顏色類別，防止 iPad/iOS 渲染為藍色/黑色透明連結 */}
+          <span className={`text-xl lg:text-2xl font-black tracking-tight leading-none ios-num-fix ${theme.routeNum}`}>
             {route.route}
           </span>
           <span className={`text-[11px] font-bold mt-0.5 ${theme.routeDest} truncate w-full`}>
@@ -963,7 +970,8 @@ export default function App() {
             </div>
           ) : (
             <div className="flex flex-col items-end leading-none">
-              <span className={`${isImminent ? 'text-xs tracking-wide animate-pulse' : 'text-lg lg:text-xl'} font-black transition-colors duration-300 ${dynamicEtaColor}`}>
+              {/* 💡 加上強制顏色類別，防止即時分鐘被誤判為號碼而消失 */}
+              <span className={`text-lg lg:text-xl font-black transition-colors duration-300 ios-num-fix ${isImminent ? 'text-xs tracking-wide animate-pulse' : ''} ${dynamicEtaColor}`}>
                 {isImminent ? '即將到站' : `${primaryMins} Min`}
               </span>
               <div className={`text-[9px] font-bold mt-0.5 flex items-center gap-1 ${theme.etaSecondary}`}>
@@ -1008,7 +1016,7 @@ export default function App() {
                 <button 
                   onClick={() => findNearbyStops()}
                   disabled={gpsLoading}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 shadow-md"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 shadow-md animate-pulse-slow"
                 >
                   <Navigation className={`w-3.5 h-3.5 ${gpsLoading ? 'animate-spin' : ''}`} />
                   {gpsLoading ? '正在定位中...' : '授權並尋找附近站點'}
@@ -1231,6 +1239,22 @@ export default function App() {
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
       
+      {/* 🛡️ 注入專為 iOS Safari 準備的全域強制樣式重設，阻斷電話辨識與顏色覆蓋 */}
+      <style>{`
+        /* 強制防止 iOS Safari 重新渲染、變更顏色或隱藏任何被識別為電話號碼的數字 */
+        a[href^="tel"],
+        a[href^="tel"]:hover,
+        a[href^="tel"]:active,
+        a[href^="tel"]:focus,
+        .ios-num-fix,
+        .ios-num-fix * {
+          color: inherit !important;
+          text-decoration: none !important;
+          pointer-events: none !important;
+          -webkit-text-fill-color: currentColor !important;
+        }
+      `}</style>
+
       {/* 頂部導航 */}
       <header className={`px-4 py-3 flex items-center justify-between border-b shadow-sm z-20 shrink-0 transition-colors ${theme.topBar}`}>
         <div className="flex gap-1">
@@ -1529,7 +1553,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* --- Tab 3: 進階與系統重設 --- */}
+              {/* --- Tab 3: 進階與 system 重設 --- */}
               {settingsTab === 'ADVANCED' && (
                 <div className="flex flex-col gap-5">
                   {/* 1. GPS 搜索範圍微調 */}
