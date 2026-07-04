@@ -31,13 +31,12 @@ import {
 // 🖼️ 預設高畫質幻燈片 (FALLBACK BEAUTIFUL PHOTOS)
 // ==========================================
 const DEFAULT_PHOTOS = [
-  "https://images.unsplash.com/photo-1506157786151-b8491531f063?w=1200&auto=format&fit=crop&q=80", 
-  "https://images.unsplash.com/photo-1542397284385-601017645536?w=1200&auto=format&fit=crop&q=80", 
-  "https://images.unsplash.com/photo-1518156677180-95a2893f3e9f?w=1200&auto=format&fit=crop&q=80", 
-  "https://images.unsplash.com/photo-1569336415962-a4bd9f69cd83?w=1200&auto=format&fit=crop&q=80"  
+  "/photo01.jpg", 
+  "/photo03.jpg", 
+  "/photo03.jpg"  
 ];
 
-const WEATHER_BG = "https://images.unsplash.com/photo-1542397284385-601017645536?w=1200&auto=format&fit=crop&q=80";
+const WEATHER_BG = "/victoria-harbour.jpg";
 
 // ==========================================
 // 🚌 預設預載的自訂巴士站數據 (使用者自訂的最愛)
