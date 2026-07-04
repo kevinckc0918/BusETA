@@ -3,7 +3,7 @@ import {
   Bus, 
   RefreshCw, 
   Moon, 
-  Sun, 
+  Sun,
   MonitorSmartphone, 
   CloudSun, 
   AlertTriangle, 
