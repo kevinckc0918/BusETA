@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 
 // ==========================================
-// 🖼️ 預設高畫質幻燈片 (已修改為本地路徑)
+// 🖼️ 預設高畫質幻燈片 (本地路徑)
 // ==========================================
 const DEFAULT_PHOTOS = [
   "/photo01.jpg",
@@ -39,7 +39,7 @@ const DEFAULT_PHOTOS = [
 const WEATHER_BG = "/victoria-harbour.jpg";
 
 // ==========================================
-// 🚌 預設預載的自訂巴士站數據
+// 🚌 預設預載的自訂巴士站數據 (加入 customDest 解決循環線方向)
 // ==========================================
 const DEFAULT_LOCATIONS = [
   {
@@ -47,7 +47,6 @@ const DEFAULT_LOCATIONS = [
     filterId: "PARKYOHO",
     groupName: "峻巒",
     name: "峻巒總站",
-    desc: "往市區",
     routes: [
       { route: "68", dir: "O", dest: "元朗公園", serviceType: "1" },
       { route: "68F", dir: "O", dest: "元朗公園", serviceType: "1" },
@@ -59,9 +58,8 @@ const DEFAULT_LOCATIONS = [
     filterId: "YOHO",
     groupName: "形點",
     name: "形點 II",
-    desc: "往峻巒",
     routes: [
-      { route: "68", dir: "I", dest: "峻巒", serviceType: "1" }
+      { route: "68", dir: "I", dest: "峻巒", serviceType: "1", customDest: "峻巒" } // 💡 注入自訂目的地
     ]
   },
   {
@@ -69,9 +67,8 @@ const DEFAULT_LOCATIONS = [
     filterId: "YOHO",
     groupName: "形點",
     name: "形點 I",
-    desc: "往峻巒",
     routes: [
-      { route: "68F", dir: "I", dest: "峻巒", serviceType: "1" }
+      { route: "68F", dir: "I", dest: "峻巒", serviceType: "1", customDest: "峻巒" } // 💡 注入自訂目的地
     ]
   }
 ];
@@ -219,7 +216,7 @@ export default function App() {
   const [selectedStop, setSelectedStop] = useState(null); 
 
   const [customStopName, setCustomStopName] = useState('');
-  const [customStopDesc, setCustomStopDesc] = useState('');
+  const [customStopDesc, setCustomStopDesc] = useState(''); // 💡 此變數現作為自訂目的地 (customDest)
   const [customGroupName, setCustomGroupName] = useState('預設');
   const [customGroupInput, setCustomGroupInput] = useState('');
 
@@ -246,9 +243,7 @@ export default function App() {
   }, [locations]);
 
   useEffect(() => {
-    if (activeTab !== 'ALL' && activeTab !== 'NEARBY' && !availableGroups.includes(activeTab)) {
-      setActiveTab('ALL');
-    }
+    if (activeTab !== 'ALL' && activeTab !== 'NEARBY' && !availableGroups.includes(activeTab)) setActiveTab('ALL');
   }, [availableGroups, activeTab]);
 
   useEffect(() => {
@@ -337,9 +332,6 @@ export default function App() {
     }
   }, [nearbyRadius]);
 
-  // ========================================================
-  // 💡 獲取附近預報 (加入了智慧去重引擎)
-  // ========================================================
   const fetchNearbyStopsLiveETA = useCallback(async () => {
     if (nearbyStops.length === 0) return;
     try {
@@ -366,7 +358,6 @@ export default function App() {
           const seenMinutes = new Set();
           group.etas.forEach(e => {
             const minuteKey = Math.floor(new Date(e.eta).getTime() / 60000);
-            // 只要不是過期超過 1 分鐘以上的幽靈班次，並且同分鐘不重複，就加入
             if (!seenMinutes.has(minuteKey) && (minuteKey - currentMins) >= -1) {
               seenMinutes.add(minuteKey);
               uniqueEtas.push(e);
@@ -393,9 +384,6 @@ export default function App() {
     return () => clearInterval(timer);
   }, [fetchNearbyStopsLiveETA]);
 
-  // ========================================================
-  // 💡 獲取最愛預報 (加入了智慧去重引擎)
-  // ========================================================
   const fetchCustomLocationsData = useCallback(async () => {
     if (locations.length === 0) { setLocationsData([]); setLoading(false); return; }
     setLoading(true); setError(null);
@@ -423,21 +411,21 @@ export default function App() {
             const seenMinutes = new Set();
             validEtas.forEach(e => {
               const minuteKey = Math.floor(new Date(e.eta).getTime() / 60000);
-              // 只要不是過期超過 1 分鐘以上的幽靈班次，並且同分鐘不重複，就加入
               if (!seenMinutes.has(minuteKey) && (minuteKey - currentMins) >= -1) {
                 seenMinutes.add(minuteKey);
                 uniqueEtas.push(e);
               }
             });
 
-            const primaryDest = uniqueEtas[0]?.dest_tc || routeObj.dest || "目的地";
+            // 💡 如果有設定 customDest (自訂目的地)，則強制覆蓋 API 預設目的地
+            const primaryDest = routeObj.customDest || uniqueEtas[0]?.dest_tc || routeObj.dest || "目的地";
             routesList.push({ 
               route: routeObj.route, 
               dest: primaryDest.includes('荃灣西') ? '荃灣西站' : primaryDest, 
               etas: uniqueEtas.slice(0, 2).map(e => ({ time: new Date(e.eta), rmk: e.rmk_tc !== "原定班次" ? e.rmk_tc : null })) 
             });
           } else {
-            routesList.push({ route: routeObj.route, dest: routeObj.dest || "未有班次", etas: [] });
+            routesList.push({ route: routeObj.route, dest: routeObj.customDest || routeObj.dest || "未有班次", etas: [] });
           }
         });
         routesList.sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }));
@@ -606,7 +594,15 @@ export default function App() {
   const handleConfirmAddStop = () => {
     if (!selectedStop) return;
     const finalGroupName = customGroupName === 'NEW' ? (customGroupInput.trim() || '自訂') : customGroupName;
-    const newRouteConfig = { route: selectedDirection.route, dir: selectedDirection.bound, dest: selectedDirection.dest_tc, serviceType: selectedDirection.service_type };
+    
+    // 💡 儲存自訂目的地 (customDest) 至 config 內
+    const newRouteConfig = { 
+      route: selectedDirection.route, 
+      dir: selectedDirection.bound, 
+      dest: selectedDirection.dest_tc, 
+      serviceType: selectedDirection.service_type,
+      customDest: customStopDesc.trim() || "" 
+    };
     
     const existingIndex = locations.findIndex(loc => loc.id === selectedStop.stop);
     let updatedLocations;
@@ -618,7 +614,6 @@ export default function App() {
           return {
             ...loc,
             name: customStopName.trim() || loc.name,
-            desc: customStopDesc.trim() || loc.desc,
             groupName: finalGroupName,
             routes: isRouteDuplicate ? loc.routes : [...loc.routes, newRouteConfig]
           };
@@ -628,7 +623,7 @@ export default function App() {
     } else {
       const newCard = {
         id: selectedStop.stop, filterId: finalGroupName.toUpperCase().replace(/\s+/g, ''), groupName: finalGroupName,
-        name: customStopName.trim() || selectedStop.name_tc, desc: customStopDesc.trim() || `往 ${selectedDirection.dest_tc}`, routes: [newRouteConfig]
+        name: customStopName.trim() || selectedStop.name_tc, routes: [newRouteConfig]
       };
       updatedLocations = [...locations, newCard];
     }
@@ -758,7 +753,6 @@ export default function App() {
               </div>
             )}
 
-            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -917,10 +911,10 @@ export default function App() {
 
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
-      {/* 💡 使用專為 iOS 底層檢測引擎設定的修復代碼，精確打擊 */}
+      {/* 💡 移除粗暴的 a[href] 覆蓋，改用針對性防護，保護智慧顏色的顯示 */}
       <style>{`
-        /* 僅針對 Safari 產生的電話連結，阻斷變色 */
-        a[x-apple-data-detectors], a[href^="tel"] {
+        /* 僅針對 Safari 自動生成的資料連結阻斷 */
+        a[x-apple-data-detectors] {
           color: inherit !important;
           text-decoration: none !important;
         }
@@ -1188,8 +1182,8 @@ export default function App() {
                     <input type="text" placeholder={selectedStop.name_tc} value={customStopName} onChange={(e) => setCustomStopName(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-black opacity-70">方向描述 (選填)：</label>
-                    <input type="text" placeholder={`往 ${selectedDirection.dest_tc}`} value={customStopDesc} onChange={(e) => setCustomStopDesc(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
+                    <label className="text-xs font-black opacity-70">自訂目的地名稱 (解決循環線方向，選填)：</label>
+                    <input type="text" placeholder={`${selectedDirection.dest_tc}`} value={customStopDesc} onChange={(e) => setCustomStopDesc(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-black opacity-70">放置於看板分類分組：</label>
