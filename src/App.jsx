@@ -3,7 +3,7 @@ import {
   Bus, 
   RefreshCw, 
   Moon, 
-  Sun,
+  Sun, 
   MonitorSmartphone, 
   CloudSun, 
   AlertTriangle, 
@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 
 // ==========================================
-// 🖼️ 預設高畫質幻燈片 (本地路徑)
+// 🖼️ 預設高畫質幻燈片 (已修改為本地路徑)
 // ==========================================
 const DEFAULT_PHOTOS = [
   "/photo01.jpg",
@@ -142,6 +142,7 @@ export default function App() {
     rowOdd: isDarkMode ? 'bg-red-950/20' : 'bg-[#fae0e5]',
     routeNum: isDarkMode ? 'text-zinc-100' : 'text-slate-900',
     routeDest: isDarkMode ? 'text-zinc-300' : 'text-slate-800', 
+    etaPrimaryDefault: isDarkMode ? 'text-zinc-100' : 'text-slate-800', 
     etaSecondary: isDarkMode ? 'text-zinc-400' : 'text-slate-500',
     etaMissed: isDarkMode ? 'text-zinc-500' : 'text-slate-400',
     tabActive: isDarkMode ? 'bg-white text-red-950 shadow-md scale-105 font-black' : 'bg-white text-[#e3342f] shadow-md scale-105 font-black',
@@ -222,6 +223,16 @@ export default function App() {
   const [customGroupName, setCustomGroupName] = useState('預設');
   const [customGroupInput, setCustomGroupInput] = useState('');
 
+  useEffect(() => {
+    const meta = document.createElement('meta');
+    meta.name = "format-detection";
+    meta.content = "telephone=no, date=no, address=no, email=no";
+    document.head.appendChild(meta);
+    return () => {
+      try { document.head.removeChild(meta); } catch(e) {}
+    };
+  }, []);
+
   useEffect(() => { try { localStorage.setItem('kmb_custom_locations', JSON.stringify(locations)); } catch {} }, [locations]);
   useEffect(() => { try { localStorage.setItem('kmb_theme', JSON.stringify(isDarkMode)); } catch {} }, [isDarkMode]);
   useEffect(() => { try { localStorage.setItem('kmb_stand_mode', JSON.stringify(isStandMode)); } catch {} }, [isStandMode]);
@@ -235,7 +246,9 @@ export default function App() {
   }, [locations]);
 
   useEffect(() => {
-    if (activeTab !== 'ALL' && activeTab !== 'NEARBY' && !availableGroups.includes(activeTab)) setActiveTab('ALL');
+    if (activeTab !== 'ALL' && activeTab !== 'NEARBY' && !availableGroups.includes(activeTab)) {
+      setActiveTab('ALL');
+    }
   }, [availableGroups, activeTab]);
 
   useEffect(() => {
@@ -324,24 +337,49 @@ export default function App() {
     }
   }, [nearbyRadius]);
 
+  // ========================================================
+  // 💡 獲取附近預報 (加入了智慧去重引擎)
+  // ========================================================
   const fetchNearbyStopsLiveETA = useCallback(async () => {
     if (nearbyStops.length === 0) return;
     try {
       const stopPromises = nearbyStops.map(stop => fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${stop.id}`).then(res => res.ok ? res.json() : { data: [] }).catch(() => ({ data: [] })));
       const results = await Promise.all(stopPromises);
+      const currentMins = Math.floor(Date.now() / 60000);
+
       const processed = nearbyStops.map((stop, idx) => {
         const rawEtas = results[idx].data || [];
         const routeGroups = {};
+        
         rawEtas.forEach(eta => {
           if (!eta.eta || !eta.route) return;
           const key = `${eta.route}-${eta.dir}-${eta.dest_tc}`;
           if (!routeGroups[key]) routeGroups[key] = { route: eta.route, dest: eta.dest_tc.includes('荃灣西') ? '荃灣西站' : eta.dest_tc, dir: eta.dir, etas: [] };
           routeGroups[key].etas.push(eta);
         });
+
         const routesDataList = Object.values(routeGroups).map(group => {
           group.etas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
-          return { route: group.route, dest: group.dest, etas: group.etas.slice(0, 2).map(e => ({ time: new Date(e.eta), rmk: e.rmk_tc !== "原定班次" ? e.rmk_tc : null })) };
+          
+          // 💡 智慧去重與過期清理引擎
+          const uniqueEtas = [];
+          const seenMinutes = new Set();
+          group.etas.forEach(e => {
+            const minuteKey = Math.floor(new Date(e.eta).getTime() / 60000);
+            // 只要不是過期超過 1 分鐘以上的幽靈班次，並且同分鐘不重複，就加入
+            if (!seenMinutes.has(minuteKey) && (minuteKey - currentMins) >= -1) {
+              seenMinutes.add(minuteKey);
+              uniqueEtas.push(e);
+            }
+          });
+
+          return { 
+            route: group.route, 
+            dest: group.dest, 
+            etas: uniqueEtas.slice(0, 2).map(e => ({ time: new Date(e.eta), rmk: e.rmk_tc !== "原定班次" ? e.rmk_tc : null })) 
+          };
         });
+
         routesDataList.sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }));
         return { id: stop.id, name: stop.name, distance: stop.distance, routesData: routesDataList };
       });
@@ -355,6 +393,9 @@ export default function App() {
     return () => clearInterval(timer);
   }, [fetchNearbyStopsLiveETA]);
 
+  // ========================================================
+  // 💡 獲取最愛預報 (加入了智慧去重引擎)
+  // ========================================================
   const fetchCustomLocationsData = useCallback(async () => {
     if (locations.length === 0) { setLocationsData([]); setLoading(false); return; }
     setLoading(true); setError(null);
@@ -364,15 +405,37 @@ export default function App() {
       const results = await Promise.all(stopPromises);
       const etasByStop = {};
       uniqueStopIds.forEach((stopId, idx) => { etasByStop[stopId] = results[idx].data || []; });
+      
+      const currentMins = Math.floor(Date.now() / 60000);
+
       const processedData = locations.map(loc => {
         const allEtas = etasByStop[loc.id] || [];
         const routesList = [];
+
         loc.routes.forEach(routeObj => {
           const validEtas = allEtas.filter(eta => eta.route === routeObj.route && eta.eta && (routeObj.dir ? eta.dir === routeObj.dir : true));
+          
           if (validEtas.length > 0) {
             validEtas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
-            const primaryDest = validEtas[0].dest_tc || routeObj.dest || "目的地";
-            routesList.push({ route: routeObj.route, dest: primaryDest.includes('荃灣西') ? '荃灣西站' : primaryDest, etas: validEtas.slice(0, 2).map(e => ({ time: new Date(e.eta), rmk: e.rmk_tc !== "原定班次" ? e.rmk_tc : null })) });
+            
+            // 💡 智慧去重與過期清理引擎
+            const uniqueEtas = [];
+            const seenMinutes = new Set();
+            validEtas.forEach(e => {
+              const minuteKey = Math.floor(new Date(e.eta).getTime() / 60000);
+              // 只要不是過期超過 1 分鐘以上的幽靈班次，並且同分鐘不重複，就加入
+              if (!seenMinutes.has(minuteKey) && (minuteKey - currentMins) >= -1) {
+                seenMinutes.add(minuteKey);
+                uniqueEtas.push(e);
+              }
+            });
+
+            const primaryDest = uniqueEtas[0]?.dest_tc || routeObj.dest || "目的地";
+            routesList.push({ 
+              route: routeObj.route, 
+              dest: primaryDest.includes('荃灣西') ? '荃灣西站' : primaryDest, 
+              etas: uniqueEtas.slice(0, 2).map(e => ({ time: new Date(e.eta), rmk: e.rmk_tc !== "原定班次" ? e.rmk_tc : null })) 
+            });
           } else {
             routesList.push({ route: routeObj.route, dest: routeObj.dest || "未有班次", etas: [] });
           }
@@ -594,7 +657,7 @@ export default function App() {
   };
 
   // ========================================================
-  // 🚌 核心升級：巴士路線行渲染 (完美還原 UI 截圖)
+  // 🚌 核心升級：巴士路線行渲染
   // ========================================================
   const renderRow = (route, rIdx, isNearbySource = false, layoutType = 'LIST') => {
     const isEven = rIdx % 2 === 0;
@@ -605,11 +668,11 @@ export default function App() {
     const isMissed = primaryMins !== null && primaryMins < 0;
     const isImminent = primaryMins === 0;
 
-    // 💡 終極防禦：採用最強硬的 Inline Style 注入，直接鎖死顏色
-    let etaColorStyle = isDarkMode ? '#f4f4f5' : '#0f172a'; // 11分鐘以上深灰色
+    // 💡 行內樣式決定字體顏色，保證顏色正確顯示
+    let etaColorStyle = isDarkMode ? '#f4f4f5' : '#0f172a'; 
     if (primaryMins !== null && primaryMins >= 0) {
-      if (primaryMins <= 5) etaColorStyle = '#e3342f';       // 0-5分鐘 紅色
-      else if (primaryMins <= 10) etaColorStyle = '#f97316'; // 6-10分鐘 橙色
+      if (primaryMins <= 5) etaColorStyle = '#e3342f';       // 紅色
+      else if (primaryMins <= 10) etaColorStyle = '#f97316'; // 橙色
     }
 
     const isStand = layoutType === 'STAND';
@@ -643,10 +706,8 @@ export default function App() {
             ) : isMissed ? (
               <span className={`${primaryTextSize} font-black tracking-wide leading-none ${theme.etaMissed}`}>已開出</span>
             ) : isImminent ? (
-              // 💡 直接將 style={...} 套用在文字標籤上
               <span style={{ color: etaColorStyle }} className={`${primaryTextSize} font-black tracking-wide animate-pulse leading-none`}>即將到站</span>
             ) : (
-              // 💡 直接將 style={...} 套用在文字標籤上
               <span style={{ color: etaColorStyle }} className={`${primaryNumSize} font-black tracking-tighter leading-none`}>{primaryMins}</span>
             )}
           </div>
@@ -697,6 +758,7 @@ export default function App() {
               </div>
             )}
 
+            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -855,13 +917,15 @@ export default function App() {
 
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
-      {/* 💡 使用專為 iOS 底層檢測引擎設定的修復代碼 */}
+      {/* 💡 使用專為 iOS 底層檢測引擎設定的修復代碼，精確打擊 */}
       <style>{`
+        /* 僅針對 Safari 產生的電話連結，阻斷變色 */
         a[x-apple-data-detectors], a[href^="tel"] {
           color: inherit !important;
           text-decoration: none !important;
         }
         
+        /* 解決 iOS 橫向滑動與隱藏卷軸 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
       `}</style>
