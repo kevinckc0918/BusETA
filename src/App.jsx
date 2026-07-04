@@ -134,7 +134,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('kmb_theme') || 'false'); } catch { return false; }
   });
 
-  // === 🎨 核心主題配色 (完全脫離 Tailwind dark: 依賴，解決 iOS 系統深色模式衝突) ===
+  // === 🎨 核心主題配色 (脫離 Tailwind dark: 依賴，解決 iOS 深色模式衝突) ===
   const theme = {
     appBg: isDarkMode ? 'bg-zinc-950 text-white' : 'bg-slate-50 text-slate-900',
     topBar: isDarkMode ? 'bg-red-950 border-red-900/50' : 'bg-[#e3342f] border-red-700',
@@ -149,7 +149,6 @@ export default function App() {
     tabActive: isDarkMode ? 'bg-white text-red-950 shadow-md scale-105 font-black' : 'bg-white text-[#e3342f] shadow-md scale-105 font-black',
     tabInactive: isDarkMode ? 'border border-white/20 text-white/70 hover:bg-white/10' : 'border border-white/20 text-white/90 hover:bg-white/10',
     
-    // 以下為修復 iPad 全行變黑的專屬變數
     groupCardBg: isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200',
     groupHeaderBg: isDarkMode ? 'bg-zinc-900 border-zinc-800/50' : 'bg-white border-gray-100',
     groupHeaderText: isDarkMode ? 'text-red-400 border-zinc-800/50' : 'text-[#e3342f] border-gray-100',
@@ -231,7 +230,7 @@ export default function App() {
   const [customGroupName, setCustomGroupName] = useState('預設');
   const [customGroupInput, setCustomGroupInput] = useState('');
 
-  // === 🛡️ 關閉 Safari 的電話辨識 ===
+  // === 🛡️ iPad/Safari 專用：動態禁用電話自動探測 ===
   useEffect(() => {
     const meta = document.createElement('meta');
     meta.name = "format-detection";
@@ -405,6 +404,7 @@ export default function App() {
     } catch (err) { setError('到站預報載入失敗'); } finally { setLoading(false); }
   }, [locations]);
 
+  // 監聽 locations 的變化並自動觸發更新
   useEffect(() => {
     fetchCustomLocationsData();
     const interval = setInterval(fetchCustomLocationsData, 30000);
@@ -425,6 +425,20 @@ export default function App() {
     });
   }, [locationsData]);
 
+  const filteredRoutesList = useMemo(() => {
+    if (!routeQuery) return [];
+    const q = routeQuery.toUpperCase().trim();
+    return allKmbRoutes
+      .filter(r => r.route.toUpperCase().includes(q))
+      .sort((a, b) => {
+        if (a.route === q) return -1;
+        if (b.route === q) return 1;
+        return a.route.localeCompare(b.route, undefined, { numeric: true });
+      })
+      .slice(0, 15); 
+  }, [allKmbRoutes, routeQuery]);
+
+  // === 編輯與刪除 ===
   const handleDeleteLocation = (locId, e) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     setLocations(locations.filter(loc => loc.id !== locId));
@@ -496,13 +510,13 @@ export default function App() {
       setLocations(parsed);
       setBackupSuccess('🎉 成功從備份中還原最愛看板配置！');
       setImportText('');
-      setTimeout(() => { setIsSettingsModalOpen(false); setBackupSuccess(''); fetchCustomLocationsData(); }, 1500);
+      setTimeout(() => { setIsSettingsModalOpen(false); setBackupSuccess(''); }, 1500);
     } catch (e) { setBackupError(`匯入驗證失敗: ${e.message || '格式錯誤'}`); }
   };
 
   const handleResetToPreload = () => {
     setLocations(DEFAULT_LOCATIONS); setShowResetConfirm(false); setBackupSuccess('已成功重設為原裝最愛路線範例！');
-    setTimeout(() => { setBackupSuccess(''); fetchCustomLocationsData(); }, 2000);
+    setTimeout(() => { setBackupSuccess(''); }, 2000);
   };
 
   const handleOpenSearchModal = async () => {
@@ -548,27 +562,39 @@ export default function App() {
     setSelectedStop(stopItem); setCustomStopName(stopItem.name_tc); setCustomStopDesc(`往 ${selectedDirection.dest_tc}`); setSearchStep(4);
   };
 
+  // 🛠️ 深度修復：確保加入新路線時狀態為純淨 Immutable
   const handleConfirmAddStop = () => {
     if (!selectedStop) return;
     const finalGroupName = customGroupName === 'NEW' ? (customGroupInput.trim() || '自訂') : customGroupName;
     const newRouteConfig = { route: selectedDirection.route, dir: selectedDirection.bound, dest: selectedDirection.dest_tc, serviceType: selectedDirection.service_type };
+    
     const existingIndex = locations.findIndex(loc => loc.id === selectedStop.stop);
-    let updatedLocations = [...locations];
+    let updatedLocations;
+    
     if (existingIndex > -1) {
-      if (!updatedLocations[existingIndex].routes.some(r => r.route === newRouteConfig.route && r.dir === newRouteConfig.dir)) {
-        updatedLocations[existingIndex].routes.push(newRouteConfig);
-      }
-      updatedLocations[existingIndex].name = customStopName.trim() || updatedLocations[existingIndex].name;
-      updatedLocations[existingIndex].desc = customStopDesc.trim() || updatedLocations[existingIndex].desc;
-      updatedLocations[existingIndex].groupName = finalGroupName;
+      updatedLocations = locations.map((loc, idx) => {
+        if (idx === existingIndex) {
+          const isRouteDuplicate = loc.routes.some(r => r.route === newRouteConfig.route && r.dir === newRouteConfig.dir);
+          return {
+            ...loc,
+            name: customStopName.trim() || loc.name,
+            desc: customStopDesc.trim() || loc.desc,
+            groupName: finalGroupName,
+            routes: isRouteDuplicate ? loc.routes : [...loc.routes, newRouteConfig]
+          };
+        }
+        return loc;
+      });
     } else {
-      updatedLocations.push({
+      const newCard = {
         id: selectedStop.stop, filterId: finalGroupName.toUpperCase().replace(/\s+/g, ''), groupName: finalGroupName,
         name: customStopName.trim() || selectedStop.name_tc, desc: customStopDesc.trim() || `往 ${selectedDirection.dest_tc}`, routes: [newRouteConfig]
-      });
+      };
+      updatedLocations = [...locations, newCard];
     }
-    setLocations(updatedLocations); handleCloseSearchModal();
-    setTimeout(() => fetchCustomLocationsData(), 200);
+
+    setLocations(updatedLocations); 
+    handleCloseSearchModal();
   };
 
   const fetchStopNamesInBatch = async (stopIds) => {
@@ -669,6 +695,7 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
+        {/* ================= 🛰️ 附近巴士站專屬分頁 ================= */}
         {activeTab === 'NEARBY' && (
           <div className="flex flex-col gap-4 px-3 sm:px-0 mt-3 sm:mt-0">
             {(!userCoords || gpsLoading) ? (
@@ -846,14 +873,12 @@ export default function App() {
 
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
-      
-      {/* 🛡️ 注入專為 iOS Safari 準備的全域強制樣式重設，阻斷電話辨識顏色覆蓋 */}
+      {/* 💡 只單獨取消 a 標籤的電話藍字樣式，確保保留 Tailwind 的 className 上色邏輯 */}
       <style>{`
-        a[href^="tel"], a[href^="tel"]:hover, a[href^="tel"]:active, a[href^="tel"]:focus,
-        .ios-num-fix, .ios-num-fix * { 
-          color: inherit !important; 
-          text-decoration: none !important; 
-          pointer-events: none !important; 
+        a[href^="tel"], a[href^="tel"]:hover, a[href^="tel"]:active, a[href^="tel"]:focus { 
+          color: inherit; 
+          text-decoration: none; 
+          pointer-events: none; 
         }
       `}</style>
 
@@ -1042,7 +1067,7 @@ export default function App() {
                       <span className="text-[11px] font-bold opacity-60">搜尋建議：</span>
                       <div className="grid grid-cols-2 gap-2 max-h-[250px] overflow-y-auto pr-1">
                         {filteredRoutesList.map((r, idx) => (
-                          <button key={idx} onClick={() => handleSelectRoute(r)} className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all hover:scale-[1.02] ${isDarkMode ? 'bg-zinc-800/50 border-zinc-700/60 hover:bg-zinc-800' : 'bg-slate-50 border-slate-200/60 hover:bg-slate-100'}`}>
+                          <button key={idx} onClick={() => handleSelectRoute(r)} className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all hover:scale-[1.02] ${theme.controlBtn}`}>
                             <span className="text-lg font-black leading-none text-red-500">{r.route}</span>
                             <span className="text-[10px] font-bold opacity-60 truncate">{r.orig_tc} ⇆ {r.dest_tc}</span>
                           </button>
@@ -1065,7 +1090,7 @@ export default function App() {
                   </div>
                   <div className="flex flex-col gap-3">
                     {routeDirections.map((dir, idx) => (
-                      <button key={idx} onClick={() => handleSelectDirection(dir)} className={`p-4 rounded-xl border text-left flex items-center justify-between transition-all hover:scale-[1.01] ${isDarkMode ? 'bg-zinc-800/80 border-zinc-700 hover:bg-zinc-800' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}>
+                      <button key={idx} onClick={() => handleSelectDirection(dir)} className={`p-4 rounded-xl border text-left flex items-center justify-between transition-all hover:scale-[1.01] ${theme.controlBtn}`}>
                         <div className="flex flex-col gap-0.5 min-w-0 pr-2">
                           <span className="text-xs font-bold opacity-50">方向 {dir.bound === 'I' ? '回程' : '去程'}</span>
                           <span className="font-extrabold text-sm truncate">往 {dir.dest_tc} (經 {dir.orig_tc})</span>
@@ -1088,9 +1113,9 @@ export default function App() {
                       <span className="text-[11px] font-bold opacity-60">沿途巴士站：</span>
                       <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto pr-1">
                         {routeStops.map((stop, idx) => (
-                          <button key={idx} onClick={() => handleSelectStop(stop)} className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all ${isDarkMode ? 'bg-zinc-800/50 border-zinc-800 hover:bg-zinc-800' : 'bg-slate-50 border-slate-100 hover:bg-slate-100'}`}>
+                          <button key={idx} onClick={() => handleSelectStop(stop)} className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all ${theme.controlBtn}`}>
                             <div className="flex items-center gap-3">
-                              <span className="text-xs font-black bg-slate-500/10 dark:bg-zinc-800 w-6 h-6 rounded-full flex items-center justify-center shrink-0">{stop.seq}</span>
+                              <span className="text-xs font-black bg-slate-500/10 dark:bg-zinc-800 w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-slate-800 dark:text-zinc-200">{stop.seq}</span>
                               <span className="text-sm font-bold truncate">{stop.name_tc}</span>
                             </div>
                             <ChevronRight className="w-4 h-4 opacity-50 shrink-0" />
@@ -1126,7 +1151,7 @@ export default function App() {
                         {Array.from(new Set(locations.map(loc => loc.groupName).filter(n => n && n !== '預設'))).map(group => <option key={group} value={group}>{group}</option>)}
                         <option value="NEW">+ 新增分組...</option>
                       </select>
-                      {customGroupName === 'NEW' && <input type="text" placeholder="請輸入新分組名稱" value={customGroupInput} onChange={(e) => setCustomGroupInput(e.target.value)} className={`py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />}
+                      {customGroupName === 'NEW' && <input type="text" placeholder="請輸入新分組名稱" value={customGroupInput} onChange={(e) => setCustomGroupInput(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />}
                     </div>
                   </div>
                   <div className="flex gap-2 mt-4 shrink-0">
