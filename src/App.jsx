@@ -22,7 +22,9 @@ import {
   Upload,
   Download,
   Copy,
-  FileText
+  FileText,
+  Sliders,
+  RotateCcw
 } from 'lucide-react';
 
 // ==========================================
@@ -126,8 +128,31 @@ export default function App() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('ALL'); 
   const [photoIndex, setPhotoIndex] = useState(0);
-  const [isEditMode, setIsEditMode] = useState(false);
   const [now, setNow] = useState(new Date());
+
+  // === 個性化設定 ===
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('kmb_theme') || 'false'); } catch { return false; }
+  });
+
+  // === 🎨 主題配色 ===
+  const theme = {
+    appBg: isDarkMode ? 'bg-zinc-950 text-white' : 'bg-slate-50 text-slate-900',
+    cardBg: isDarkMode ? 'bg-zinc-900/90 border-zinc-800/80 shadow-md' : 'bg-white border-slate-200/80 shadow-sm',
+    topBar: isDarkMode ? 'bg-red-950 border-red-900/50' : 'bg-[#e3342f] border-red-700',
+    bottomBar: isDarkMode ? 'bg-red-950/95' : 'bg-[#e3342f]',
+    pillBg: isDarkMode ? 'bg-red-900 text-white' : 'bg-[#e3342f] text-white',
+    colHeader: isDarkMode ? 'text-red-400 border-red-900/30' : 'text-[#e3342f] border-[#fce4ec]',
+    rowEven: isDarkMode ? 'bg-zinc-900/40' : 'bg-white',
+    rowOdd: isDarkMode ? 'bg-zinc-800/20' : 'bg-[#fdf4f5]',
+    routeNum: isDarkMode ? 'text-zinc-100' : 'text-gray-900',
+    routeDest: isDarkMode ? 'text-zinc-400' : 'text-gray-500',
+    etaPrimaryDefault: isDarkMode ? 'text-zinc-100' : 'text-black', 
+    etaSecondary: isDarkMode ? 'text-zinc-400' : 'text-gray-500',
+    etaMissed: isDarkMode ? 'text-zinc-500' : 'text-gray-400',
+    tabActive: isDarkMode ? 'bg-white text-red-950 shadow-md scale-105 font-black' : 'bg-white text-[#e3342f] shadow-md scale-105 font-black',
+    tabInactive: isDarkMode ? 'border border-white/20 text-white/70 hover:bg-white/10' : 'border border-white/20 text-white/90 hover:bg-white/10'
+  };
 
   // === ⚙️ 時間計算 Helper ===
   const getEtaMinutes = (etaDate) => Math.floor((etaDate - now) / 60000);
@@ -149,20 +174,28 @@ export default function App() {
     }
   });
 
+  // === 🛠️ 全新「設定中心」專用狀態 ===
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState('FAVORITES'); // 'FAVORITES' | 'BACKUP' | 'ADVANCED'
+  const [shouldReopenSettings, setShouldReopenSettings] = useState(false); // 新增路線精靈關閉後是否重開設定
+  const [showResetConfirm, setShowResetConfirm] = useState(false); // 安全重設確認狀態
+
+  // === 🛰️ 附近站點搜尋範圍 (米) ===
+  const [nearbyRadius, setNearbyRadius] = useState(() => {
+    try {
+      return parseInt(localStorage.getItem('kmb_nearby_radius') || '1200');
+    } catch {
+      return 1200;
+    }
+  });
+
   // === 🌩️ 匯入匯出備份還原專用狀態 ===
-  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
-  const [backupTab, setBackupTab] = useState('EXPORT'); // 'EXPORT' or 'IMPORT'
   const [importText, setImportText] = useState('');
   const [backupSuccess, setBackupSuccess] = useState('');
   const [backupError, setBackupError] = useState('');
 
   // === 天氣與天文台數據 ===
   const [weatherInfo, setWeatherInfo] = useState({ temp: '--', icon: null, warnings: [] });
-  
-  // === 個性化設定 ===
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('kmb_theme') || 'false'); } catch { return false; }
-  });
 
   const [isStandMode, setIsStandMode] = useState(() => {
     try { return JSON.parse(localStorage.getItem('kmb_stand_mode') || 'false'); } catch { return false; }
@@ -219,6 +252,10 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem('kmb_left_mode', leftPanelMode); } catch {}
   }, [leftPanelMode]);
+
+  useEffect(() => {
+    try { localStorage.setItem('kmb_nearby_radius', nearbyRadius.toString()); } catch {}
+  }, [nearbyRadius]);
 
   useEffect(() => {
     if (standMonitorId) {
@@ -375,16 +412,17 @@ export default function App() {
         distance: calculateDistance(lat, lng, stop.lat, stop.lng)
       }));
 
+      // 按使用者設定的搜尋半徑篩選最近的站點
       const sortedNearby = withDistance
         .sort((a, b) => a.distance - b.distance)
-        .filter(s => s.distance <= 1200)
+        .filter(s => s.distance <= nearbyRadius)
         .slice(0, 4);
 
       setNearbyStops(sortedNearby);
       setGpsLoading(false);
 
       if (sortedNearby.length === 0) {
-        setGpsMessage('定位成功，但你附近 1.2 公里內似乎沒有巴士站點。');
+        setGpsMessage(`定位成功，但你附近 ${nearbyRadius} 米內似乎沒有巴士站點。建議到設定中調大搜尋半徑。`);
       } else {
         setGpsMessage('');
       }
@@ -396,7 +434,7 @@ export default function App() {
       else if (err.code === 3) errorText = 'GPS 定位超時，請重試。';
       setGpsMessage(errorText);
     }
-  }, []);
+  }, [nearbyRadius]);
 
   // === 🔄 獲取附近站點實時 ETA ===
   const fetchNearbyStopsLiveETA = useCallback(async () => {
@@ -533,13 +571,6 @@ export default function App() {
     }
   }, [locations]);
 
-  // === 🚀 預設初始化 ===
-  useEffect(() => {
-    fetchCustomLocationsData();
-    const interval = setInterval(fetchCustomLocationsData, 30000);
-    return () => clearInterval(interval);
-  }, [fetchCustomLocationsData]);
-
   // === 將相同分組 (GroupName) 進行極限壓縮與歸類 ===
   const groupedFavoritesData = useMemo(() => {
     const groups = {};
@@ -567,60 +598,19 @@ export default function App() {
     });
   }, [locationsData]);
 
-  // === 批次取得巴士站名稱 ===
-  const fetchStopNamesInBatch = async (stopIds) => {
-    let cache = {};
-    try {
-      cache = JSON.parse(localStorage.getItem('kmb_stop_names_cache') || '{}');
-    } catch {}
-
-    const missingIds = stopIds.filter(id => !cache[id]);
-    if (missingIds.length > 0) {
-      const fetchSingle = async (id) => {
-        try {
-          const res = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop/${id}`);
-          if (res.ok) {
-            const d = await res.json();
-            return { id, name: d.data?.name_tc || id };
-          }
-        } catch {}
-        return { id, name: id };
-      };
-
-      const chunkSize = 10;
-      for (let i = 0; i < missingIds.length; i += chunkSize) {
-        const batch = missingIds.slice(i, i + chunkSize);
-        const results = await Promise.all(batch.map(fetchSingle));
-        results.forEach(r => {
-          cache[r.id] = r.name;
-        });
-      }
-
-      try {
-        localStorage.setItem('kmb_stop_names_cache', JSON.stringify(cache));
-      } catch {}
-    }
-    return cache;
-  };
-
-  // === 🛠️ 編輯管理 ===
-  const handleDeleteLocation = (locId) => {
-    const updated = locations.filter(loc => loc.id !== locId);
-    setLocations(updated);
-  };
-
-  const handleDeleteRouteInLocation = (locId, routeNum) => {
-    const updated = locations.map(loc => {
-      if (loc.id === locId) {
-        return {
-          ...loc,
-          routes: loc.routes.filter(r => r.route !== routeNum)
-        };
-      }
-      return loc;
-    }).filter(loc => loc.routes.length > 0); 
-    setLocations(updated);
-  };
+  // === 🔍 路線搜尋過濾與排序 ===
+  const filteredRoutesList = useMemo(() => {
+    if (!routeQuery) return [];
+    const q = routeQuery.toUpperCase().trim();
+    return allKmbRoutes
+      .filter(r => r.route.toUpperCase().includes(q))
+      .sort((a, b) => {
+        if (a.route === q) return -1;
+        if (b.route === q) return 1;
+        return a.route.localeCompare(b.route, undefined, { numeric: true });
+      })
+      .slice(0, 15); 
+  }, [allKmbRoutes, routeQuery]);
 
   // === 💾 備份還原與匯入匯出核心邏輯 ===
   const handleCopyBackupCode = () => {
@@ -637,13 +627,13 @@ export default function App() {
     try {
       const successful = document.execCommand('copy');
       if (successful) {
-        setBackupSuccess('最愛路線設定代碼複製成功！');
+        setBackupSuccess('備份代碼複製成功！');
         setTimeout(() => setBackupSuccess(''), 2000);
       } else {
-        setBackupError('複製失敗，請手動全選下方文本框複製。');
+        setBackupError('複製失敗，請手動複製文本。');
       }
     } catch (err) {
-      setBackupError('瀏覽器不支持自動複製，請手動選擇複製。');
+      setBackupError('瀏覽器不支持自動複製。');
     }
     document.body.removeChild(textArea);
   };
@@ -654,11 +644,11 @@ export default function App() {
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(backupJson);
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `巴士到站看板最愛備份_${new Date().toISOString().slice(0,10)}.json`);
+      downloadAnchor.setAttribute("download", `巴士到站看板設定備份_${new Date().toISOString().slice(0,10)}.json`);
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
-      setBackupSuccess('自訂看板備份檔案已成功下載！');
+      setBackupSuccess('自訂設定檔已成功下載！');
       setTimeout(() => setBackupSuccess(''), 3000);
     } catch (e) {
       setBackupError('檔案下載失敗，請嘗試複製代碼。');
@@ -672,11 +662,11 @@ export default function App() {
 
     fileReader.onload = (event) => {
       setImportText(event.target.result);
-      setBackupSuccess('已成功讀取檔案！請點選下方「確認匯入」按鈕覆蓋。');
+      setBackupSuccess('備份載入成功！請點選下方按鈕確認還原。');
       setBackupError('');
     };
     fileReader.onerror = () => {
-      setBackupError('讀取備份檔案出錯');
+      setBackupError('檔案讀取失敗');
     };
     fileReader.readAsText(file);
   };
@@ -686,39 +676,52 @@ export default function App() {
     setBackupSuccess('');
     try {
       if (!importText.trim()) {
-        setBackupError('請先貼上備份代碼或上傳備份檔案');
+        setBackupError('請先貼上代碼或上傳檔案');
         return;
       }
       
       const parsed = JSON.parse(importText.trim());
       
-      // 驗證基本的 JSON 格式是否為 KMB 看板格式
       if (!Array.isArray(parsed)) {
-        throw new Error('匯入格式錯誤：必須為巴士站卡片陣列！');
+        throw new Error('匯入格式必須為巴士站卡片陣列！');
       }
       
       const isValid = parsed.every(item => item.id && item.name && Array.isArray(item.routes));
       if (!isValid) {
-        throw new Error('匯入的資料格式不符 (遺漏站點 ID, 名稱或路線清單)');
+        throw new Error('匯入資料遺漏關鍵欄位！');
       }
 
       setLocations(parsed);
-      setBackupSuccess('🎉 看板配置匯入成功！系統已更新。');
+      setBackupSuccess('🎉 成功從備份中還原最愛看板配置！');
       setImportText('');
       
       setTimeout(() => {
-        setIsBackupModalOpen(false);
+        setIsSettingsModalOpen(false);
         setBackupSuccess('');
         fetchCustomLocationsData();
       }, 1500);
 
     } catch (e) {
-      setBackupError(`匯入驗證失敗: ${e.message || 'JSON 解析出錯'}`);
+      setBackupError(`匯入驗證失敗: ${e.message || '格式錯誤'}`);
     }
+  };
+
+  const handleResetToPreload = () => {
+    setLocations(DEFAULT_LOCATIONS);
+    setShowResetConfirm(false);
+    setBackupSuccess('已成功重設為原裝最愛路線範例！');
+    setTimeout(() => {
+      setBackupSuccess('');
+      fetchCustomLocationsData();
+    }, 2000);
   };
 
   // === 🔍 搜尋與精靈邏輯 ===
   const handleOpenSearchModal = async () => {
+    // 先關閉主設定窗、並記錄完成後需要重新開啟設定
+    setIsSettingsModalOpen(false);
+    setShouldReopenSettings(true);
+
     setIsSearchModalOpen(true);
     setSearchStep(1);
     setRouteQuery('');
@@ -746,18 +749,13 @@ export default function App() {
     }
   };
 
-  const filteredRoutesList = useMemo(() => {
-    if (!routeQuery) return [];
-    const q = routeQuery.toUpperCase().trim();
-    return allKmbRoutes
-      .filter(r => r.route.toUpperCase().includes(q))
-      .sort((a, b) => {
-        if (a.route === q) return -1;
-        if (b.route === q) return 1;
-        return a.route.localeCompare(b.route, undefined, { numeric: true });
-      })
-      .slice(0, 15); 
-  }, [allKmbRoutes, routeQuery]);
+  const handleCloseSearchModal = () => {
+    setIsSearchModalOpen(false);
+    if (shouldReopenSettings) {
+      setIsSettingsModalOpen(true);
+      setShouldReopenSettings(false);
+    }
+  };
 
   const handleSelectRoute = (routeItem) => {
     setSelectedRoute(routeItem);
@@ -837,14 +835,50 @@ export default function App() {
     }
 
     setLocations(updatedLocations);
-    setIsSearchModalOpen(false);
+    handleCloseSearchModal();
     
     setTimeout(() => {
       fetchCustomLocationsData();
     }, 200);
   };
 
-  // === 巴士路線行渲染 (極限壓縮版) ===
+  // === 批次取得巴士站名稱 ===
+  const fetchStopNamesInBatch = async (stopIds) => {
+    let cache = {};
+    try {
+      cache = JSON.parse(localStorage.getItem('kmb_stop_names_cache') || '{}');
+    } catch {}
+
+    const missingIds = stopIds.filter(id => !cache[id]);
+    if (missingIds.length > 0) {
+      const fetchSingle = async (id) => {
+        try {
+          const res = await fetch(`https://data.etabus.gov.hk/v1/transport/kmb/stop/${id}`);
+          if (res.ok) {
+            const d = await res.json();
+            return { id, name: d.data?.name_tc || id };
+          }
+        } catch {}
+        return { id, name: id };
+      };
+
+      const chunkSize = 10;
+      for (let i = 0; i < missingIds.length; i += chunkSize) {
+        const batch = missingIds.slice(i, i + chunkSize);
+        const results = await Promise.all(batch.map(fetchSingle));
+        results.forEach(r => {
+          cache[r.id] = r.name;
+        });
+      }
+
+      try {
+        localStorage.setItem('kmb_stop_names_cache', JSON.stringify(cache));
+      } catch {}
+    }
+    return cache;
+  };
+
+  // === 🚌 巴士路線行渲染 (極限壓縮版) ===
   const renderRow = (route, rIdx, isNearbySource = false) => {
     const isEven = rIdx % 2 === 0;
     const rowBg = isEven ? theme.rowEven : theme.rowOdd;
@@ -860,43 +894,32 @@ export default function App() {
     }
 
     return (
-      <div key={rIdx} className={`flex justify-between items-center px-4 py-2 transition-colors relative border-b border-gray-500/5 ${rowBg}`}>
-        <div className="flex flex-col items-start justify-center text-left min-w-0 pr-2">
-          <div className="flex items-center gap-2">
-            <span className={`text-2xl lg:text-3xl font-black tracking-tight leading-none ${theme.routeNum}`}>
-              {route.route}
-            </span>
-            {isEditMode && route.stopId && !isNearbySource && (
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleDeleteRouteInLocation(route.stopId, route.route); }}
-                className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 rounded transition-all"
-                title="刪除此自訂路線"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-          <span className={`text-xs font-bold mt-1 ${theme.routeDest} truncate w-full`}>
-            往 {route.dest} {route.stopName && <span className="opacity-60 text-[11px] font-medium">({route.stopName})</span>}
+      <div key={rIdx} className={`flex justify-between items-center px-3.5 py-2 transition-colors relative border-b border-gray-500/5 ${rowBg}`}>
+        <div className="flex flex-col items-start justify-center text-left min-w-0 pr-1.5">
+          <span className={`text-xl lg:text-2xl font-black tracking-tight leading-none ${theme.routeNum}`}>
+            {route.route}
+          </span>
+          <span className={`text-[11px] font-bold mt-0.5 ${theme.routeDest} truncate w-full`}>
+            往 {route.dest} {route.stopName && <span className="opacity-50 text-[10px] font-medium">({route.stopName})</span>}
           </span>
         </div>
         
-        <div className="flex flex-col items-end justify-center h-full min-w-[70px] text-right shrink-0">
+        <div className="flex flex-col items-end justify-center h-full min-w-[65px] text-right shrink-0">
           {primaryMins === null ? (
-            <span className={`text-xl font-black ${theme.etaMissed}`}>-</span>
+            <span className={`text-lg font-black ${theme.etaMissed}`}>-</span>
           ) : isMissed ? (
             <div className="flex flex-col items-end leading-none">
-              <span className={`text-xs font-black tracking-wide ${theme.etaMissed}`}>已開出</span>
+              <span className={`text-[11px] font-black tracking-wide ${theme.etaMissed}`}>已開出</span>
               {secondaryMins !== null && secondaryMins >= 0 && (
                 <span className={`text-[10px] font-bold mt-0.5 ${theme.etaSecondary}`}>{secondaryMins} Min</span>
               )}
             </div>
           ) : (
             <div className="flex flex-col items-end leading-none">
-              <span className={`${isImminent ? 'text-sm tracking-wide animate-pulse' : 'text-xl md:text-2xl'} font-black transition-colors duration-300 ${dynamicEtaColor}`}>
+              <span className={`${isImminent ? 'text-xs tracking-wide animate-pulse' : 'text-lg lg:text-xl'} font-black transition-colors duration-300 ${dynamicEtaColor}`}>
                 {isImminent ? '即將到站' : `${primaryMins} Min`}
               </span>
-              <div className={`text-[10px] font-bold mt-0.5 flex items-center gap-1 ${theme.etaSecondary}`}>
+              <div className={`text-[9px] font-bold mt-0.5 flex items-center gap-1 ${theme.etaSecondary}`}>
                 {secondaryMins !== null && secondaryMins >= 0 ? (
                   <span>下班: {secondaryMins} M</span>
                 ) : (
@@ -910,26 +933,134 @@ export default function App() {
     );
   };
 
-  // === 主題配色 ===
-  const theme = {
-    appBg: isDarkMode ? 'bg-zinc-950 text-white' : 'bg-slate-50 text-slate-900',
-    cardBg: isDarkMode ? 'bg-zinc-900/90 border-zinc-800/80 shadow-md' : 'bg-white border-slate-200/80 shadow-sm',
-    topBar: isDarkMode ? 'bg-red-950 border-red-900/50' : 'bg-[#e3342f] border-red-700',
-    bottomBar: isDarkMode ? 'bg-red-950/95' : 'bg-[#e3342f]',
-    pillBg: isDarkMode ? 'bg-red-900 text-white' : 'bg-[#e3342f] text-white',
-    colHeader: isDarkMode ? 'text-red-400 border-red-900/30' : 'text-[#e3342f] border-[#fce4ec]',
-    rowEven: isDarkMode ? 'bg-zinc-900/40' : 'bg-white',
-    rowOdd: isDarkMode ? 'bg-zinc-800/20' : 'bg-[#fdf4f5]',
-    routeNum: isDarkMode ? 'text-zinc-100' : 'text-gray-900',
-    routeDest: isDarkMode ? 'text-zinc-400' : 'text-gray-500',
-    etaPrimaryDefault: isDarkMode ? 'text-zinc-100' : 'text-black', 
-    etaSecondary: isDarkMode ? 'text-zinc-400' : 'text-gray-500',
-    etaMissed: isDarkMode ? 'text-zinc-500' : 'text-gray-400',
-    tabActive: isDarkMode ? 'bg-white text-red-950 shadow-md scale-105 font-black' : 'bg-white text-[#e3342f] shadow-md scale-105 font-black',
-    tabInactive: isDarkMode ? 'border border-white/20 text-white/70 hover:bg-white/10' : 'border border-white/20 text-white/90 hover:bg-white/10'
+  // === 🚀 預設初始化 ===
+  useEffect(() => {
+    fetchCustomLocationsData();
+    const interval = setInterval(fetchCustomLocationsData, 30000);
+    return () => clearInterval(interval);
+  }, [fetchCustomLocationsData]);
+
+  // === 📱 列表模式 ===
+  const renderListMode = () => {
+    const filteredGroups = groupedFavoritesData.filter(g => activeTab === 'ALL' || g.groupName === activeTab);
+
+    return (
+      <div className="w-full max-w-4xl mx-auto px-3 pt-4 pb-24">
+        {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold my-3 rounded-lg">{error}</div>}
+        
+        {/* ================= 🛰️ 附近巴士站專屬分頁 ================= */}
+        {activeTab === 'NEARBY' && (
+          <div className="flex flex-col gap-4">
+            
+            {/* 提示使用者點擊定位 */}
+            {(!userCoords || gpsLoading) ? (
+              <div className="p-8 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-center flex flex-col items-center justify-center gap-3">
+                <MapPin className="w-8 h-8 text-blue-500 animate-bounce" />
+                <h3 className="text-sm font-bold">探索附近巴士站</h3>
+                <p className="text-gray-400 text-xs max-w-xs leading-relaxed">我們將使用 GPS 定位尋找你周圍最近的巴士站點與實時到站時間。</p>
+                <button 
+                  onClick={() => findNearbyStops()}
+                  disabled={gpsLoading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 shadow-md"
+                >
+                  <Navigation className={`w-3.5 h-3.5 ${gpsLoading ? 'animate-spin' : ''}`} />
+                  {gpsLoading ? '正在定位中...' : '授權並尋找附近站點'}
+                </button>
+                {gpsMessage && <span className="text-xs font-medium text-red-500 mt-2">{gpsMessage}</span>}
+              </div>
+            ) : (
+              /* 定位成功後頂部顯示一個緊湊的手動重新定位按鈕 */
+              <div className="flex justify-end pr-1">
+                <button 
+                  onClick={() => findNearbyStops()}
+                  disabled={gpsLoading}
+                  className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 text-xs font-bold rounded-lg transition-all shadow-sm"
+                >
+                  <Navigation className={`w-3 h-3 ${gpsLoading ? 'animate-spin' : ''}`} />
+                  更新 GPS 附近站點 ({nearbyRadius} 米內)
+                </button>
+              </div>
+            )}
+
+            {/* 定位成功後載入周邊站點 */}
+            {userCoords && nearbyStopsData.length > 0 ? (
+              nearbyStopsData.map((loc, idx) => (
+                <div key={idx} className={`rounded-xl overflow-hidden border transition-all ${theme.cardBg}`}>
+                  <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-500/10 bg-slate-500/5">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-extrabold shadow-sm ${theme.pillBg}`}>
+                        {loc.name}
+                      </span>
+                      <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded">
+                        距離 {loc.distance} 米
+                      </span>
+                    </div>
+                    <a 
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.name + ' 巴士站')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-blue-600 font-bold"
+                    >
+                      🗺️ 地圖
+                    </a>
+                  </div>
+
+                  <div className="flex flex-col">
+                    {loc.routesData.map((route, rIdx) => renderRow(route, rIdx, true))}
+                  </div>
+                </div>
+              ))
+            ) : userCoords && !gpsLoading && (
+              <div className="text-center py-10 opacity-60">
+                <MapPin className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                <p className="text-xs">周圍符合半徑的範圍內未找到任何巴士站點。</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================= ⭐️ 我的收藏 (同分組極限壓縮) ================= */}
+        {activeTab !== 'NEARBY' && (
+          <>
+            {locations.length === 0 && (
+              <div className="text-center py-16 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800">
+                <Bus className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <h3 className="text-sm font-bold mb-1">收藏看板還是空的</h3>
+                <p className="text-gray-400 text-xs mb-4 max-w-xs mx-auto">請點選右上角的 ⚙️ 設定按鈕，自訂與新增最愛路線！</p>
+                <button 
+                  onClick={() => setIsSettingsModalOpen(true)}
+                  className="bg-[#e3342f] text-white hover:bg-red-600 px-4 py-2 text-xs font-bold rounded-lg shadow-sm"
+                >
+                  開啟設定中心
+                </button>
+              </div>
+            )}
+
+            {filteredGroups.map((group, gIdx) => (
+              <div key={gIdx} className={`mb-4 rounded-xl overflow-hidden border transition-all ${theme.cardBg}`}>
+                
+                {/* 1. 分組標題區 */}
+                <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-500/10 bg-slate-500/5">
+                  <div className="flex items-center gap-1.5">
+                    <Folder className="w-4 h-4 text-red-500 shrink-0" />
+                    <span className="font-extrabold text-xs">{group.groupName} 分組</span>
+                    <span className="text-[10px] opacity-50">({group.routesData.length} 條路線)</span>
+                  </div>
+                </div>
+
+                {/* 2. 巴士到站列表 */}
+                <div className="flex flex-col">
+                  {group.routesData.map((route, rIdx) => renderRow(route, rIdx, false))}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    );
   };
 
-  // === 🖥️ 橫向「座枱模式」 ===
+  // === 🖥️ 橫向「座枱模式」 (💡 寬度比精準設定為 左 70%、右 30%) ===
   const renderStandMode = () => {
     let displayRoutes = [];
     let title = "我的最愛";
@@ -954,8 +1085,8 @@ export default function App() {
     return (
       <div className="flex flex-row w-full h-full overflow-hidden relative bg-black">
         
-        {/* 左側時鐘與天氣 */}
-        <div className="w-[60%] h-full relative overflow-hidden bg-black shadow-[inset_-10px_0_20px_rgba(0,0,0,0.5)] z-0 shrink-0">
+        {/* ================= 左側 70% 寬度 (時鐘與天文台天氣區) ================= */}
+        <div className="w-[70%] h-full relative overflow-hidden bg-black shadow-[inset_-10px_0_20px_rgba(0,0,0,0.5)] z-0 shrink-0">
           {leftPanelMode === 'WEATHER' ? (
             <div className="absolute inset-0 flex flex-col justify-between p-8 md:p-12">
               <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url(${WEATHER_BG})` }} />
@@ -1002,12 +1133,12 @@ export default function App() {
           )}
         </div>
 
-        {/* 右側極限壓縮巴士面板 */}
-        <div className={`w-[40%] h-full flex flex-col z-10 transition-colors shadow-2xl ${theme.appBg}`}>
-          <div className="px-4 pt-3 pb-2 border-b border-gray-500/10 flex flex-col gap-2 shrink-0">
+        {/* ================= 右側 30% 寬度 (即時預報看板區) ================= */}
+        <div className={`w-[30%] h-full flex flex-col z-10 transition-colors shadow-2xl ${theme.appBg}`}>
+          <div className="px-3 pt-3 pb-2 border-b border-gray-500/10 flex flex-col gap-2 shrink-0">
             <div className="flex items-center justify-between">
-              <span className="font-extrabold text-xs tracking-wider opacity-60">座枱看板設定</span>
-              <span className="text-[10px] opacity-40 font-mono">
+              <span className="font-extrabold text-[10px] tracking-wider opacity-60">座枱看板設定</span>
+              <span className="text-[9px] opacity-40 font-mono">
                 {now.toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
               </span>
             </div>
@@ -1016,7 +1147,7 @@ export default function App() {
               <select 
                 value={standMonitorId} 
                 onChange={(e) => setStandMonitorId(e.target.value)}
-                className={`w-full text-xs font-bold py-1.5 px-3 rounded-lg border appearance-none outline-none ${
+                className={`w-full text-[11px] font-bold py-1 px-2.5 rounded-lg border appearance-none outline-none ${
                   isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-slate-100 border-slate-200 text-slate-800'
                 }`}
               >
@@ -1028,11 +1159,11 @@ export default function App() {
                   <option value="NEARBY_STOPS">🛰️ 附近巴士站 (實時 GPS)</option>
                 )}
               </select>
-              <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-2.5 pointer-events-none opacity-60" />
+              <ChevronDown className="w-3 h-3 absolute right-2 top-2 pointer-events-none opacity-60" />
             </div>
           </div>
 
-          <div className={`flex justify-between px-4 py-1.5 text-[10px] font-extrabold border-b shrink-0 ${theme.colHeader}`}>
+          <div className={`flex justify-between px-3 py-1 text-[9px] font-extrabold border-b shrink-0 ${theme.colHeader}`}>
             <span>路線 (分組: {title})</span>
             <span>到站時間</span>
           </div>
@@ -1041,192 +1172,11 @@ export default function App() {
             {displayRoutes.length > 0 ? (
               displayRoutes.map((route, rIdx) => renderRow(route, rIdx, true))
             ) : (
-              <div className="p-8 text-center text-xs opacity-50">本項目無即時班次，可於一般模式新增最愛</div>
+              <div className="p-6 text-center text-[10px] opacity-50">本項目無即時班次，可於一般模式新增最愛</div>
             )}
           </div>
         </div>
 
-      </div>
-    );
-  };
-
-  // === 📱 列表模式 ===
-  const renderListMode = () => {
-    const filteredGroups = groupedFavoritesData.filter(g => activeTab === 'ALL' || g.groupName === activeTab);
-
-    return (
-      <div className="w-full max-w-4xl mx-auto px-3 pt-3 pb-24">
-        
-        {/* 控制與新增區 */}
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[11px] font-bold opacity-60">
-            {activeTab === 'NEARBY' 
-              ? '🛰️ 附近巴士站 (依物理距離排序)' 
-              : isEditMode 
-                ? '🟠 編輯最愛：可刪除個別路線或整組站點' 
-                : '🟢 運作中（自動定時更新）'}
-          </span>
-          <div className="flex items-center gap-1.5">
-            {/* 💾 匯入匯出備份按鈕 */}
-            <button 
-              onClick={() => setIsBackupModalOpen(true)}
-              className="flex items-center gap-1 bg-zinc-500 hover:bg-zinc-600 text-white px-2.5 py-1 text-xs font-bold rounded-lg transition-all"
-              title="備份還原自訂最愛"
-            >
-              <Upload className="w-3 h-3" />
-              備份/匯入
-            </button>
-
-            {activeTab !== 'NEARBY' && (
-              <button 
-                onClick={() => setIsEditMode(!isEditMode)}
-                className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg transition-all ${
-                  isEditMode ? 'bg-orange-500 text-white shadow-md' : 'bg-slate-200/80 hover:bg-slate-300/80 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-inherit'
-                }`}
-              >
-                <Settings className="w-3 h-3" />
-                {isEditMode ? '完成' : '編輯最愛'}
-              </button>
-            )}
-            
-            {activeTab === 'NEARBY' && (
-              <button 
-                onClick={() => findNearbyStops()}
-                disabled={gpsLoading}
-                className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 text-xs font-bold rounded-lg shadow-sm disabled:opacity-50"
-              >
-                <Navigation className={`w-3 h-3 ${gpsLoading ? 'animate-spin' : ''}`} />
-                重新定位
-              </button>
-            )}
-
-            <button 
-              onClick={handleOpenSearchModal}
-              className="flex items-center gap-1 bg-[#e3342f] text-white hover:bg-red-600 px-3 py-1.5 text-xs font-bold rounded-lg shadow-sm"
-            >
-              <Plus className="w-3 h-3" />
-              手動加路線
-            </button>
-          </div>
-        </div>
-
-        {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold my-3 rounded-lg">{error}</div>}
-        
-        {/* ================= 🛰️ 附近巴士站專屬分頁 (用家按先Search) ================= */}
-        {activeTab === 'NEARBY' && (
-          <div className="flex flex-col gap-4">
-            
-            {/* 提示使用者點擊定位，或在載入時顯示載入狀態 */}
-            {(!userCoords || gpsLoading) ? (
-              <div className="p-8 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-center flex flex-col items-center justify-center gap-3">
-                <MapPin className="w-8 h-8 text-blue-500 animate-bounce" />
-                <h3 className="text-sm font-bold">探索附近巴士站</h3>
-                <p className="text-gray-400 text-xs max-w-xs leading-relaxed">我們將使用 GPS 定位尋找你周圍 1.2 公里內的巴士站點與實時到站時間。</p>
-                <button 
-                  onClick={() => findNearbyStops()}
-                  disabled={gpsLoading}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2"
-                >
-                  <Navigation className={`w-3.5 h-3.5 ${gpsLoading ? 'animate-spin' : ''}`} />
-                  {gpsLoading ? '正在定位中...' : '授權並尋找附近站點'}
-                </button>
-                {gpsMessage && <span className="text-xs font-medium text-red-500 mt-2">{gpsMessage}</span>}
-              </div>
-            ) : null}
-
-            {/* 定位成功後載入周邊站點 */}
-            {userCoords && nearbyStopsData.length > 0 ? (
-              nearbyStopsData.map((loc, idx) => (
-                <div key={idx} className={`rounded-xl overflow-hidden border transition-all ${theme.cardBg}`}>
-                  <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-500/10 bg-slate-500/5">
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-extrabold shadow-sm ${theme.pillBg}`}>
-                        {loc.name}
-                      </span>
-                      <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded">
-                        距離 {loc.distance} 米
-                      </span>
-                    </div>
-                    <a 
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.name + ' 巴士站')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] text-blue-600 font-bold"
-                    >
-                      🗺️ 地圖
-                    </a>
-                  </div>
-
-                  <div className="flex flex-col">
-                    {loc.routesData.map((route, rIdx) => renderRow(route, rIdx, true))}
-                  </div>
-                </div>
-              ))
-            ) : userCoords && !gpsLoading && (
-              <div className="text-center py-10 opacity-60">
-                <MapPin className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-                <p className="text-xs">周圍 1.2 公里內未找到巴士站點。</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ================= ⭐️ 我的收藏 (同分組極限壓縮) ================= */}
-        {activeTab !== 'NEARBY' && (
-          <>
-            {locations.length === 0 && (
-              <div className="text-center py-16 bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800">
-                <Bus className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <h3 className="text-sm font-bold mb-1">收藏看板還是空的</h3>
-                <p className="text-gray-400 text-xs mb-4 max-w-xs mx-auto">手動點擊上方「手動加路線」按鈕建立第一個最愛巴士看板！</p>
-                <button 
-                  onClick={handleOpenSearchModal}
-                  className="bg-[#e3342f] text-white hover:bg-red-600 px-4 py-2 text-xs font-bold rounded-lg"
-                >
-                  立即建立
-                </button>
-              </div>
-            )}
-
-            {filteredGroups.map((group, gIdx) => (
-              <div key={gIdx} className={`mb-4 rounded-xl overflow-hidden border transition-all ${theme.cardBg}`}>
-                
-                {/* 1. 分組標題區 */}
-                <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-500/10 bg-slate-500/5">
-                  <div className="flex items-center gap-1.5">
-                    <Folder className="w-4 h-4 text-red-500 shrink-0" />
-                    <span className="font-extrabold text-xs">{group.groupName} 分組</span>
-                    <span className="text-[10px] opacity-50">({group.routesData.length} 條路線)</span>
-                  </div>
-                </div>
-
-                {/* 2. 編輯模式下的站點管理 */}
-                {isEditMode && (
-                  <div className="px-4 py-1.5 bg-red-500/5 border-b border-red-500/10 flex flex-wrap gap-1.5 items-center text-[10px]">
-                    <span className="font-bold opacity-60">此組包含站點:</span>
-                    {locations.filter(l => (l.groupName || '預設') === group.groupName).map(s => (
-                      <span key={s.id} className="inline-flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded font-bold text-[9px]">
-                        {s.name}
-                        <button
-                          onClick={() => handleDeleteLocation(s.id)}
-                          className="text-red-500 hover:text-red-700 font-extrabold ml-1"
-                          title="刪除此站點"
-                        >
-                          ✕
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* 3. 巴士到站列表 */}
-                <div className="flex flex-col">
-                  {group.routesData.map((route, rIdx) => renderRow(route, rIdx, false))}
-                </div>
-              </div>
-            ))}
-          </>
-        )}
       </div>
     );
   };
@@ -1272,7 +1222,8 @@ export default function App() {
           巴士到站看板
         </h1>
         
-        <div className="flex items-center">
+        <div className="flex items-center gap-1">
+          {/* 🔄 刷新 */}
           <button 
             onClick={() => { 
               if (activeTab === 'NEARBY') {
@@ -1283,8 +1234,18 @@ export default function App() {
               fetchWeather(); 
             }} 
             className="p-1.5 text-white/85 hover:text-white rounded-full"
+            title="重新整理數據"
           >
-            <RefreshCw className={`w-4.5 h-4.5 ${loading || gpsLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading || gpsLoading ? 'animate-spin' : ''}`} />
+          </button>
+
+          {/* ⚙️ 全新設定按鈕：管理功能收納於此 */}
+          <button 
+            onClick={() => setIsSettingsModalOpen(true)}
+            className="p-1.5 text-white/85 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+            title="開啟看板設定中心"
+          >
+            <Settings className="w-4.5 h-4.5" />
           </button>
         </div>
       </header>
@@ -1303,7 +1264,7 @@ export default function App() {
                 key={group}
                 onClick={() => {
                   setActiveTab(group);
-                  // 附近巴士站「用家按先search」
+                  // 附近巴士站點按先定位
                   if (group === 'NEARBY' && !userCoords && !gpsLoading) {
                     findNearbyStops();
                   }
@@ -1320,23 +1281,23 @@ export default function App() {
       )}
 
       {/* ========================================================= */}
-      {/* 💾 匯入匯出備份還原彈窗 (BACKUP/RESTORE MODAL)             */}
+      {/* ⚙️ 全新看板設定中心彈窗 (SETTINGS CENTER MODAL)             */}
       {/* ========================================================= */}
-      {isBackupModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
-          <div className={`w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden border ${
+      {isSettingsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade-in">
+          <div className={`w-full max-w-xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden border ${
             isDarkMode ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-slate-100 text-slate-800'
           }`}>
             
-            {/* Modal 頂部 */}
+            {/* 頂部 Header */}
             <div className="px-5 py-4 border-b border-gray-500/10 flex items-center justify-between shrink-0">
               <h3 className="font-extrabold text-base flex items-center gap-2 text-[#e3342f]">
-                <Layers className="w-5 h-5" />
-                備份與還原最愛設定
+                <Settings className="w-5 h-5 animate-spin-hover" />
+                看板設定中心
               </h3>
               <button 
                 onClick={() => {
-                  setIsBackupModalOpen(false);
+                  setIsSettingsModalOpen(false);
                   setBackupError('');
                   setBackupSuccess('');
                   setImportText('');
@@ -1347,131 +1308,242 @@ export default function App() {
               </button>
             </div>
 
-            {/* Modal 分頁標籤 */}
-            <div className="flex border-b border-gray-500/10 bg-slate-500/5 shrink-0">
+            {/* 控制中心分頁 */}
+            <div className="flex border-b border-gray-500/10 bg-slate-500/5 shrink-0 text-xs font-black">
               <button 
-                onClick={() => { setBackupTab('EXPORT'); setBackupError(''); setBackupSuccess(''); }}
-                className={`flex-1 py-3 text-xs font-extrabold text-center transition-all ${
-                  backupTab === 'EXPORT' 
-                  ? 'border-b-2 border-[#e3342f] text-[#e3342f]' 
-                  : 'opacity-60'
+                onClick={() => { setSettingsTab('FAVORITES'); setBackupError(''); setBackupSuccess(''); }}
+                className={`flex-1 py-3 text-center transition-all ${
+                  settingsTab === 'FAVORITES' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'
                 }`}
               >
-                📥 匯出與備份
+                📁 最愛管理
               </button>
               <button 
-                onClick={() => { setBackupTab('IMPORT'); setBackupError(''); setBackupSuccess(''); }}
-                className={`flex-1 py-3 text-xs font-extrabold text-center transition-all ${
-                  backupTab === 'IMPORT' 
-                  ? 'border-b-2 border-[#e3342f] text-[#e3342f]' 
-                  : 'opacity-60'
+                onClick={() => { setSettingsTab('BACKUP'); setBackupError(''); setBackupSuccess(''); }}
+                className={`flex-1 py-3 text-center transition-all ${
+                  settingsTab === 'BACKUP' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'
                 }`}
               >
-                📤 還原與匯入
+                💾 備份還原
+              </button>
+              <button 
+                onClick={() => { setSettingsTab('ADVANCED'); setBackupError(''); setBackupSuccess(''); }}
+                className={`flex-1 py-3 text-center transition-all ${
+                  settingsTab === 'ADVANCED' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'
+                }`}
+              >
+                ⚙️ 進階設定
               </button>
             </div>
 
-            {/* Modal 中間滾動內容 */}
+            {/* 中間滾動內容 */}
             <div className="flex-1 p-5 overflow-y-auto">
               
               {backupSuccess && (
-                <div className="mb-4 bg-green-500/10 border border-green-500/20 text-green-500 p-3 text-center text-xs font-bold rounded-lg animate-pulse">
+                <div className="mb-4 bg-green-500/10 border border-green-500/20 text-green-500 p-2.5 text-center text-xs font-bold rounded-lg animate-pulse">
                   {backupSuccess}
                 </div>
               )}
               {backupError && (
-                <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-500 p-3 text-center text-xs font-bold rounded-lg">
+                <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-500 p-2.5 text-center text-xs font-bold rounded-lg">
                   {backupError}
                 </div>
               )}
 
-              {/* === Tab 1: 匯出與備份 === */}
-              {backupTab === 'EXPORT' && (
+              {/* --- Tab 1: 最愛自訂管理 --- */}
+              {settingsTab === 'FAVORITES' && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-xs opacity-70 leading-relaxed font-bold">
-                    您可以將目前的最愛巴士設定匯出為檔案，或直接複製下方的設定代碼，將「巴士到站看板」完美同步到其他裝置：
-                  </p>
-
-                  <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black opacity-60">您目前收藏了 {locations.length} 個巴士站：</span>
                     <button 
-                      onClick={handleDownloadBackupFile}
-                      className="w-full bg-[#e3342f] hover:bg-red-600 text-white py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                      onClick={handleOpenSearchModal}
+                      className="bg-[#e3342f] hover:bg-red-600 text-white px-3 py-1.5 text-xs font-bold rounded-lg shadow-sm flex items-center gap-1"
                     >
-                      <Download className="w-4 h-4" />
-                      立即下載設定備份檔案 (.json)
-                    </button>
-                    
-                    <button 
-                      onClick={handleCopyBackupCode}
-                      className="w-full bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-inherit py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all"
-                    >
-                      <Copy className="w-4 h-4" />
-                      複製最愛設定代碼
+                      <Plus className="w-3.5 h-3.5 text-white" />
+                      手動新增路線
                     </button>
                   </div>
 
-                  <div className="flex flex-col gap-1.5 mt-2">
-                    <label className="text-[11px] font-black opacity-60">您的備份設定代碼：</label>
+                  {locations.length === 0 ? (
+                    <div className="py-12 text-center text-xs opacity-50 border border-dashed rounded-xl">
+                      目無自訂路線，請點擊右上方「手動新增路線」。
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {locations.map((loc) => (
+                        <div key={loc.id} className="p-3.5 rounded-xl border border-gray-500/10 bg-slate-500/5 flex flex-col gap-2 relative">
+                          
+                          {/* 站點頂部名稱與一鍵移除 */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-black">{loc.name}</span>
+                              <span className="text-[10px] opacity-60">{loc.desc} (分組: {loc.groupName || '預設'})</span>
+                            </div>
+                            <button 
+                              onClick={() => handleDeleteLocation(loc.id)}
+                              className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-950/40 rounded-lg transition-all"
+                              title="刪除此巴士站及所有底下路線"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          {/* 站點底下具體路線小卡 */}
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {loc.routes.map((r, rIdx) => (
+                              <span 
+                                key={rIdx} 
+                                className="inline-flex items-center gap-1 bg-white dark:bg-zinc-800 text-xs font-black px-2.5 py-1 rounded-lg border border-gray-500/10 shadow-sm"
+                              >
+                                {r.route} 
+                                <button 
+                                  onClick={() => handleDeleteRouteInLocation(loc.id, r.route)}
+                                  className="text-red-500 hover:text-red-700 ml-1 font-bold text-[10px]"
+                                  title="移除單一線路"
+                                >
+                                  ✕
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* --- Tab 2: 備份還原（匯出匯入） --- */}
+              {settingsTab === 'BACKUP' && (
+                <div className="flex flex-col gap-4">
+                  <div className="p-3.5 rounded-xl bg-slate-500/5 border flex flex-col gap-3">
+                    <span className="text-xs font-black">📥 匯出最愛備份設定</span>
+                    <p className="text-[11px] opacity-70 leading-relaxed font-bold">
+                      您可以將自訂巴士看板數據導出保存，便於同步至您的 iPad 或其他家人的裝置。
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button 
+                        onClick={handleDownloadBackupFile}
+                        className="bg-[#e3342f] hover:bg-red-600 text-white py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        下載設定備份檔 (.json)
+                      </button>
+                      <button 
+                        onClick={handleCopyBackupCode}
+                        className="bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        複製最愛設定代碼
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-red-500/5 border border-red-500/10 flex flex-col gap-3">
+                    <span className="text-xs font-black text-red-500">📤 覆蓋還原自訂最愛</span>
+                    <p className="text-[11px] opacity-70 leading-relaxed font-bold">
+                      上傳先前保存的備份檔案，或者直接在下方貼上備份 JSON 代碼。注意這將覆蓋現有看板最愛。
+                    </p>
+                    
+                    <div className="border border-dashed border-gray-500/25 p-3 rounded-lg flex flex-col items-center justify-center gap-2">
+                      <input 
+                        type="file" 
+                        accept=".json"
+                        onChange={handleUploadFile}
+                        className="hidden" 
+                        id="setting-backup-upload" 
+                      />
+                      <label 
+                        htmlFor="setting-backup-upload"
+                        className="px-4 py-1.5 bg-[#e3342f] text-white hover:bg-red-600 rounded-lg text-xs font-bold cursor-pointer"
+                      >
+                        選擇上傳設定檔 (.json)
+                      </label>
+                    </div>
+
                     <textarea 
-                      readOnly
-                      rows={5}
-                      value={JSON.stringify(locations)}
-                      onClick={(e) => e.target.select()}
-                      className={`w-full py-2 px-3 rounded-lg border font-mono text-[10px] resize-none focus:outline-none ${
-                        isDarkMode ? 'bg-zinc-800 border-zinc-700 text-zinc-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                      rows={3}
+                      placeholder='或在此處貼上備份 JSON 代碼...'
+                      value={importText}
+                      onChange={(e) => setImportText(e.target.value)}
+                      className={`w-full py-1.5 px-3 rounded-lg border font-mono text-[10px] resize-none focus:outline-none focus:ring-1 focus:ring-red-500 ${
+                        isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-white border-slate-200'
                       }`}
                     />
+
+                    <button 
+                      onClick={handleConfirmImport}
+                      className="bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-extrabold text-xs flex items-center justify-center gap-1 shadow-sm"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      確認匯入並覆蓋最愛
+                    </button>
                   </div>
                 </div>
               )}
 
-              {/* === Tab 2: 還原與匯入 === */}
-              {backupTab === 'IMPORT' && (
-                <div className="flex flex-col gap-4">
-                  <p className="text-xs text-red-500 font-bold leading-relaxed">
-                    ⚠️ 警告：還原設定將會「完全覆蓋」目前裝置儲存的所有最愛路線配置，且無法復原。請謹慎操作！
-                  </p>
-
-                  {/* 檔案上傳還原 */}
-                  <div className="flex flex-col gap-2 p-4 rounded-xl border border-dashed border-gray-500/30 bg-slate-500/5 items-center justify-center text-center">
-                    <FileText className="w-8 h-8 text-gray-400 mb-1" />
-                    <span className="text-xs font-bold">上傳設定備份檔案</span>
-                    <input 
-                      type="file" 
-                      accept=".json"
-                      onChange={handleUploadFile}
-                      className="hidden" 
-                      id="upload-backup-input" 
-                    />
-                    <label 
-                      htmlFor="upload-backup-input"
-                      className="mt-2 px-4 py-1.5 bg-[#e3342f] hover:bg-red-600 text-white rounded-lg text-xs font-extrabold cursor-pointer shadow-sm"
-                    >
-                      選擇備份檔案 (.json)
-                    </label>
+              {/* --- Tab 3: 進階與系統重設 --- */}
+              {settingsTab === 'ADVANCED' && (
+                <div className="flex flex-col gap-5">
+                  {/* 1. GPS 搜索範圍微調 */}
+                  <div className="p-3.5 rounded-xl border bg-slate-500/5 flex flex-col gap-3">
+                    <span className="text-xs font-black flex items-center gap-1.5">
+                      <Sliders className="w-4 h-4 text-blue-500" />
+                      🛰️ 附近巴士站搜尋範圍設定
+                    </span>
+                    <p className="text-[11px] opacity-70 leading-relaxed font-bold">
+                      微調 GPS 定位搜尋周圍巴士站點的最大允許半徑，目前半徑為：
+                      <strong className="text-blue-500 text-xs ml-1">{nearbyRadius} 米</strong>
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-bold opacity-50">300米</span>
+                      <input 
+                        type="range" 
+                        min="300" 
+                        max="2000" 
+                        step="100"
+                        value={nearbyRadius} 
+                        onChange={(e) => setNearbyRadius(parseInt(e.target.value))}
+                        className="flex-1 accent-[#e3342f] cursor-pointer"
+                      />
+                      <span className="text-[10px] font-bold opacity-50">2000米</span>
+                    </div>
                   </div>
 
-                  {/* 貼上備份代碼還原 */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[11px] font-black opacity-70">或者在此貼上您的備份設定代碼：</label>
-                    <textarea 
-                      rows={5}
-                      placeholder='在此貼上以 {"id":...} 開始的設定代碼'
-                      value={importText}
-                      onChange={(e) => setImportText(e.target.value)}
-                      className={`w-full py-2 px-3 rounded-lg border font-mono text-[10px] resize-none focus:outline-none focus:ring-1 focus:ring-red-500 ${
-                        isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-slate-50 border-slate-200'
-                      }`}
-                    />
-                  </div>
+                  {/* 2. 一鍵重設預設數據 */}
+                  <div className="p-3.5 rounded-xl border border-red-500/10 bg-red-500/5 flex flex-col gap-3">
+                    <span className="text-xs font-black text-red-500 flex items-center gap-1.5">
+                      <RotateCcw className="w-4 h-4" />
+                      還原原廠預設值
+                    </span>
+                    <p className="text-[11px] opacity-70 leading-relaxed font-bold">
+                      還原最愛看板設定回範例（預設峻巒總站、形點 II、大欖隧道配置），這將重置所有自訂設定。
+                    </p>
 
-                  <button 
-                    onClick={handleConfirmImport}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md mt-2"
-                  >
-                    <Check className="w-4 h-4" />
-                    確認還原並覆蓋當前看板
-                  </button>
+                    {!showResetConfirm ? (
+                      <button 
+                        onClick={() => setShowResetConfirm(true)}
+                        className="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-bold text-xs"
+                      >
+                        重設我的最愛站點
+                      </button>
+                    ) : (
+                      <div className="flex gap-2 animate-pulse">
+                        <button 
+                          onClick={handleResetToPreload}
+                          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-black text-xs"
+                        >
+                          確定重設！(點擊執行)
+                        </button>
+                        <button 
+                          onClick={() => setShowResetConfirm(false)}
+                          className="flex-1 bg-slate-300 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 py-2 rounded-lg font-bold text-xs"
+                        >
+                          取消
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1494,7 +1566,7 @@ export default function App() {
                 <Plus className="w-5 h-5 text-red-500" />
                 新增路線至看板
               </h3>
-              <button onClick={() => setIsSearchModalOpen(false)} className="p-1 rounded-full hover:bg-gray-500/10">
+              <button onClick={handleCloseSearchModal} className="p-1 rounded-full hover:bg-gray-500/10">
                 <X className="w-5 h-5" />
               </button>
             </div>
