@@ -39,7 +39,7 @@ const DEFAULT_PHOTOS = [
 const WEATHER_BG = "/victoria-harbour.jpg";
 
 // ==========================================
-// 🚌 預設預載的自訂巴士站數據 (加入 customDest 解決循環線方向)
+// 🚌 預設預載的自訂巴士站數據
 // ==========================================
 const DEFAULT_LOCATIONS = [
   {
@@ -47,6 +47,7 @@ const DEFAULT_LOCATIONS = [
     filterId: "PARKYOHO",
     groupName: "峻巒",
     name: "峻巒總站",
+    desc: "往市區",
     routes: [
       { route: "68", dir: "O", dest: "元朗公園", serviceType: "1" },
       { route: "68F", dir: "O", dest: "元朗公園", serviceType: "1" },
@@ -58,8 +59,9 @@ const DEFAULT_LOCATIONS = [
     filterId: "YOHO",
     groupName: "形點",
     name: "形點 II",
+    desc: "往峻巒",
     routes: [
-      { route: "68", dir: "I", dest: "峻巒", serviceType: "1", customDest: "峻巒" } // 💡 注入自訂目的地
+      { route: "68", dir: "I", dest: "峻巒", serviceType: "1" }
     ]
   },
   {
@@ -67,8 +69,9 @@ const DEFAULT_LOCATIONS = [
     filterId: "YOHO",
     groupName: "形點",
     name: "形點 I",
+    desc: "往峻巒",
     routes: [
-      { route: "68F", dir: "I", dest: "峻巒", serviceType: "1", customDest: "峻巒" } // 💡 注入自訂目的地
+      { route: "68F", dir: "I", dest: "峻巒", serviceType: "1" }
     ]
   }
 ];
@@ -216,7 +219,7 @@ export default function App() {
   const [selectedStop, setSelectedStop] = useState(null); 
 
   const [customStopName, setCustomStopName] = useState('');
-  const [customStopDesc, setCustomStopDesc] = useState(''); // 💡 此變數現作為自訂目的地 (customDest)
+  const [customStopDesc, setCustomStopDesc] = useState('');
   const [customGroupName, setCustomGroupName] = useState('預設');
   const [customGroupInput, setCustomGroupInput] = useState('');
 
@@ -342,18 +345,15 @@ export default function App() {
       const processed = nearbyStops.map((stop, idx) => {
         const rawEtas = results[idx].data || [];
         const routeGroups = {};
-        
         rawEtas.forEach(eta => {
           if (!eta.eta || !eta.route) return;
           const key = `${eta.route}-${eta.dir}-${eta.dest_tc}`;
           if (!routeGroups[key]) routeGroups[key] = { route: eta.route, dest: eta.dest_tc.includes('荃灣西') ? '荃灣西站' : eta.dest_tc, dir: eta.dir, etas: [] };
           routeGroups[key].etas.push(eta);
         });
-
         const routesDataList = Object.values(routeGroups).map(group => {
           group.etas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
           
-          // 💡 智慧去重與過期清理引擎
           const uniqueEtas = [];
           const seenMinutes = new Set();
           group.etas.forEach(e => {
@@ -370,7 +370,6 @@ export default function App() {
             etas: uniqueEtas.slice(0, 2).map(e => ({ time: new Date(e.eta), rmk: e.rmk_tc !== "原定班次" ? e.rmk_tc : null })) 
           };
         });
-
         routesDataList.sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }));
         return { id: stop.id, name: stop.name, distance: stop.distance, routesData: routesDataList };
       });
@@ -406,7 +405,6 @@ export default function App() {
           if (validEtas.length > 0) {
             validEtas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
             
-            // 💡 智慧去重與過期清理引擎
             const uniqueEtas = [];
             const seenMinutes = new Set();
             validEtas.forEach(e => {
@@ -417,7 +415,6 @@ export default function App() {
               }
             });
 
-            // 💡 如果有設定 customDest (自訂目的地)，則強制覆蓋 API 預設目的地
             const primaryDest = routeObj.customDest || uniqueEtas[0]?.dest_tc || routeObj.dest || "目的地";
             routesList.push({ 
               route: routeObj.route, 
@@ -588,14 +585,13 @@ export default function App() {
   };
 
   const handleSelectStop = (stopItem) => {
-    setSelectedStop(stopItem); setCustomStopName(stopItem.name_tc); setCustomStopDesc(`往 ${selectedDirection.dest_tc}`); setSearchStep(4);
+    setSelectedStop(stopItem); setCustomStopName(stopItem.name_tc); setCustomStopDesc(`${selectedDirection.dest_tc}`); setSearchStep(4);
   };
 
   const handleConfirmAddStop = () => {
     if (!selectedStop) return;
     const finalGroupName = customGroupName === 'NEW' ? (customGroupInput.trim() || '自訂') : customGroupName;
     
-    // 💡 儲存自訂目的地 (customDest) 至 config 內
     const newRouteConfig = { 
       route: selectedDirection.route, 
       dir: selectedDirection.bound, 
@@ -663,11 +659,11 @@ export default function App() {
     const isMissed = primaryMins !== null && primaryMins < 0;
     const isImminent = primaryMins === 0;
 
-    // 💡 行內樣式決定字體顏色，保證顏色正確顯示
+    // 💡 智慧 ETA 顏色邏輯 (行內樣式，確保 100% 絕對優先權)
     let etaColorStyle = isDarkMode ? '#f4f4f5' : '#0f172a'; 
     if (primaryMins !== null && primaryMins >= 0) {
-      if (primaryMins <= 5) etaColorStyle = '#e3342f';       // 紅色
-      else if (primaryMins <= 10) etaColorStyle = '#f97316'; // 橙色
+      if (primaryMins <= 5) etaColorStyle = '#e3342f';       // 0-5分鐘：紅色
+      else if (primaryMins <= 10) etaColorStyle = '#f97316'; // 6-10分鐘：橙色
     }
 
     const isStand = layoutType === 'STAND';
@@ -688,8 +684,9 @@ export default function App() {
               {route.route}
             </span>
           </div>
+          {/* 💡 移除 UI 寫死的「往」字 */}
           <span className={`${destSize} font-extrabold mt-1 sm:mt-1.5 ${theme.routeDest} truncate w-full text-left block`}>
-            往 {route.dest}
+            {route.dest}
           </span>
         </div>
         
@@ -701,15 +698,15 @@ export default function App() {
             ) : isMissed ? (
               <span className={`${primaryTextSize} font-black tracking-wide leading-none ${theme.etaMissed}`}>已開出</span>
             ) : isImminent ? (
-              <span style={{ color: etaColorStyle }} className={`${primaryTextSize} font-black tracking-wide animate-pulse leading-none`}>即將到站</span>
+              <span style={{ color: etaColorStyle }} className={`${primaryTextSize} font-black tracking-wide animate-pulse leading-none ios-num-fix`}>即將到站</span>
             ) : (
-              <span style={{ color: etaColorStyle }} className={`${primaryNumSize} font-black tracking-tighter leading-none`}>{primaryMins}</span>
+              <span style={{ color: etaColorStyle }} className={`${primaryNumSize} font-black tracking-tighter leading-none ios-num-fix`}>{primaryMins}</span>
             )}
           </div>
           
           <div className="flex items-end justify-end mt-1.5 sm:mt-2">
             {secondaryMins !== null && secondaryMins >= 0 ? (
-              <span className={`${secondarySize} font-extrabold ${theme.etaSecondary} leading-none`}>
+              <span className={`${secondarySize} font-extrabold ${theme.etaSecondary} ios-num-fix leading-none`}>
                 {secondaryMins}
               </span>
             ) : (
@@ -911,15 +908,13 @@ export default function App() {
 
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
-      {/* 💡 移除粗暴的 a[href] 覆蓋，改用針對性防護，保護智慧顏色的顯示 */}
+      {/* 💡 使用精確防護，保留 Inline Style 的優先權 */}
       <style>{`
-        /* 僅針對 Safari 自動生成的資料連結阻斷 */
-        a[x-apple-data-detectors] {
+        a[x-apple-data-detectors], a[href^="tel"] {
           color: inherit !important;
           text-decoration: none !important;
         }
         
-        /* 解決 iOS 橫向滑動與隱藏卷軸 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
       `}</style>
@@ -1182,8 +1177,8 @@ export default function App() {
                     <input type="text" placeholder={selectedStop.name_tc} value={customStopName} onChange={(e) => setCustomStopName(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-black opacity-70">自訂目的地名稱 (解決循環線方向，選填)：</label>
-                    <input type="text" placeholder={`${selectedDirection.dest_tc}`} value={customStopDesc} onChange={(e) => setCustomStopDesc(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
+                    <label className="text-xs font-black opacity-70">方向描述 (選填)：</label>
+                    <input type="text" placeholder={`往 ${selectedDirection.dest_tc}`} value={customStopDesc} onChange={(e) => setCustomStopDesc(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-black opacity-70">放置於看板分類分組：</label>
