@@ -83,12 +83,8 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   const φ2 = lat2 * Math.PI / 180;
   const Δφ = (lat2 - lat1) * Math.PI / 180;
   const Δλ = (lon2 - lon1) * Math.PI / 180;
-
-  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
   return Math.round(R * c); 
 }
 
@@ -102,26 +98,34 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 升級版：天氣警告資料處理中心 (支援圖示與簡稱)
+// 🌩️ 天氣警告資料處理中心 (使用維基百科 SVG 並在下方加入防盜鏈繞過機制)
 const getWarningData = (code, originalName) => {
+  const wikiBase = 'https://upload.wikimedia.org/wikipedia/commons/';
   switch(code) {
     case 'WRAINA': 
-      return { text: '黃雨', img: 'https://upload.wikimedia.org/wikipedia/commons/2/25/HK_Amber_Rainstorm_Warning.svg', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500' };
+      return { text: '黃雨', img: wikiBase + '2/25/HK_Amber_Rainstorm_Warning.svg', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500' };
     case 'WRAINR': 
-      return { text: '紅雨', img: 'https://upload.wikimedia.org/wikipedia/commons/0/05/HK_Red_Rainstorm_Warning.svg', style: 'bg-red-600 text-white border border-red-500' };
+      return { text: '紅雨', img: wikiBase + '0/05/HK_Red_Rainstorm_Warning.svg', style: 'bg-red-600 text-white border border-red-500' };
     case 'WRAINB': 
-      return { text: '黑雨', img: 'https://upload.wikimedia.org/wikipedia/commons/9/91/HK_Black_Rainstorm_Warning.svg', style: 'bg-black text-white border border-gray-600' };
-    case 'WTS': return { text: '雷暴', style: 'bg-yellow-600 text-white border border-yellow-500' };
-    case 'WHOT': return { text: '酷熱', style: 'bg-red-500 text-white' };
-    case 'WCOLD': return { text: '寒冷', style: 'bg-blue-400 text-blue-950' };
-    case 'TC1': return { text: '一號風球', style: 'bg-zinc-800 text-white border border-white/20' };
-    case 'TC3': return { text: '三號風球', style: 'bg-zinc-800 text-white border border-white/20' };
-    case 'TC8NE': case 'TC8NW': case 'TC8SE': case 'TC8SW': 
-      return { text: '八號風球', style: 'bg-zinc-800 text-white border border-white/20' };
-    case 'TC9': return { text: '九號風球', style: 'bg-zinc-800 text-white border border-white/20' };
-    case 'TC10': return { text: '十號風球', style: 'bg-zinc-800 text-white border border-white/20' };
-    case 'WFIREY': return { text: '黃色火災', style: 'bg-yellow-500 text-yellow-950' };
-    case 'WFIRER': return { text: '紅色火災', style: 'bg-red-500 text-white' };
+      return { text: '黑雨', img: wikiBase + '9/91/HK_Black_Rainstorm_Warning.svg', style: 'bg-black text-white border border-gray-600' };
+    case 'WTS': 
+      return { text: '雷暴', img: wikiBase + 'c/cd/HK_Thunderstorm_Warning.svg', style: 'bg-yellow-600 text-white border border-yellow-500' };
+    case 'WHOT': 
+      return { text: '酷熱', img: wikiBase + '3/36/HK_Very_Hot_Weather_Warning.svg', style: 'bg-red-500 text-white' };
+    case 'WCOLD': 
+      return { text: '寒冷', img: wikiBase + '2/28/HK_Cold_Weather_Warning.svg', style: 'bg-blue-400 text-blue-950 border border-blue-500' };
+    case 'WFIREY': 
+      return { text: '黃色火災', img: wikiBase + '1/1f/HK_Yellow_Fire_Danger_Warning.svg', style: 'bg-yellow-500 text-yellow-950' };
+    case 'WFIRER': 
+      return { text: '紅色火災', img: wikiBase + '5/59/HK_Red_Fire_Danger_Warning.svg', style: 'bg-red-500 text-white' };
+    case 'TC1': return { text: '一號風球', img: wikiBase + 'a/a4/No._1_Standby_Signal.svg', style: 'bg-white text-black' };
+    case 'TC3': return { text: '三號風球', img: wikiBase + '3/30/No._3_Strong_Wind_Signal.svg', style: 'bg-white text-black' };
+    case 'TC8NE': return { text: '八號(東北)', img: wikiBase + '8/82/No._8_Northeast_Gale_or_Storm_Signal.svg', style: 'bg-white text-black' };
+    case 'TC8NW': return { text: '八號(西北)', img: wikiBase + '8/86/No._8_Northwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black' };
+    case 'TC8SE': return { text: '八號(東南)', img: wikiBase + '6/69/No._8_Southeast_Gale_or_Storm_Signal.svg', style: 'bg-white text-black' };
+    case 'TC8SW': return { text: '八號(西南)', img: wikiBase + '6/61/No._8_Southwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black' };
+    case 'TC9': return { text: '九號風球', img: wikiBase + '7/77/No._9_Increasing_Gale_or_Storm_Signal.svg', style: 'bg-white text-black' };
+    case 'TC10': return { text: '十號風球', img: wikiBase + '9/91/No._10_Hurricane_Signal.svg', style: 'bg-white text-black' };
     default: 
       return { text: originalName, style: 'bg-white/20 text-white backdrop-blur-md' };
   }
@@ -670,8 +674,8 @@ export default function App() {
     // 💡 智慧 ETA 顏色邏輯 (行內樣式，確保 100% 絕對優先權)
     let etaColorStyle = isDarkMode ? '#f4f4f5' : '#0f172a'; 
     if (primaryMins !== null && primaryMins >= 0) {
-      if (primaryMins <= 5) etaColorStyle = '#e3342f';       // 紅色
-      else if (primaryMins <= 10) etaColorStyle = '#f97316'; // 橙色
+      if (primaryMins <= 5) etaColorStyle = '#e3342f';       // 0-5分鐘：紅色
+      else if (primaryMins <= 10) etaColorStyle = '#f97316'; // 6-10分鐘：橙色
     }
 
     const isStand = layoutType === 'STAND';
@@ -757,7 +761,6 @@ export default function App() {
               </div>
             )}
 
-            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -863,13 +866,22 @@ export default function App() {
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
                   </div>
                 </div>
-                {/* 💡 橫向模式左側：升級版 SVG 天氣與暴雨警告標籤 */}
+                {/* 💡 座枱模式的警告標籤：使用 SVG 圖片並繞過防盜鏈 */}
                 <div className="flex flex-wrap gap-2 max-w-full mt-1">
                   {weatherInfo.warnings.map((warn, idx) => {
                     const wData = getWarningData(warn.code, warn.name);
                     return (
                       <div key={idx} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-black text-sm shadow-lg animate-pulse ${wData.style}`}>
-                        {wData.img && <img src={wData.img} alt={wData.text} className="w-5 h-5 object-contain" />}
+                        {wData.img && (
+                          <img 
+                            src={wData.img} 
+                            alt={wData.text} 
+                            className="w-5 h-5 object-contain" 
+                            referrerPolicy="no-referrer" 
+                            crossOrigin="anonymous" 
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                        )}
                         <span>{wData.text}</span>
                       </div>
                     );
@@ -923,6 +935,7 @@ export default function App() {
 
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
+      {/* 💡 終極修復防護：只對帶有電話連結的 a 標籤作用，絕不影響內部元素顏色 */}
       <style>{`
         a[x-apple-data-detectors], a[href^="tel"] {
           color: inherit !important;
