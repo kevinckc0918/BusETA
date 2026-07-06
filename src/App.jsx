@@ -102,20 +102,28 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告代碼對應顏色樣式
-const getWarningStyle = (code) => {
+// 🌩️ 升級版：天氣警告資料處理中心 (支援圖示與簡稱)
+const getWarningData = (code, originalName) => {
   switch(code) {
-    case 'WRAINA': return 'bg-yellow-400 text-yellow-950 border border-yellow-500'; 
-    case 'WRAINR': return 'bg-red-600 text-white'; 
-    case 'WRAINB': return 'bg-black text-white border-2 border-gray-400'; 
-    case 'WTS': return 'bg-yellow-600 text-yellow-950'; 
-    case 'WHOT': return 'bg-red-500 text-white'; 
-    case 'WCOLD': return 'bg-blue-400 text-blue-950'; 
-    case 'TC1': case 'TC3': case 'TC8NE': case 'TC8NW': case 'TC8SE': case 'TC8SW': case 'TC9': case 'TC10':
-      return 'bg-zinc-800 text-white'; 
-    case 'WFIREY': return 'bg-yellow-500 text-yellow-950';
-    case 'WFIRER': return 'bg-red-500 text-white';
-    default: return 'bg-white/20 text-white backdrop-blur-md';
+    case 'WRAINA': 
+      return { text: '黃雨', img: 'https://upload.wikimedia.org/wikipedia/commons/2/25/HK_Amber_Rainstorm_Warning.svg', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500' };
+    case 'WRAINR': 
+      return { text: '紅雨', img: 'https://upload.wikimedia.org/wikipedia/commons/0/05/HK_Red_Rainstorm_Warning.svg', style: 'bg-red-600 text-white border border-red-500' };
+    case 'WRAINB': 
+      return { text: '黑雨', img: 'https://upload.wikimedia.org/wikipedia/commons/9/91/HK_Black_Rainstorm_Warning.svg', style: 'bg-black text-white border border-gray-600' };
+    case 'WTS': return { text: '雷暴', style: 'bg-yellow-600 text-white border border-yellow-500' };
+    case 'WHOT': return { text: '酷熱', style: 'bg-red-500 text-white' };
+    case 'WCOLD': return { text: '寒冷', style: 'bg-blue-400 text-blue-950' };
+    case 'TC1': return { text: '一號風球', style: 'bg-zinc-800 text-white border border-white/20' };
+    case 'TC3': return { text: '三號風球', style: 'bg-zinc-800 text-white border border-white/20' };
+    case 'TC8NE': case 'TC8NW': case 'TC8SE': case 'TC8SW': 
+      return { text: '八號風球', style: 'bg-zinc-800 text-white border border-white/20' };
+    case 'TC9': return { text: '九號風球', style: 'bg-zinc-800 text-white border border-white/20' };
+    case 'TC10': return { text: '十號風球', style: 'bg-zinc-800 text-white border border-white/20' };
+    case 'WFIREY': return { text: '黃色火災', style: 'bg-yellow-500 text-yellow-950' };
+    case 'WFIRER': return { text: '紅色火災', style: 'bg-red-500 text-white' };
+    default: 
+      return { text: originalName, style: 'bg-white/20 text-white backdrop-blur-md' };
   }
 };
 
@@ -662,8 +670,8 @@ export default function App() {
     // 💡 智慧 ETA 顏色邏輯 (行內樣式，確保 100% 絕對優先權)
     let etaColorStyle = isDarkMode ? '#f4f4f5' : '#0f172a'; 
     if (primaryMins !== null && primaryMins >= 0) {
-      if (primaryMins <= 5) etaColorStyle = '#e3342f';       // 0-5分鐘：紅色
-      else if (primaryMins <= 10) etaColorStyle = '#f97316'; // 6-10分鐘：橙色
+      if (primaryMins <= 5) etaColorStyle = '#e3342f';       // 紅色
+      else if (primaryMins <= 10) etaColorStyle = '#f97316'; // 橙色
     }
 
     const isStand = layoutType === 'STAND';
@@ -684,9 +692,8 @@ export default function App() {
               {route.route}
             </span>
           </div>
-          {/* 💡 移除 UI 寫死的「往」字 */}
           <span className={`${destSize} font-extrabold mt-1 sm:mt-1.5 ${theme.routeDest} truncate w-full text-left block`}>
-            {route.dest}
+            往 {route.dest}
           </span>
         </div>
         
@@ -698,15 +705,15 @@ export default function App() {
             ) : isMissed ? (
               <span className={`${primaryTextSize} font-black tracking-wide leading-none ${theme.etaMissed}`}>已開出</span>
             ) : isImminent ? (
-              <span style={{ color: etaColorStyle }} className={`${primaryTextSize} font-black tracking-wide animate-pulse leading-none ios-num-fix`}>即將到站</span>
+              <span style={{ color: etaColorStyle }} className={`${primaryTextSize} font-black tracking-wide animate-pulse leading-none`}>即將到站</span>
             ) : (
-              <span style={{ color: etaColorStyle }} className={`${primaryNumSize} font-black tracking-tighter leading-none ios-num-fix`}>{primaryMins}</span>
+              <span style={{ color: etaColorStyle }} className={`${primaryNumSize} font-black tracking-tighter leading-none`}>{primaryMins}</span>
             )}
           </div>
           
           <div className="flex items-end justify-end mt-1.5 sm:mt-2">
             {secondaryMins !== null && secondaryMins >= 0 ? (
-              <span className={`${secondarySize} font-extrabold ${theme.etaSecondary} ios-num-fix leading-none`}>
+              <span className={`${secondarySize} font-extrabold ${theme.etaSecondary} leading-none`}>
                 {secondaryMins}
               </span>
             ) : (
@@ -750,6 +757,7 @@ export default function App() {
               </div>
             )}
 
+            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -855,10 +863,17 @@ export default function App() {
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-1.5 max-w-full">
-                  {weatherInfo.warnings.map((warn, idx) => (
-                    <div key={idx} className={`px-2 py-0.5 rounded font-black text-xs animate-pulse ${getWarningStyle(warn.code)}`}>{warn.name}</div>
-                  ))}
+                {/* 💡 橫向模式左側：升級版 SVG 天氣與暴雨警告標籤 */}
+                <div className="flex flex-wrap gap-2 max-w-full mt-1">
+                  {weatherInfo.warnings.map((warn, idx) => {
+                    const wData = getWarningData(warn.code, warn.name);
+                    return (
+                      <div key={idx} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-black text-sm shadow-lg animate-pulse ${wData.style}`}>
+                        {wData.img && <img src={wData.img} alt={wData.text} className="w-5 h-5 object-contain" />}
+                        <span>{wData.text}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -908,7 +923,6 @@ export default function App() {
 
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
-      {/* 💡 使用精確防護，保留 Inline Style 的優先權 */}
       <style>{`
         a[x-apple-data-detectors], a[href^="tel"] {
           color: inherit !important;
@@ -1177,8 +1191,8 @@ export default function App() {
                     <input type="text" placeholder={selectedStop.name_tc} value={customStopName} onChange={(e) => setCustomStopName(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-black opacity-70">方向描述 (選填)：</label>
-                    <input type="text" placeholder={`往 ${selectedDirection.dest_tc}`} value={customStopDesc} onChange={(e) => setCustomStopDesc(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
+                    <label className="text-xs font-black opacity-70">自訂目的地名稱 (解決循環線方向，選填)：</label>
+                    <input type="text" placeholder={`${selectedDirection.dest_tc}`} value={customStopDesc} onChange={(e) => setCustomStopDesc(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-black opacity-70">放置於看板分類分組：</label>
