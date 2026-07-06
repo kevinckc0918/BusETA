@@ -24,7 +24,8 @@ import {
   Copy,
   FileText,
   Sliders,
-  RotateCcw
+  RotateCcw,
+  Pencil
 } from 'lucide-react';
 
 // ==========================================
@@ -61,7 +62,7 @@ const DEFAULT_LOCATIONS = [
     name: "形點 II",
     desc: "往峻巒",
     routes: [
-      { route: "68", dir: "I", dest: "峻巒", serviceType: "1" }
+      { route: "68", dir: "I", dest: "峻巒", serviceType: "1", customDest: "峻巒" }
     ]
   },
   {
@@ -71,7 +72,7 @@ const DEFAULT_LOCATIONS = [
     name: "形點 I",
     desc: "往峻巒",
     routes: [
-      { route: "68F", dir: "I", dest: "峻巒", serviceType: "1" }
+      { route: "68F", dir: "I", dest: "峻巒", serviceType: "1", customDest: "峻巒" }
     ]
   }
 ];
@@ -191,6 +192,10 @@ export default function App() {
   const [settingsTab, setSettingsTab] = useState('FAVORITES'); 
   const [shouldReopenSettings, setShouldReopenSettings] = useState(false); 
   const [showResetConfirm, setShowResetConfirm] = useState(false); 
+
+  // 💡 獨立編輯單一路線目的地的狀態
+  const [editingRouteDest, setEditingRouteDest] = useState(null);
+  const [editDestValue, setEditDestValue] = useState('');
 
   const [nearbyRadius, setNearbyRadius] = useState(() => {
     try { return parseInt(localStorage.getItem('kmb_nearby_radius') || '1200'); } 
@@ -495,6 +500,28 @@ export default function App() {
     }).filter(loc => loc.routesData.length > 0));
   };
 
+  // 💡 儲存內嵌編輯的目的地
+  const handleSaveCustomDest = () => {
+    if (!editingRouteDest) return;
+    const updatedLocations = locations.map((loc) => {
+      if (loc.id === editingRouteDest.locId) {
+        return {
+          ...loc,
+          routes: loc.routes.map((r) => {
+            if (r.route === editingRouteDest.routeNum && r.dir === editingRouteDest.dir) {
+              return { ...r, customDest: editDestValue.trim() };
+            }
+            return r;
+          }),
+        };
+      }
+      return loc;
+    });
+    setLocations(updatedLocations);
+    setEditingRouteDest(null);
+    setTimeout(() => fetchCustomLocationsData(), 200);
+  };
+
   const handleCopyBackupCode = () => {
     const backupJson = JSON.stringify(locations);
     const textArea = document.createElement("textarea");
@@ -671,11 +698,10 @@ export default function App() {
     const isMissed = primaryMins !== null && primaryMins < 0;
     const isImminent = primaryMins === 0;
 
-    // 💡 智慧 ETA 顏色邏輯 (行內樣式，確保 100% 絕對優先權)
     let etaColorStyle = isDarkMode ? '#f4f4f5' : '#0f172a'; 
     if (primaryMins !== null && primaryMins >= 0) {
-      if (primaryMins <= 5) etaColorStyle = '#e3342f';       // 0-5分鐘：紅色
-      else if (primaryMins <= 10) etaColorStyle = '#f97316'; // 6-10分鐘：橙色
+      if (primaryMins <= 5) etaColorStyle = '#e3342f';       // 紅色
+      else if (primaryMins <= 10) etaColorStyle = '#f97316'; // 橙色
     }
 
     const isStand = layoutType === 'STAND';
@@ -866,7 +892,6 @@ export default function App() {
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
                   </div>
                 </div>
-                {/* 💡 座枱模式的警告標籤：使用 SVG 圖片並繞過防盜鏈 */}
                 <div className="flex flex-wrap gap-2 max-w-full mt-1">
                   {weatherInfo.warnings.map((warn, idx) => {
                     const wData = getWarningData(warn.code, warn.name);
@@ -935,7 +960,6 @@ export default function App() {
 
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
-      {/* 💡 終極修復防護：只對帶有電話連結的 a 標籤作用，絕不影響內部元素顏色 */}
       <style>{`
         a[x-apple-data-detectors], a[href^="tel"] {
           color: inherit !important;
@@ -995,15 +1019,15 @@ export default function App() {
                 <Settings className="w-5 h-5 animate-spin-hover" />
                 看板設定中心
               </h3>
-              <button onClick={() => { setIsSettingsModalOpen(false); setBackupError(''); setBackupSuccess(''); setImportText(''); }} className="p-1 rounded-full hover:bg-gray-500/10">
+              <button onClick={() => { setIsSettingsModalOpen(false); setBackupError(''); setBackupSuccess(''); setImportText(''); setEditingRouteDest(null); }} className="p-1 rounded-full hover:bg-gray-500/10">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="flex border-b border-gray-500/10 bg-slate-500/5 shrink-0 text-xs font-black">
-              <button onClick={() => { setSettingsTab('FAVORITES'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'FAVORITES' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>📁 最愛管理</button>
-              <button onClick={() => { setSettingsTab('BACKUP'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'BACKUP' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>💾 備份還原</button>
-              <button onClick={() => { setSettingsTab('ADVANCED'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'ADVANCED' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>⚙️ 進階設定</button>
+              <button onClick={() => { setSettingsTab('FAVORITES'); setBackupError(''); setBackupSuccess(''); setEditingRouteDest(null); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'FAVORITES' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>📁 最愛管理</button>
+              <button onClick={() => { setSettingsTab('BACKUP'); setBackupError(''); setBackupSuccess(''); setEditingRouteDest(null); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'BACKUP' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>💾 備份還原</button>
+              <button onClick={() => { setSettingsTab('ADVANCED'); setBackupError(''); setBackupSuccess(''); setEditingRouteDest(null); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'ADVANCED' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>⚙️ 進階設定</button>
             </div>
 
             <div className="flex-1 p-5 overflow-y-auto">
@@ -1012,35 +1036,87 @@ export default function App() {
 
               {settingsTab === 'FAVORITES' && (
                 <div className="flex flex-col gap-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black opacity-60">您目前收藏了 {locations.length} 個巴士站：</span>
-                    <button onClick={handleOpenSearchModal} className="bg-[#e3342f] hover:bg-red-600 text-white px-3 py-1.5 text-xs font-bold rounded-lg shadow-sm flex items-center gap-1">
-                      <Plus className="w-3.5 h-3.5 text-white" />手動新增路線
-                    </button>
-                  </div>
-                  {locations.length === 0 ? (
-                    <div className="py-12 text-center text-xs opacity-50 border border-dashed rounded-xl">目無自訂路線，請點擊右上方「手動新增路線」。</div>
-                  ) : (
-                    <div className="flex flex-col gap-3">
-                      {locations.map((loc) => (
-                        <div key={loc.id} className="p-3.5 rounded-xl border border-gray-500/10 bg-slate-500/5 flex flex-col gap-2 relative">
-                          <div className="flex items-center justify-between">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-black">{loc.name}</span>
-                              <span className="text-[10px] opacity-60">{loc.desc} (分組: {loc.groupName || '預設'})</span>
-                            </div>
-                            <button onClick={(e) => handleDeleteLocation(loc.id, e)} className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-950/40 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            {loc.routes.map((r, rIdx) => (
-                              <span key={rIdx} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg shadow-sm font-black text-xs border ${theme.badgeGroupItem}`}>
-                                {r.route} <button onClick={(e) => handleDeleteRouteInLocation(loc.id, r.route, e)} className="text-red-500 hover:text-red-700 ml-1 font-bold text-[10px]">✕</button>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                  
+                  {/* 💡 編輯單一路線目的地的獨立 UI */}
+                  {editingRouteDest ? (
+                    <div className="flex flex-col gap-4 animate-fade-in">
+                      <div className="bg-blue-500/10 p-4 rounded-xl border border-blue-500/20 text-center flex flex-col gap-1">
+                        <span className="text-blue-500 font-extrabold text-xs tracking-wider">編輯顯示目的地</span>
+                        <span className="text-lg font-black">{editingRouteDest.routeNum} 號巴士</span>
+                        <span className="text-xs font-bold opacity-80">原本目的地：{editingRouteDest.currentDest}</span>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-black opacity-70">自訂顯示目的地：</label>
+                        <input 
+                          type="text" 
+                          placeholder={editingRouteDest.currentDest} 
+                          value={editDestValue} 
+                          onChange={(e) => setEditDestValue(e.target.value)} 
+                          className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${theme.inputBg}`} 
+                          autoFocus
+                        />
+                      </div>
+                      <div className="flex gap-2 mt-2 shrink-0">
+                        <button onClick={() => setEditingRouteDest(null)} className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition-colors ${theme.controlBtn}`}>取消</button>
+                        <button onClick={handleSaveCustomDest} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md"><Check className="w-4 h-4" />儲存變更</button>
+                      </div>
                     </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black opacity-60">您目前收藏了 {locations.length} 個巴士站：</span>
+                        <button onClick={handleOpenSearchModal} className="bg-[#e3342f] hover:bg-red-600 text-white px-3 py-1.5 text-xs font-bold rounded-lg shadow-sm flex items-center gap-1">
+                          <Plus className="w-3.5 h-3.5 text-white" />手動新增路線
+                        </button>
+                      </div>
+                      
+                      {locations.length === 0 ? (
+                        <div className="py-12 text-center text-xs opacity-50 border border-dashed rounded-xl">目前無自訂路線，請點擊右上方「手動新增路線」。</div>
+                      ) : (
+                        <div className="flex flex-col gap-3">
+                          {locations.map((loc) => (
+                            <div key={loc.id} className="p-3.5 rounded-xl border border-gray-500/10 bg-slate-500/5 flex flex-col gap-2 relative">
+                              <div className="flex items-center justify-between">
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-black">{loc.name}</span>
+                                  <span className="text-[10px] opacity-60">{loc.desc} (分組: {loc.groupName || '預設'})</span>
+                                </div>
+                                <button onClick={(e) => handleDeleteLocation(loc.id, e)} className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-950/40 rounded-lg transition-all" title="刪除整個車站"><Trash2 className="w-4 h-4" /></button>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                {loc.routes.map((r, rIdx) => (
+                                  <span key={rIdx} className={`inline-flex items-center pl-2 pr-1.5 py-1 rounded-lg shadow-sm font-black text-xs border ${theme.badgeGroupItem}`}>
+                                    <span>{r.route}</span>
+                                    {r.customDest && <span className="opacity-60 text-[10px] ml-1 font-bold">({r.customDest})</span>}
+                                    <div className="flex items-center border-l border-current/20 pl-1 ml-1.5 gap-0.5">
+                                      {/* 💡 編輯目的地按鈕 */}
+                                      <button 
+                                        onClick={() => {
+                                          setEditingRouteDest({ locId: loc.id, routeNum: r.route, dir: r.dir, currentDest: r.dest });
+                                          setEditDestValue(r.customDest || r.dest);
+                                        }} 
+                                        className="text-blue-500 hover:text-blue-700 p-0.5 transition-colors"
+                                        title="修改目的地"
+                                      >
+                                        <Pencil className="w-3 h-3" />
+                                      </button>
+                                      {/* 💡 刪除單一路線按鈕 */}
+                                      <button 
+                                        onClick={(e) => handleDeleteRouteInLocation(loc.id, r.route, e)} 
+                                        className="text-red-500 hover:text-red-700 p-0.5 transition-colors"
+                                        title="移除路線"
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -1204,7 +1280,7 @@ export default function App() {
                     <input type="text" placeholder={selectedStop.name_tc} value={customStopName} onChange={(e) => setCustomStopName(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-black opacity-70">自訂目的地名稱 (解決循環線方向，選填)：</label>
+                    <label className="text-xs font-black opacity-70">自訂顯示目的地 (解決循環線方向，選填)：</label>
                     <input type="text" placeholder={`${selectedDirection.dest_tc}`} value={customStopDesc} onChange={(e) => setCustomStopDesc(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
                   </div>
                   <div className="flex flex-col gap-1.5">
