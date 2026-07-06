@@ -110,7 +110,8 @@ const getWarningData = (code, originalName) => {
     case 'WRAINB': 
       return { text: '黑雨', img: wikiBase + '9/91/HK_Black_Rainstorm_Warning.svg', style: 'bg-black text-white border border-gray-600' };
     case 'WTS': 
-      return { text: '雷暴', img: wikiBase + 'c/cd/HK_Thunderstorm_Warning.svg', style: 'bg-yellow-600 text-white border border-yellow-500' };
+      // 💡 雷暴警告改為黑色字體 (text-black)
+      return { text: '雷暴', img: wikiBase + 'c/cd/HK_Thunderstorm_Warning.svg', style: 'bg-yellow-500 text-black border border-yellow-600' };
     case 'WHOT': 
       return { text: '酷熱', img: wikiBase + '3/36/HK_Very_Hot_Weather_Warning.svg', style: 'bg-red-500 text-white' };
     case 'WCOLD': 
@@ -119,14 +120,14 @@ const getWarningData = (code, originalName) => {
       return { text: '黃色火災', img: wikiBase + '1/1f/HK_Yellow_Fire_Danger_Warning.svg', style: 'bg-yellow-500 text-yellow-950' };
     case 'WFIRER': 
       return { text: '紅色火災', img: wikiBase + '5/59/HK_Red_Fire_Danger_Warning.svg', style: 'bg-red-500 text-white' };
-    case 'TC1': return { text: '一號風球', img: wikiBase + 'a/a4/No._1_Standby_Signal.svg', style: 'bg-white text-black' };
-    case 'TC3': return { text: '三號風球', img: wikiBase + '3/30/No._3_Strong_Wind_Signal.svg', style: 'bg-white text-black' };
-    case 'TC8NE': return { text: '八號(東北)', img: wikiBase + '8/82/No._8_Northeast_Gale_or_Storm_Signal.svg', style: 'bg-white text-black' };
-    case 'TC8NW': return { text: '八號(西北)', img: wikiBase + '8/86/No._8_Northwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black' };
-    case 'TC8SE': return { text: '八號(東南)', img: wikiBase + '6/69/No._8_Southeast_Gale_or_Storm_Signal.svg', style: 'bg-white text-black' };
-    case 'TC8SW': return { text: '八號(西南)', img: wikiBase + '6/61/No._8_Southwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black' };
-    case 'TC9': return { text: '九號風球', img: wikiBase + '7/77/No._9_Increasing_Gale_or_Storm_Signal.svg', style: 'bg-white text-black' };
-    case 'TC10': return { text: '十號風球', img: wikiBase + '9/91/No._10_Hurricane_Signal.svg', style: 'bg-white text-black' };
+    case 'TC1': return { text: '一號風球', img: wikiBase + 'a/a4/No._1_Standby_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC3': return { text: '三號風球', img: wikiBase + '3/30/No._3_Strong_Wind_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC8NE': return { text: '八號(東北)', img: wikiBase + '8/82/No._8_Northeast_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC8NW': return { text: '八號(西北)', img: wikiBase + '8/86/No._8_Northwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC8SE': return { text: '八號(東南)', img: wikiBase + '6/69/No._8_Southeast_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC8SW': return { text: '八號(西南)', img: wikiBase + '6/61/No._8_Southwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC9': return { text: '九號風球', img: wikiBase + '7/77/No._9_Increasing_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC10': return { text: '十號風球', img: wikiBase + '9/91/No._10_Hurricane_Signal.svg', style: 'bg-white text-black border border-gray-200' };
     default: 
       return { text: originalName, style: 'bg-white/20 text-white backdrop-blur-md' };
   }
@@ -193,7 +194,6 @@ export default function App() {
   const [shouldReopenSettings, setShouldReopenSettings] = useState(false); 
   const [showResetConfirm, setShowResetConfirm] = useState(false); 
 
-  // 💡 獨立編輯單一路線目的地的狀態
   const [editingRouteDest, setEditingRouteDest] = useState(null);
   const [editDestValue, setEditDestValue] = useState('');
 
@@ -500,7 +500,6 @@ export default function App() {
     }).filter(loc => loc.routesData.length > 0));
   };
 
-  // 💡 儲存內嵌編輯的目的地
   const handleSaveCustomDest = () => {
     if (!editingRouteDest) return;
     const updatedLocations = locations.map((loc) => {
@@ -764,6 +763,30 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
+        {/* 💡 主畫面實時天氣警告顯示區 */}
+        {weatherInfo.warnings && weatherInfo.warnings.length > 0 && (
+          <div className="flex flex-wrap gap-2 px-3 sm:px-0 mb-4 justify-center">
+            {weatherInfo.warnings.map((warn, idx) => {
+              const wData = getWarningData(warn.code, warn.name);
+              return (
+                <div key={idx} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-black text-sm shadow-sm animate-pulse ${wData.style}`}>
+                  {wData.img && (
+                    <img 
+                      src={wData.img} 
+                      alt={wData.text} 
+                      className="w-5 h-5 object-contain" 
+                      referrerPolicy="no-referrer" 
+                      crossOrigin="anonymous" 
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  )}
+                  <span>{wData.text}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* ================= 🛰️ 附近巴士站專屬分頁 ================= */}
         {activeTab === 'NEARBY' && (
           <div className="flex flex-col gap-4 px-3 sm:px-0 mt-3 sm:mt-0">
@@ -787,6 +810,7 @@ export default function App() {
               </div>
             )}
 
+            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -892,6 +916,7 @@ export default function App() {
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
                   </div>
                 </div>
+                {/* 💡 座枱模式警告標籤 */}
                 <div className="flex flex-wrap gap-2 max-w-full mt-1">
                   {weatherInfo.warnings.map((warn, idx) => {
                     const wData = getWarningData(warn.code, warn.name);
@@ -961,31 +986,40 @@ export default function App() {
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
       <style>{`
-        a[x-apple-data-detectors], a[href^="tel"] {
+        /* 僅針對 Safari 自動生成的資料連結阻斷 */
+        a[x-apple-data-detectors] {
           color: inherit !important;
           text-decoration: none !important;
         }
         
+        /* 解決 iOS 橫向滑動與隱藏卷軸 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
       `}</style>
 
       <header className={`px-4 py-3 flex items-center justify-between border-b shadow-sm z-20 shrink-0 transition-colors ${theme.topBar}`}>
-        <div className="flex gap-1">
-          <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1.5 text-white/80 hover:text-white rounded-full"><Sun className="w-4 h-4 hidden dark:block" /><Moon className="w-4 h-4 block dark:hidden" /></button>
-          <button onClick={() => setIsStandMode(!isStandMode)} className={`p-1.5 rounded-full ${isStandMode ? 'bg-white text-red-600 shadow-md' : 'text-white/80 hover:text-white'}`}><MonitorSmartphone className="w-4 h-4" /></button>
+        <div className="flex gap-2">
+          {/* 💡 座枱按鈕放大 */}
+          <button onClick={() => setIsStandMode(!isStandMode)} className={`p-1.5 rounded-full ${isStandMode ? 'bg-white text-red-600 shadow-md' : 'text-white/80 hover:text-white'}`}>
+            <MonitorSmartphone className="w-6 h-6" />
+          </button>
           {isStandMode && (
             <button onClick={() => setLeftPanelMode(leftPanelMode === 'WEATHER' ? 'PHOTO' : 'WEATHER')} className="ml-1 p-1.5 rounded-full bg-white/20 text-white border border-white/20 flex items-center gap-1 px-3">
-              {leftPanelMode === 'WEATHER' ? <><ImageIcon className="w-3.5 h-3.5" /><span className="text-xs font-bold hidden sm:inline">轉相簿</span></> : <><CloudSun className="w-3.5 h-3.5" /><span className="text-xs font-bold hidden sm:inline">轉天氣</span></>}
+              {leftPanelMode === 'WEATHER' ? <><ImageIcon className="w-5 h-5" /><span className="text-xs font-bold hidden sm:inline">轉相簿</span></> : <><CloudSun className="w-5 h-5" /><span className="text-xs font-bold hidden sm:inline">轉天氣</span></>}
             </button>
           )}
         </div>
-        <h1 className="text-sm md:text-base font-black tracking-widest text-white text-center flex-1 pr-6 md:pr-0">巴士到站看板</h1>
-        <div className="flex items-center gap-1">
+        {/* 💡 標題字體加大 */}
+        <h1 className="text-lg md:text-xl font-black tracking-widest text-white text-center flex-1 pr-0">巴士到站看板</h1>
+        <div className="flex items-center gap-2">
+          {/* 💡 重新整理按鈕放大 */}
           <button onClick={() => { if (activeTab === 'NEARBY' && userCoords) fetchNearbyStopsLiveETA(); else fetchCustomLocationsData(); fetchWeather(); }} className="p-1.5 text-white/85 hover:text-white rounded-full">
-            <RefreshCw className={`w-4 h-4 ${loading || gpsLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-6 h-6 ${loading || gpsLoading ? 'animate-spin' : ''}`} />
           </button>
-          <button onClick={() => setIsSettingsModalOpen(true)} className="p-1.5 text-white/85 hover:text-white rounded-full hover:bg-white/10 transition-colors"><Settings className="w-4.5 h-4.5" /></button>
+          {/* 💡 設定按鈕放大 */}
+          <button onClick={() => setIsSettingsModalOpen(true)} className="p-1.5 text-white/85 hover:text-white rounded-full hover:bg-white/10 transition-colors">
+            <Settings className="w-6 h-6" />
+          </button>
         </div>
       </header>
 
@@ -1019,9 +1053,16 @@ export default function App() {
                 <Settings className="w-5 h-5 animate-spin-hover" />
                 看板設定中心
               </h3>
-              <button onClick={() => { setIsSettingsModalOpen(false); setBackupError(''); setBackupSuccess(''); setImportText(''); setEditingRouteDest(null); }} className="p-1 rounded-full hover:bg-gray-500/10">
-                <X className="w-5 h-5" />
-              </button>
+              
+              <div className="flex items-center gap-2">
+                <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors border border-gray-200 dark:border-zinc-700 shadow-sm" title="切換深淺色主題">
+                  <Sun className="w-5 h-5 hidden dark:block text-yellow-500" />
+                  <Moon className="w-5 h-5 block dark:hidden text-slate-700" />
+                </button>
+                <button onClick={() => { setIsSettingsModalOpen(false); setBackupError(''); setBackupSuccess(''); setImportText(''); setEditingRouteDest(null); }} className="p-1.5 rounded-full hover:bg-gray-500/10 bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             <div className="flex border-b border-gray-500/10 bg-slate-500/5 shrink-0 text-xs font-black">
@@ -1037,7 +1078,6 @@ export default function App() {
               {settingsTab === 'FAVORITES' && (
                 <div className="flex flex-col gap-4">
                   
-                  {/* 💡 編輯單一路線目的地的獨立 UI */}
                   {editingRouteDest ? (
                     <div className="flex flex-col gap-4 animate-fade-in">
                       <div className="bg-blue-500/10 p-4 rounded-xl border border-blue-500/20 text-center flex flex-col gap-1">
@@ -1089,7 +1129,6 @@ export default function App() {
                                     <span>{r.route}</span>
                                     {r.customDest && <span className="opacity-60 text-[10px] ml-1 font-bold">({r.customDest})</span>}
                                     <div className="flex items-center border-l border-current/20 pl-1 ml-1.5 gap-0.5">
-                                      {/* 💡 編輯目的地按鈕 */}
                                       <button 
                                         onClick={() => {
                                           setEditingRouteDest({ locId: loc.id, routeNum: r.route, dir: r.dir, currentDest: r.dest });
@@ -1100,7 +1139,6 @@ export default function App() {
                                       >
                                         <Pencil className="w-3 h-3" />
                                       </button>
-                                      {/* 💡 刪除單一路線按鈕 */}
                                       <button 
                                         onClick={(e) => handleDeleteRouteInLocation(loc.id, r.route, e)} 
                                         className="text-red-500 hover:text-red-700 p-0.5 transition-colors"
