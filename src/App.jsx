@@ -104,30 +104,29 @@ const getWarningData = (code, originalName) => {
   const wikiBase = 'https://upload.wikimedia.org/wikipedia/commons/';
   switch(code) {
     case 'WRAINA': 
-      return { text: '黃雨', img: wikiBase + '2/25/HK_Amber_Rainstorm_Warning.svg', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500' };
+      return { text: '黃色暴雨警告', img: wikiBase + '2/25/HK_Amber_Rainstorm_Warning.svg', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500' };
     case 'WRAINR': 
-      return { text: '紅雨', img: wikiBase + '0/05/HK_Red_Rainstorm_Warning.svg', style: 'bg-red-600 text-white border border-red-500' };
+      return { text: '紅色暴雨警告', img: wikiBase + '0/05/HK_Red_Rainstorm_Warning.svg', style: 'bg-red-600 text-white border border-red-500' };
     case 'WRAINB': 
-      return { text: '黑雨', img: wikiBase + '9/91/HK_Black_Rainstorm_Warning.svg', style: 'bg-black text-white border border-gray-600' };
+      return { text: '黑色暴雨警告', img: wikiBase + '9/91/HK_Black_Rainstorm_Warning.svg', style: 'bg-black text-white border border-gray-600' };
     case 'WTS': 
-      // 💡 雷暴警告改為黑色字體 (text-black)
-      return { text: '雷暴', img: wikiBase + 'c/cd/HK_Thunderstorm_Warning.svg', style: 'bg-yellow-500 text-black border border-yellow-600' };
+      return { text: '雷暴警告', img: wikiBase + 'c/cd/HK_Thunderstorm_Warning.svg', style: 'bg-yellow-500 text-black border border-yellow-600' };
     case 'WHOT': 
-      return { text: '酷熱', img: wikiBase + '3/36/HK_Very_Hot_Weather_Warning.svg', style: 'bg-red-500 text-white' };
+      return { text: '酷熱天氣警告', img: wikiBase + '3/36/HK_Very_Hot_Weather_Warning.svg', style: 'bg-red-500 text-white' };
     case 'WCOLD': 
-      return { text: '寒冷', img: wikiBase + '2/28/HK_Cold_Weather_Warning.svg', style: 'bg-blue-400 text-blue-950 border border-blue-500' };
+      return { text: '寒冷天氣警告', img: wikiBase + '2/28/HK_Cold_Weather_Warning.svg', style: 'bg-blue-400 text-blue-950 border border-blue-500' };
     case 'WFIREY': 
-      return { text: '黃色火災', img: wikiBase + '1/1f/HK_Yellow_Fire_Danger_Warning.svg', style: 'bg-yellow-500 text-yellow-950' };
+      return { text: '黃色火災危險警告', img: wikiBase + '1/1f/HK_Yellow_Fire_Danger_Warning.svg', style: 'bg-yellow-500 text-yellow-950' };
     case 'WFIRER': 
-      return { text: '紅色火災', img: wikiBase + '5/59/HK_Red_Fire_Danger_Warning.svg', style: 'bg-red-500 text-white' };
-    case 'TC1': return { text: '一號風球', img: wikiBase + 'a/a4/No._1_Standby_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC3': return { text: '三號風球', img: wikiBase + '3/30/No._3_Strong_Wind_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC8NE': return { text: '八號(東北)', img: wikiBase + '8/82/No._8_Northeast_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC8NW': return { text: '八號(西北)', img: wikiBase + '8/86/No._8_Northwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC8SE': return { text: '八號(東南)', img: wikiBase + '6/69/No._8_Southeast_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC8SW': return { text: '八號(西南)', img: wikiBase + '6/61/No._8_Southwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC9': return { text: '九號風球', img: wikiBase + '7/77/No._9_Increasing_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC10': return { text: '十號風球', img: wikiBase + '9/91/No._10_Hurricane_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+      return { text: '紅色火災危險警告', img: wikiBase + '5/59/HK_Red_Fire_Danger_Warning.svg', style: 'bg-red-500 text-white' };
+    case 'TC1': return { text: '一號戒備信號', img: wikiBase + 'a/a4/No._1_Standby_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC3': return { text: '三號強風信號', img: wikiBase + '3/30/No._3_Strong_Wind_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: wikiBase + '8/82/No._8_Northeast_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: wikiBase + '8/86/No._8_Northwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: wikiBase + '6/69/No._8_Southeast_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: wikiBase + '6/61/No._8_Southwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: wikiBase + '7/77/No._9_Increasing_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    case 'TC10': return { text: '十號颶風信號', img: wikiBase + '9/91/No._10_Hurricane_Signal.svg', style: 'bg-white text-black border border-gray-200' };
     default: 
       return { text: originalName, style: 'bg-white/20 text-white backdrop-blur-md' };
   }
@@ -763,18 +762,18 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 主畫面實時天氣警告顯示區 */}
+        {/* 💡 主畫面實時天氣警告顯示區 (全寬橫幅樣式) */}
         {weatherInfo.warnings && weatherInfo.warnings.length > 0 && (
-          <div className="flex flex-wrap gap-2 px-3 sm:px-0 mb-4 justify-center">
+          <div className="flex flex-col gap-2 px-3 sm:px-0 mb-4 mt-2">
             {weatherInfo.warnings.map((warn, idx) => {
               const wData = getWarningData(warn.code, warn.name);
               return (
-                <div key={idx} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-black text-sm shadow-sm animate-pulse ${wData.style}`}>
+                <div key={idx} className={`flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl font-black text-base shadow-md animate-pulse ${wData.style}`}>
                   {wData.img && (
                     <img 
                       src={wData.img} 
                       alt={wData.text} 
-                      className="w-5 h-5 object-contain" 
+                      className="w-7 h-7 object-contain" 
                       referrerPolicy="no-referrer" 
                       crossOrigin="anonymous" 
                       onError={(e) => { e.target.style.display = 'none'; }}
@@ -810,7 +809,6 @@ export default function App() {
               </div>
             )}
 
-            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -916,7 +914,6 @@ export default function App() {
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
                   </div>
                 </div>
-                {/* 💡 座枱模式警告標籤 */}
                 <div className="flex flex-wrap gap-2 max-w-full mt-1">
                   {weatherInfo.warnings.map((warn, idx) => {
                     const wData = getWarningData(warn.code, warn.name);
@@ -986,13 +983,11 @@ export default function App() {
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
       <style>{`
-        /* 僅針對 Safari 自動生成的資料連結阻斷 */
-        a[x-apple-data-detectors] {
+        a[x-apple-data-detectors], a[href^="tel"] {
           color: inherit !important;
           text-decoration: none !important;
         }
         
-        /* 解決 iOS 橫向滑動與隱藏卷軸 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
       `}</style>
@@ -1054,6 +1049,7 @@ export default function App() {
                 看板設定中心
               </h3>
               
+              {/* 💡 將暗黑模式按鈕完美整合至設定中心的右上角 */}
               <div className="flex items-center gap-2">
                 <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors border border-gray-200 dark:border-zinc-700 shadow-sm" title="切換深淺色主題">
                   <Sun className="w-5 h-5 hidden dark:block text-yellow-500" />
@@ -1204,137 +1200,6 @@ export default function App() {
                         <button onClick={() => setShowResetConfirm(false)} className={`flex-1 py-2 rounded-lg font-bold text-xs transition-colors ${theme.controlBtn}`}>取消</button>
                       </div>
                     )}
-                  </div>
-                </div>
-              )}
-
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 🔍 步驟式搜尋精靈 (WIZARD MODAL) */}
-      {isSearchModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
-          <div className={`w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border ${theme.modalBg}`}>
-            <div className="px-5 py-4 border-b border-gray-500/10 flex items-center justify-between shrink-0">
-              <h3 className="font-extrabold text-base flex items-center gap-2"><Plus className="w-5 h-5 text-red-500" />新增路線至看板</h3>
-              <button onClick={handleCloseSearchModal} className="p-1 rounded-full hover:bg-gray-500/10"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="bg-slate-500/5 px-5 py-2 flex items-center justify-between text-xs font-bold shrink-0 border-b border-gray-500/10">
-              <span className={searchStep === 1 ? "text-red-500" : "opacity-60"}>1. 搜尋路線</span><ChevronRight className="w-3.5 h-3.5 opacity-40" />
-              <span className={searchStep === 2 ? "text-red-500" : "opacity-60"}>2. 選方向</span><ChevronRight className="w-3.5 h-3.5 opacity-40" />
-              <span className={searchStep === 3 ? "text-red-500" : "opacity-60"}>3. 挑中途站</span><ChevronRight className="w-3.5 h-3.5 opacity-40" />
-              <span className={searchStep === 4 ? "text-red-500" : "opacity-60"}>4. 自訂確認</span>
-            </div>
-            <div className="flex-1 p-5 overflow-y-auto">
-              
-              {searchStep === 1 && (
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-black opacity-70">輸入巴士路線名稱搜尋：</label>
-                    <div className="relative">
-                      <input type="text" placeholder="例如: 268M, 68F, 968, B1..." value={routeQuery} onChange={(e) => setRouteQuery(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} autoFocus />
-                      {routeQuery && <button onClick={() => setRouteQuery('')} className="absolute right-3 top-2.5 text-xs opacity-50">清除</button>}
-                    </div>
-                  </div>
-                  {loadingRoutes ? (
-                    <div className="py-10 text-center text-sm font-bold opacity-70 flex items-center justify-center gap-2"><RefreshCw className="w-4 h-4 animate-spin text-red-500" />正在加載全港路線...</div>
-                  ) : filteredRoutesList.length > 0 ? (
-                    <div className="flex flex-col gap-2">
-                      <span className="text-[11px] font-bold opacity-60">搜尋建議：</span>
-                      <div className="grid grid-cols-2 gap-2 max-h-[250px] overflow-y-auto pr-1">
-                        {filteredRoutesList.map((r, idx) => (
-                          <button key={idx} onClick={() => handleSelectRoute(r)} className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all hover:scale-[1.02] ${theme.controlBtn}`}>
-                            <span className="text-lg font-black leading-none text-red-500">{r.route}</span>
-                            <span className="text-[10px] font-bold opacity-60 truncate">{r.orig_tc} ⇆ {r.dest_tc}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : routeQuery ? (
-                    <div className="py-8 text-center text-sm font-bold opacity-50">查無此路線，請重試</div>
-                  ) : (
-                    <div className="py-10 text-center text-xs font-bold opacity-40">請在上方輸入想搜尋的路線編號</div>
-                  )}
-                </div>
-              )}
-
-              {searchStep === 2 && selectedRoute && (
-                <div className="flex flex-col gap-4">
-                  <div className="bg-red-500/10 p-3.5 rounded-xl border border-red-500/20 text-center">
-                    <span className="text-3xl font-black text-red-500 block mb-1">{selectedRoute.route}</span>
-                    <span className="text-xs font-bold opacity-70">請選擇方向：</span>
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    {routeDirections.map((dir, idx) => (
-                      <button key={idx} onClick={() => handleSelectDirection(dir)} className={`p-4 rounded-xl border text-left flex items-center justify-between transition-all hover:scale-[1.01] ${theme.controlBtn}`}>
-                        <div className="flex flex-col gap-0.5 min-w-0 pr-2">
-                          <span className="text-xs font-bold opacity-50">方向 {dir.bound === 'I' ? '回程' : '去程'}</span>
-                          <span className="font-extrabold text-sm truncate">往 {dir.dest_tc} (經 {dir.orig_tc})</span>
-                        </div>
-                        <ChevronRight className="w-5 h-5 opacity-60 shrink-0" />
-                      </button>
-                    ))}
-                  </div>
-                  <button onClick={() => setSearchStep(1)} className="mt-2 text-xs font-bold text-center underline opacity-60">返回上一步</button>
-                </div>
-              )}
-
-              {searchStep === 3 && selectedDirection && (
-                <div className="flex flex-col gap-3">
-                  <div className="bg-slate-500/10 p-3 rounded-xl text-center text-xs">設定 <strong className="text-red-500">{selectedDirection.route}</strong> 往 <strong className="text-red-500">{selectedDirection.dest_tc}</strong> 的站點</div>
-                  {loadingStops ? (
-                    <div className="py-12 text-center text-sm font-bold opacity-70 flex flex-col items-center justify-center gap-2"><RefreshCw className="w-5 h-5 animate-spin text-red-500" /><span>正在獲取巴士站點資訊...</span></div>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      <span className="text-[11px] font-bold opacity-60">沿途巴士站：</span>
-                      <div className="flex flex-col gap-1.5 max-h-[300px] overflow-y-auto pr-1">
-                        {routeStops.map((stop, idx) => (
-                          <button key={idx} onClick={() => handleSelectStop(stop)} className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all ${theme.controlBtn}`}>
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs font-black bg-slate-500/10 dark:bg-zinc-800 w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-slate-800 dark:text-zinc-200">{stop.seq}</span>
-                              <span className="text-sm font-bold truncate">{stop.name_tc}</span>
-                            </div>
-                            <ChevronRight className="w-4 h-4 opacity-50 shrink-0" />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <button onClick={() => setSearchStep(2)} className="mt-2 text-xs font-bold text-center underline opacity-60">返回上一步</button>
-                </div>
-              )}
-
-              {searchStep === 4 && selectedStop && (
-                <div className="flex flex-col gap-4">
-                  <div className="bg-green-500/10 p-4 rounded-xl border border-green-500/20 text-center flex flex-col gap-1">
-                    <span className="text-green-500 font-extrabold text-xs tracking-wider">確認設定</span>
-                    <span className="text-lg font-black">{selectedDirection.route} 號巴士</span>
-                    <span className="text-sm font-bold opacity-80">於「{selectedStop.name_tc}」上車</span>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-black opacity-70">顯示巴士站名稱 (選填)：</label>
-                    <input type="text" placeholder={selectedStop.name_tc} value={customStopName} onChange={(e) => setCustomStopName(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-black opacity-70">自訂顯示目的地 (解決循環線方向，選填)：</label>
-                    <input type="text" placeholder={`${selectedDirection.dest_tc}`} value={customStopDesc} onChange={(e) => setCustomStopDesc(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-black opacity-70">放置於看板分類分組：</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <select value={customGroupName} onChange={(e) => setCustomGroupName(e.target.value)} className={`py-2 px-3 rounded-lg border font-bold text-sm outline-none ${theme.inputBg}`}>
-                        <option value="預設">預設</option>
-                        {Array.from(new Set(locations.map(loc => loc.groupName).filter(n => n && n !== '預設'))).map(group => <option key={group} value={group}>{group}</option>)}
-                        <option value="NEW">+ 新增分組...</option>
-                      </select>
-                      {customGroupName === 'NEW' && <input type="text" placeholder="請輸入新分組名稱" value={customGroupInput} onChange={(e) => setCustomGroupInput(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-4 shrink-0">
-                    <button onClick={() => setSearchStep(3)} className={`flex-1 py-2.5 rounded-xl font-bold text-xs transition-colors ${theme.controlBtn}`}>返回上一步</button>
-                    <button onClick={handleConfirmAddStop} className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md"><Check className="w-4 h-4" />加入最愛</button>
                   </div>
                 </div>
               )}
