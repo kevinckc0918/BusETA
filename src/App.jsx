@@ -99,7 +99,7 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心
+// 🌩️ 天氣警告資料處理中心 (解決了「白底白字」隱形問題，並加入完整警告代碼)
 const getWarningData = (code, originalName) => {
   const wikiBase = 'https://upload.wikimedia.org/wikipedia/commons/';
   switch(code) {
@@ -127,8 +127,17 @@ const getWarningData = (code, originalName) => {
     case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: wikiBase + '6/61/No._8_Southwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
     case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: wikiBase + '7/77/No._9_Increasing_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
     case 'TC10': return { text: '十號颶風信號', img: wikiBase + '9/91/No._10_Hurricane_Signal.svg', style: 'bg-white text-black border border-gray-200' };
+    
+    // 💡 擴充其他常見警告，防止落入預設樣式
+    case 'SMS': return { text: '強烈季候風信號', style: 'bg-slate-800 text-white border border-slate-600' };
+    case 'WL': return { text: '山泥傾瀉警告', style: 'bg-yellow-600 text-white border border-yellow-700' };
+    case 'FNTSA': return { text: '新界北部水浸特別報告', style: 'bg-blue-600 text-white border border-blue-700' };
+    case 'FROST': return { text: '霜凍警告', style: 'bg-cyan-500 text-white border border-cyan-600' };
+    
     default: 
-      return { text: originalName, style: 'bg-white/20 text-white backdrop-blur-md' };
+      // 💡 最強防護：未知警告強制使用高對比深底白字，保證清晰可見
+      if (!originalName || originalName.trim() === '') return null;
+      return { text: originalName, style: 'bg-slate-800 text-white border border-slate-700 shadow-md' };
   }
 };
 
@@ -286,10 +295,14 @@ export default function App() {
       const [rhrData, warnData] = await Promise.all([fetchHkoApi('rhrread'), fetchHkoApi('warnsum')]);
       const hkoTemp = rhrData?.temperature?.data?.find(d => d.place === '香港天文台')?.value || rhrData?.temperature?.data?.[0]?.value || '--';
       const iconId = rhrData?.icon?.[0];
+      
       const activeWarnings = [];
       if (warnData && typeof warnData === 'object') {
-        Object.values(warnData).forEach(w => {
-          if (w.code && w.name) activeWarnings.push({ code: w.code, name: w.name });
+        Object.keys(warnData).forEach(key => {
+          const w = warnData[key];
+          if (w && w.code && w.name && w.name.trim().length > 0) {
+            activeWarnings.push({ code: w.code, name: w.name });
+          }
         });
       }
       setWeatherInfo({ temp: hkoTemp, icon: iconId, warnings: activeWarnings });
@@ -582,7 +595,6 @@ export default function App() {
     setTimeout(() => { setBackupSuccess(''); fetchCustomLocationsData(); }, 2000);
   };
 
-  // 💡 安全且同步地處理搜尋介面開啟，避免 Async 卡頓
   const handleOpenSearchModal = () => {
     setIsSettingsModalOpen(false); 
     setShouldReopenSettings(true);
@@ -680,7 +692,6 @@ export default function App() {
 
     setLocations(updatedLocations); 
     handleCloseSearchModal();
-    // 💡 新增路線後，強制立刻觸發一次 ETA 更新，讓使用者不用等待即看見結果
     setTimeout(() => fetchCustomLocationsData(), 200);
   };
 
@@ -715,7 +726,6 @@ export default function App() {
     const isMissed = primaryMins !== null && primaryMins < 0;
     const isImminent = primaryMins === 0;
 
-    // 💡 智慧 ETA 顏色邏輯 (行內樣式，確保 100% 絕對優先權)
     let etaColorStyle = isDarkMode ? '#f4f4f5' : '#0f172a'; 
     if (primaryMins !== null && primaryMins >= 0) {
       if (primaryMins <= 5) etaColorStyle = '#e3342f';       // 紅色
@@ -741,7 +751,7 @@ export default function App() {
             </span>
           </div>
           <span className={`${destSize} font-extrabold mt-1 sm:mt-1.5 ${theme.routeDest} truncate w-full text-left block`}>
-            往 {route.dest}
+            {route.dest}
           </span>
         </div>
         
@@ -774,6 +784,13 @@ export default function App() {
     );
   };
 
+  // === 💡 提取共同警告陣列 (解決 StandMode 與 ListMode 的渲染邏輯) ===
+  const validWarnings = useMemo(() => {
+    return (weatherInfo.warnings || [])
+      .map(warn => getWarningData(warn.code, warn.name))
+      .filter(wData => wData !== null); // 嚴格過濾掉不支援/無字的天氣警告
+  }, [weatherInfo.warnings]);
+
   // === 📱 列表模式 ===
   const renderListMode = () => {
     const filteredGroups = groupedFavoritesData.filter(g => activeTab === 'ALL' || g.groupName === activeTab);
@@ -782,26 +799,24 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {weatherInfo.warnings && weatherInfo.warnings.length > 0 && (
+        {/* 💡 主畫面實時天氣警告顯示區 */}
+        {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2 px-3 sm:px-0 mb-4 mt-2">
-            {weatherInfo.warnings.map((warn, idx) => {
-              const wData = getWarningData(warn.code, warn.name);
-              return (
-                <div key={idx} className={`flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl font-black text-base shadow-md animate-pulse ${wData.style}`}>
-                  {wData.img && (
-                    <img 
-                      src={wData.img} 
-                      alt={wData.text} 
-                      className="w-7 h-7 object-contain" 
-                      referrerPolicy="no-referrer" 
-                      crossOrigin="anonymous" 
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                  )}
-                  <span>{wData.text}</span>
-                </div>
-              );
-            })}
+            {validWarnings.map((wData, idx) => (
+              <div key={idx} className={`flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl font-black text-base shadow-md animate-pulse ${wData.style}`}>
+                {wData.img && (
+                  <img 
+                    src={wData.img} 
+                    alt={wData.text} 
+                    className="w-7 h-7 object-contain" 
+                    referrerPolicy="no-referrer" 
+                    crossOrigin="anonymous" 
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                )}
+                <span>{wData.text}</span>
+              </div>
+            ))}
           </div>
         )}
 
@@ -933,10 +948,10 @@ export default function App() {
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 max-w-full mt-1">
-                  {weatherInfo.warnings.map((warn, idx) => {
-                    const wData = getWarningData(warn.code, warn.name);
-                    return (
+                {/* 💡 座枱模式警告標籤，同步使用過濾後陣列 */}
+                {validWarnings.length > 0 && (
+                  <div className="flex flex-wrap gap-2 max-w-full mt-1">
+                    {validWarnings.map((wData, idx) => (
                       <div key={idx} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-black text-sm shadow-lg animate-pulse ${wData.style}`}>
                         {wData.img && (
                           <img 
@@ -950,9 +965,9 @@ export default function App() {
                         )}
                         <span>{wData.text}</span>
                       </div>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ) : (
