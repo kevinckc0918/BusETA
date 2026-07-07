@@ -99,7 +99,7 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心 (解決了「白底白字」隱形問題，並加入完整警告代碼)
+// 🌩️ 天氣警告資料處理中心
 const getWarningData = (code, originalName) => {
   const wikiBase = 'https://upload.wikimedia.org/wikipedia/commons/';
   switch(code) {
@@ -127,15 +127,11 @@ const getWarningData = (code, originalName) => {
     case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: wikiBase + '6/61/No._8_Southwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
     case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: wikiBase + '7/77/No._9_Increasing_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
     case 'TC10': return { text: '十號颶風信號', img: wikiBase + '9/91/No._10_Hurricane_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    
-    // 💡 擴充其他常見警告，防止落入預設樣式
     case 'SMS': return { text: '強烈季候風信號', style: 'bg-slate-800 text-white border border-slate-600' };
     case 'WL': return { text: '山泥傾瀉警告', style: 'bg-yellow-600 text-white border border-yellow-700' };
     case 'FNTSA': return { text: '新界北部水浸特別報告', style: 'bg-blue-600 text-white border border-blue-700' };
     case 'FROST': return { text: '霜凍警告', style: 'bg-cyan-500 text-white border border-cyan-600' };
-    
     default: 
-      // 💡 最強防護：未知警告強制使用高對比深底白字，保證清晰可見
       if (!originalName || originalName.trim() === '') return null;
       return { text: originalName, style: 'bg-slate-800 text-white border border-slate-700 shadow-md' };
   }
@@ -396,7 +392,10 @@ export default function App() {
           return { 
             route: group.route, 
             dest: group.dest, 
-            etas: uniqueEtas.slice(0, 2).map(e => ({ time: new Date(e.eta), rmk: e.rmk_tc !== "原定班次" ? e.rmk_tc : null })) 
+            etas: uniqueEtas.slice(0, 2).map(e => ({ 
+              time: new Date(e.eta), 
+              rmk: (e.rmk_tc && e.rmk_tc.trim() !== "" && e.rmk_tc !== "原定班次") ? e.rmk_tc : null 
+            })) 
           };
         });
         routesDataList.sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }));
@@ -448,7 +447,10 @@ export default function App() {
             routesList.push({ 
               route: routeObj.route, 
               dest: primaryDest.includes('荃灣西') ? '荃灣西站' : primaryDest, 
-              etas: uniqueEtas.slice(0, 2).map(e => ({ time: new Date(e.eta), rmk: e.rmk_tc !== "原定班次" ? e.rmk_tc : null })) 
+              etas: uniqueEtas.slice(0, 2).map(e => ({ 
+                time: new Date(e.eta), 
+                rmk: (e.rmk_tc && e.rmk_tc.trim() !== "" && e.rmk_tc !== "原定班次") ? e.rmk_tc : null 
+              })) 
             });
           } else {
             routesList.push({ route: routeObj.route, dest: routeObj.customDest || routeObj.dest || "未有班次", etas: [] });
@@ -715,11 +717,15 @@ export default function App() {
   };
 
   // ========================================================
-  // 🚌 核心升級：巴士路線行渲染
+  // 🚌 核心升級：巴士路線行渲染 (完美支援班次獨立備註)
   // ========================================================
   const renderRow = (route, rIdx, isNearbySource = false, layoutType = 'LIST') => {
     const isEven = rIdx % 2 === 0;
     const rowBg = isEven ? theme.rowEven : theme.rowOdd;
+    
+    // 💡 取得「第一班車」與「第二班車」的獨立備註
+    const primaryRmk = route.etas[0] ? route.etas[0].rmk : null;
+    const secondaryRmk = route.etas[1] ? route.etas[1].rmk : null;
     
     const primaryMins = route.etas[0] ? getEtaMinutes(route.etas[0].time) : null;
     const secondaryMins = route.etas[1] ? getEtaMinutes(route.etas[1].time) : null;
@@ -745,19 +751,23 @@ export default function App() {
       <div key={rIdx} className={`flex justify-between items-center ${rowPadding} transition-colors border-b border-gray-500/5 ${rowBg}`}>
         
         <div className="flex flex-col items-start justify-center flex-1 min-w-0 pr-3">
-          <div className="flex items-center gap-2">
-            <span className={`${routeNumSize} font-black tracking-tighter leading-none text-left block ${theme.routeNum}`}>
-              {route.route}
-            </span>
-          </div>
-          <span className={`${destSize} font-extrabold mt-1 sm:mt-1.5 ${theme.routeDest} truncate w-full text-left block`}>
-            {route.dest}
+          <span className={`${routeNumSize} font-black tracking-tighter leading-none text-left block ${theme.routeNum}`}>
+            {route.route}
+          </span>
+          <span className={`${destSize} font-extrabold mt-1 sm:mt-1.5 ${theme.routeDest} block truncate w-full text-left`}>
+            往 {route.dest}
           </span>
         </div>
         
         <div className="flex flex-col items-end justify-center shrink-0 min-w-[80px]">
           
-          <div className={`flex items-center justify-end ${primaryEtaHeight}`}>
+          {/* 💡 第一班車：包含特別備註與分鐘 */}
+          <div className={`flex items-center justify-end gap-2 sm:gap-3 ${primaryEtaHeight}`}>
+            {primaryRmk && primaryMins !== null && (
+              <span className="text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded bg-[#e3342f]/10 text-[#e3342f] dark:bg-red-500/20 dark:text-red-400 border border-[#e3342f]/20 shadow-sm leading-none whitespace-nowrap">
+                {primaryRmk}
+              </span>
+            )}
             {primaryMins === null ? (
               <span className={`${primaryNumSize} font-black leading-none ${theme.etaMissed}`}>-</span>
             ) : isMissed ? (
@@ -769,7 +779,13 @@ export default function App() {
             )}
           </div>
           
-          <div className="flex items-end justify-end mt-1.5 sm:mt-2">
+          {/* 💡 第二班車：包含特別備註與分鐘 */}
+          <div className="flex items-center justify-end gap-2 sm:gap-3 mt-1.5 sm:mt-2">
+            {secondaryRmk && secondaryMins !== null && secondaryMins >= 0 && (
+              <span className="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-500 dark:bg-gray-400/20 dark:text-gray-400 border border-gray-500/20 leading-none whitespace-nowrap">
+                {secondaryRmk}
+              </span>
+            )}
             {secondaryMins !== null && secondaryMins >= 0 ? (
               <span className={`${secondarySize} font-extrabold ${theme.etaSecondary} leading-none`}>
                 {secondaryMins}
@@ -778,17 +794,17 @@ export default function App() {
               <span className={`opacity-0 ${secondarySize} leading-none`}>-</span>
             )}
           </div>
+
         </div>
 
       </div>
     );
   };
 
-  // === 💡 提取共同警告陣列 (解決 StandMode 與 ListMode 的渲染邏輯) ===
   const validWarnings = useMemo(() => {
     return (weatherInfo.warnings || [])
       .map(warn => getWarningData(warn.code, warn.name))
-      .filter(wData => wData !== null); // 嚴格過濾掉不支援/無字的天氣警告
+      .filter(wData => wData !== null); 
   }, [weatherInfo.warnings]);
 
   // === 📱 列表模式 ===
@@ -799,7 +815,6 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 主畫面實時天氣警告顯示區 */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -948,7 +963,6 @@ export default function App() {
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
                   </div>
                 </div>
-                {/* 💡 座枱模式警告標籤，同步使用過濾後陣列 */}
                 {validWarnings.length > 0 && (
                   <div className="flex flex-wrap gap-2 max-w-full mt-1">
                     {validWarnings.map((wData, idx) => (
