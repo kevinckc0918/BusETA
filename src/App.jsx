@@ -717,13 +717,12 @@ export default function App() {
   };
 
   // ========================================================
-  // 🚌 核心升級：巴士路線行渲染 (完美支援班次獨立備註)
+  // 🚌 核心升級：巴士路線行渲染
   // ========================================================
   const renderRow = (route, rIdx, isNearbySource = false, layoutType = 'LIST') => {
     const isEven = rIdx % 2 === 0;
     const rowBg = isEven ? theme.rowEven : theme.rowOdd;
     
-    // 💡 取得「第一班車」與「第二班車」的獨立備註
     const primaryRmk = route.etas[0] ? route.etas[0].rmk : null;
     const secondaryRmk = route.etas[1] ? route.etas[1].rmk : null;
     
@@ -761,7 +760,6 @@ export default function App() {
         
         <div className="flex flex-col items-end justify-center shrink-0 min-w-[80px]">
           
-          {/* 💡 第一班車：包含特別備註與分鐘 */}
           <div className={`flex items-center justify-end gap-2 sm:gap-3 ${primaryEtaHeight}`}>
             {primaryRmk && primaryMins !== null && (
               <span className="text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded bg-[#e3342f]/10 text-[#e3342f] dark:bg-red-500/20 dark:text-red-400 border border-[#e3342f]/20 shadow-sm leading-none whitespace-nowrap">
@@ -779,7 +777,6 @@ export default function App() {
             )}
           </div>
           
-          {/* 💡 第二班車：包含特別備註與分鐘 */}
           <div className="flex items-center justify-end gap-2 sm:gap-3 mt-1.5 sm:mt-2">
             {secondaryRmk && secondaryMins !== null && secondaryMins >= 0 && (
               <span className="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-500 dark:bg-gray-400/20 dark:text-gray-400 border border-gray-500/20 leading-none whitespace-nowrap">
@@ -1043,7 +1040,7 @@ export default function App() {
       `}</style>
 
       <header className={`px-4 py-3 flex items-center justify-between border-b shadow-sm z-20 shrink-0 transition-colors ${theme.topBar}`}>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-[90px]">
           <button onClick={() => setIsStandMode(!isStandMode)} className={`p-1.5 rounded-full ${isStandMode ? 'bg-white text-red-600 shadow-md' : 'text-white/80 hover:text-white'}`}>
             <MonitorSmartphone className="w-6 h-6" />
           </button>
@@ -1053,8 +1050,25 @@ export default function App() {
             </button>
           )}
         </div>
-        <h1 className="text-lg md:text-xl font-black tracking-widest text-white text-center flex-1 pr-0">巴士到站看板</h1>
-        <div className="flex items-center gap-2">
+        
+        {/* 💡 升級版標題區域：結合巴士到站看板與實時天氣溫度 */}
+        <div className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 min-w-0">
+          <h1 className="text-base sm:text-lg md:text-xl font-black tracking-widest text-white truncate">巴士到站看板</h1>
+          {weatherInfo.temp !== '--' && (
+            <div className="flex items-center gap-1 bg-black/20 dark:bg-black/40 border border-white/10 px-2 py-0.5 rounded-full shadow-inner shrink-0">
+              {weatherInfo.icon && (
+                <img 
+                  src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} 
+                  alt="weather icon" 
+                  className="w-4 h-4 sm:w-5 sm:h-5 object-contain"
+                />
+              )}
+              <span className="text-xs sm:text-sm font-bold text-white ios-num-fix tracking-wide">{weatherInfo.temp}°C</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 w-[90px]">
           <button onClick={() => { if (activeTab === 'NEARBY' && userCoords) fetchNearbyStopsLiveETA(); else fetchCustomLocationsData(); fetchWeather(); }} className="p-1.5 text-white/85 hover:text-white rounded-full">
             <RefreshCw className={`w-6 h-6 ${loading || gpsLoading ? 'animate-spin' : ''}`} />
           </button>
@@ -1388,3 +1402,5 @@ export default function App() {
     </div>
   );
 }
+
+
