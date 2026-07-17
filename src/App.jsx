@@ -144,7 +144,7 @@ const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
 
   // 💡 直接讀取伺服器 public 資料夾下的圖片 (請確保您上傳了對應名稱的圖片)
   // 如果您上傳的是 png 格式，請將下面的 .svg 改為 .png
-  const src = company === 'ctb' ? "/ctb-logo.svg" : "/kmb-logo.svg";
+  const src = company === 'ctb' ? "/ctb-logo.png" : "/kmb-logo.png";
 
   return (
     <img 
