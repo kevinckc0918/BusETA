@@ -99,45 +99,55 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心
+// 🌩️ 天氣警告資料處理中心 (💡 全面改用您的 VPS 本地根目錄 PNG 圖片)
 const getWarningData = (code, originalName) => {
-  const wikiBase = 'https://upload.wikimedia.org/wikipedia/commons/thumb/';
   switch(code) {
-    case 'WRAINA': 
-      return { text: '黃色暴雨警告', img: wikiBase + '2/25/HK_Amber_Rainstorm_Warning.svg/240px-HK_Amber_Rainstorm_Warning.svg.png', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500', iconBg: 'bg-white/80' };
-    case 'WRAINR': 
-      return { text: '紅色暴雨警告', img: wikiBase + '0/05/HK_Red_Rainstorm_Warning.svg/240px-HK_Red_Rainstorm_Warning.svg.png', style: 'bg-red-600 text-white border border-red-500', iconBg: 'bg-white' };
-    case 'WRAINB': 
-      return { text: '黑色暴雨警告', img: wikiBase + '9/91/HK_Black_Rainstorm_Warning.svg/240px-HK_Black_Rainstorm_Warning.svg.png', style: 'bg-black text-white border border-gray-600', iconBg: 'bg-white' };
-    case 'WTS': 
-      return { text: '雷暴警告', img: wikiBase + 'c/cd/HK_Thunderstorm_Warning.svg/240px-HK_Thunderstorm_Warning.svg.png', style: 'bg-yellow-500 text-black border border-yellow-600', iconBg: 'bg-white/80' };
-    case 'WHOT': 
-      return { text: '酷熱天氣警告', img: wikiBase + '3/36/HK_Very_Hot_Weather_Warning.svg/240px-HK_Very_Hot_Weather_Warning.svg.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
-    case 'WCOLD': 
-      return { text: '寒冷天氣警告', img: wikiBase + '2/28/HK_Cold_Weather_Warning.svg/240px-HK_Cold_Weather_Warning.svg.png', style: 'bg-blue-400 text-blue-950 border border-blue-500', iconBg: 'bg-white/80' };
-    case 'WFIREY': 
-      return { text: '黃色火災危險警告', img: wikiBase + '1/1f/HK_Yellow_Fire_Danger_Warning.svg/240px-HK_Yellow_Fire_Danger_Warning.svg.png', style: 'bg-yellow-500 text-yellow-950', iconBg: 'bg-white/80' };
-    case 'WFIRER': 
-      return { text: '紅色火災危險警告', img: wikiBase + '5/59/HK_Red_Fire_Danger_Warning.svg/240px-HK_Red_Fire_Danger_Warning.svg.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
-    case 'TC1': return { text: '一號戒備信號', img: wikiBase + 'a/a4/No._1_Standby_Signal.svg/240px-No._1_Standby_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC3': return { text: '三號強風信號', img: wikiBase + '3/30/No._3_Strong_Wind_Signal.svg/240px-No._3_Strong_Wind_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: wikiBase + '8/82/No._8_Northeast_Gale_or_Storm_Signal.svg/240px-No._8_Northeast_Gale_or_Storm_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: wikiBase + '8/86/No._8_Northwest_Gale_or_Storm_Signal.svg/240px-No._8_Northwest_Gale_or_Storm_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: wikiBase + '6/69/No._8_Southeast_Gale_or_Storm_Signal.svg/240px-No._8_Southeast_Gale_or_Storm_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: wikiBase + '6/61/No._8_Southwest_Gale_or_Storm_Signal.svg/240px-No._8_Southwest_Gale_or_Storm_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: wikiBase + '7/77/No._9_Increasing_Gale_or_Storm_Signal.svg/240px-No._9_Increasing_Gale_or_Storm_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC10': return { text: '十號颶風信號', img: wikiBase + '9/91/No._10_Hurricane_Signal.svg/240px-No._10_Hurricane_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'SMS': return { text: '強烈季候風信號', img: wikiBase + '1/18/Strong_Monsoon_Signal.svg/240px-Strong_Monsoon_Signal.svg.png', style: 'bg-slate-800 text-white border border-slate-600', iconBg: 'bg-transparent' };
-    case 'WL': return { text: '山泥傾瀉警告', img: wikiBase + '0/00/HK_Landslip_Warning.svg/240px-HK_Landslip_Warning.svg.png', style: 'bg-yellow-600 text-white border border-yellow-700', iconBg: 'bg-white/80' };
-    case 'FNTSA': return { text: '新界北部水浸特別報告', img: wikiBase + '0/05/HK_Special_Announcement_on_Flooding_in_the_Northern_New_Territories.svg/240px-HK_Special_Announcement_on_Flooding_in_the_Northern_New_Territories.svg.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white' };
-    case 'FROST': return { text: '霜凍警告', img: wikiBase + '0/00/HK_Frost_Warning.svg/240px-HK_Frost_Warning.svg.png', style: 'bg-cyan-500 text-white border border-cyan-600', iconBg: 'bg-transparent' };
+    case 'WRAINA': return { text: '黃色暴雨警告', img: '/wraina.png', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500', iconBg: 'bg-white/80' };
+    case 'WRAINR': return { text: '紅色暴雨警告', img: '/wrainr.png', style: 'bg-red-600 text-white border border-red-500', iconBg: 'bg-white' };
+    case 'WRAINB': return { text: '黑色暴雨警告', img: '/wrainb.png', style: 'bg-black text-white border border-gray-600', iconBg: 'bg-white' };
+    case 'WTS': return { text: '雷暴警告', img: '/wts.png', style: 'bg-yellow-500 text-black border border-yellow-600', iconBg: 'bg-white/80' };
+    case 'WHOT': return { text: '酷熱天氣警告', img: '/whot.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
+    case 'WCOLD': return { text: '寒冷天氣警告', img: '/wcold.png', style: 'bg-blue-400 text-blue-950 border border-blue-500', iconBg: 'bg-white/80' };
+    case 'WFIREY': return { text: '黃色火災危險警告', img: '/wfirey.png', style: 'bg-yellow-500 text-yellow-950', iconBg: 'bg-white/80' };
+    case 'WFIRER': return { text: '紅色火災危險警告', img: '/wfirer.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
+    case 'TC1': return { text: '一號戒備信號', img: '/tc1.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC3': return { text: '三號強風信號', img: '/tc3.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: '/tc8ne.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: '/tc8nw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: '/tc8se.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: '/tc8sw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: '/tc9.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC10': return { text: '十號颶風信號', img: '/tc10.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'SMS': return { text: '強烈季候風信號', img: '/sms.png', style: 'bg-slate-800 text-white border border-slate-600', iconBg: 'bg-transparent' };
+    case 'WL': return { text: '山泥傾瀉警告', img: '/wl.png', style: 'bg-yellow-600 text-white border border-yellow-700', iconBg: 'bg-white/80' };
+    case 'FNTSA': return { text: '新界北部水浸特別報告', img: '/fntsa.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white' };
+    case 'FROST': return { text: '霜凍警告', img: '/frost.png', style: 'bg-cyan-500 text-white border border-cyan-600', iconBg: 'bg-transparent' };
     default: 
       if (!originalName || originalName.trim() === '') return null;
       return { text: originalName, style: 'bg-slate-800 text-white border border-slate-700 shadow-md', iconBg: 'bg-transparent' };
   }
 };
 
-// 🚌 巴士公司智能 Logo 組件 (本地伺服器路徑)
+// 🛡️ 本地圖片專用防破圖徽章元件
+const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-6 h-6 object-contain", isSmall = false }) => {
+  const [error, setError] = useState(false);
+  if (error || !img) return null; 
+  
+  const padding = iconBg !== 'bg-transparent' ? (isSmall ? 'p-0.5 rounded' : 'p-1.5 rounded-lg') : '';
+  
+  return (
+    <div className={`${iconBg} ${padding} shrink-0 flex items-center justify-center shadow-sm`}>
+      <img 
+        src={img} 
+        alt={text} 
+        className={className} 
+        onError={() => setError(true)} 
+      />
+    </div>
+  );
+};
+
+// 🚌 巴士公司智能 Logo 組件 (讀取 public 內的 PNG)
 const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
   const [imgError, setImgError] = useState(false);
   
@@ -149,13 +159,14 @@ const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
     );
   }
 
+  // 💡 讀取本地端 PNG
   const src = company === 'ctb' ? "/ctb-logo.png" : "/kmb-logo.png";
 
   return (
     <img 
       src={src} 
       alt={company === 'ctb' ? 'Citybus' : 'KMB'} 
-      className={`shrink-0 drop-shadow-sm ${className}`}
+      className={`shrink-0 drop-shadow-sm ${className}`} 
       onError={() => setImgError(true)} 
     />
   );
@@ -221,9 +232,6 @@ export default function App() {
   const [settingsTab, setSettingsTab] = useState('FAVORITES'); 
   const [shouldReopenSettings, setShouldReopenSettings] = useState(false); 
   const [showResetConfirm, setShowResetConfirm] = useState(false); 
-
-  const [editingRouteDest, setEditingRouteDest] = useState(null);
-  const [editDestValue, setEditDestValue] = useState('');
 
   const [nearbyRadius, setNearbyRadius] = useState(() => {
     try { return parseInt(localStorage.getItem('kmb_nearby_radius') || '1200'); } 
@@ -604,7 +612,7 @@ export default function App() {
     try {
       const successful = document.execCommand('copy');
       if (successful) { setBackupSuccess('備份代碼複製成功！'); setTimeout(() => setBackupSuccess(''), 2000); } 
-      else setBackupError('複製失敗，請手動複製文本。');
+      else setBackupError('複製失敗，請手手動複製文本。');
     } catch (err) { setBackupError('瀏覽器不支持自動複製。'); }
     document.body.removeChild(textArea);
   };
@@ -899,23 +907,12 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 主畫面實時天氣警告顯示區 (移除 crossOrigin 限制，確保圖示載入) */}
+        {/* 💡 主畫面實時天氣警告顯示區 */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
               <div key={idx} className={`flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl font-black text-base shadow-md animate-pulse ${wData.style}`}>
-                {wData.img && (
-                  <div className={`${wData.iconBg || 'bg-transparent'} p-1 rounded-lg shrink-0 flex items-center justify-center shadow-sm`}>
-                    <img 
-                      src={wData.img} 
-                      alt={wData.text} 
-                      className="w-6 h-6 object-contain" 
-                      referrerPolicy="no-referrer" 
-                      // 💡 已移除 crossOrigin="anonymous" 防止瀏覽器封鎖
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                  </div>
-                )}
+                <WarningBadge img={wData.img} text={wData.text} iconBg={wData.iconBg} className="w-7 h-7 object-contain" />
                 <span>{wData.text}</span>
               </div>
             ))}
@@ -1045,7 +1042,13 @@ export default function App() {
               </div>
               <div className="relative z-10 flex flex-col items-start gap-2 text-white">
                 <div className="flex items-center gap-3">
-                  {weatherInfo.icon && <img src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} alt="Weather" className="w-16 h-16 drop-shadow-xl" />}
+                  {weatherInfo.icon && (
+                    <img 
+                      src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} 
+                      alt="Weather" 
+                      className="w-16 h-16 drop-shadow-xl" 
+                    />
+                  )}
                   <div className="flex flex-col">
                     <span className="text-4xl md:text-5xl font-black">{weatherInfo.temp}°C</span>
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
@@ -1056,18 +1059,7 @@ export default function App() {
                   <div className="flex flex-wrap gap-2 max-w-full mt-1">
                     {validWarnings.map((wData, idx) => (
                       <div key={idx} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-black text-sm shadow-lg animate-pulse ${wData.style}`}>
-                        {wData.img && (
-                          <div className={`${wData.iconBg || 'bg-transparent'} p-0.5 rounded shrink-0 flex items-center justify-center`}>
-                            <img 
-                              src={wData.img} 
-                              alt={wData.text} 
-                              className="w-4 h-4 object-contain" 
-                              referrerPolicy="no-referrer" 
-                              // 💡 已移除 crossOrigin 限制
-                              onError={(e) => { e.target.style.display = 'none'; }}
-                            />
-                          </div>
-                        )}
+                        <WarningBadge img={wData.img} text={wData.text} iconBg={wData.iconBg} className="w-5 h-5 object-contain" isSmall={true} />
                         <span>{wData.text}</span>
                       </div>
                     ))}
@@ -1149,19 +1141,11 @@ export default function App() {
           <h1 className="text-base sm:text-lg md:text-xl font-black tracking-widest text-white truncate">巴士到站看板</h1>
           {(weatherInfo.temp !== '--' || activeTCWarning) && (
             <div className="flex items-center gap-1.5 bg-black/20 dark:bg-black/40 border border-white/10 px-2 py-0.5 rounded-full shadow-inner shrink-0">
-              {/* 💡 颱風標誌放置於溫度前方 */}
+              {/* 💡 頂部颱風標誌 */}
               {activeTCWarning && activeTCWarning.img && (
-                <div className={`flex items-center justify-center shrink-0 ${activeTCWarning.iconBg || 'bg-transparent'} rounded-full p-0.5`}>
-                  <img 
-                    src={activeTCWarning.img} 
-                    alt={activeTCWarning.text} 
-                    className="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow-md"
-                    referrerPolicy="no-referrer" 
-                    // 💡 已移除 crossOrigin 限制
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                </div>
+                <WarningBadge img={activeTCWarning.img} text={activeTCWarning.text} iconBg={activeTCWarning.iconBg} className="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow-md" isSmall={true} />
               )}
+              {/* 💡 頂部一般天氣圖示 (無防盜鏈問題) */}
               {weatherInfo.icon && (
                 <img 
                   src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} 
@@ -1222,16 +1206,16 @@ export default function App() {
                   <Sun className="w-5 h-5 hidden dark:block text-yellow-500" />
                   <Moon className="w-5 h-5 block dark:hidden text-slate-700" />
                 </button>
-                <button onClick={() => { setIsSettingsModalOpen(false); setBackupError(''); setBackupSuccess(''); setImportText(''); setEditingRouteDest(null); }} className="p-1.5 rounded-full hover:bg-gray-500/10 bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">
+                <button onClick={() => { setIsSettingsModalOpen(false); setBackupError(''); setBackupSuccess(''); setImportText(''); }} className="p-1.5 rounded-full hover:bg-gray-500/10 bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
             <div className="flex border-b border-gray-500/10 bg-slate-500/5 shrink-0 text-xs font-black">
-              <button onClick={() => { setSettingsTab('FAVORITES'); setBackupError(''); setBackupSuccess(''); setEditingRouteDest(null); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'FAVORITES' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>📁 最愛管理</button>
-              <button onClick={() => { setSettingsTab('BACKUP'); setBackupError(''); setBackupSuccess(''); setEditingRouteDest(null); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'BACKUP' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>💾 備份還原</button>
-              <button onClick={() => { setSettingsTab('ADVANCED'); setBackupError(''); setBackupSuccess(''); setEditingRouteDest(null); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'ADVANCED' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>⚙️ 進階設定</button>
+              <button onClick={() => { setSettingsTab('FAVORITES'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'FAVORITES' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>📁 最愛管理</button>
+              <button onClick={() => { setSettingsTab('BACKUP'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'BACKUP' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>💾 備份還原</button>
+              <button onClick={() => { setSettingsTab('ADVANCED'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'ADVANCED' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>⚙️ 進階設定</button>
             </div>
 
             <div className="flex-1 p-5 overflow-y-auto bg-slate-50 dark:bg-zinc-950/50">
