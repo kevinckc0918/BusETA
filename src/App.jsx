@@ -99,49 +99,46 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心 (使用官方高清版 PNG，完美規避 CORS 阻擋)
+// 🌩️ 天氣警告資料處理中心 (使用本地圖庫)
 const getWarningData = (code, originalName) => {
-  const hkoBase = 'https://www.hko.gov.hk/images/HKOWarningSymbols/';
   switch(code) {
-    case 'WRAINA': return { text: '黃色暴雨警告', img: hkoBase + 'warn800_15_wraina.png', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500', iconBg: 'bg-white/80' };
-    case 'WRAINR': return { text: '紅色暴雨警告', img: hkoBase + 'warn800_16_wrainr.png', style: 'bg-red-600 text-white border border-red-500', iconBg: 'bg-white' };
-    case 'WRAINB': return { text: '黑色暴雨警告', img: hkoBase + 'warn800_17_wrainb.png', style: 'bg-black text-white border border-gray-600', iconBg: 'bg-white' };
-    case 'WTS': return { text: '雷暴警告', img: hkoBase + 'warn800_12_ts.png', style: 'bg-yellow-500 text-black border border-yellow-600', iconBg: 'bg-white/80' };
-    case 'WHOT': return { text: '酷熱天氣警告', img: hkoBase + 'warn800_18_vhot.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
-    case 'WCOLD': return { text: '寒冷天氣警告', img: hkoBase + 'warn800_19_cold.png', style: 'bg-blue-400 text-blue-950 border border-blue-500', iconBg: 'bg-white/80' };
-    case 'WFIREY': return { text: '黃色火災危險警告', img: hkoBase + 'warn800_20_firey.png', style: 'bg-yellow-500 text-yellow-950', iconBg: 'bg-white/80' };
-    case 'WFIRER': return { text: '紅色火災危險警告', img: hkoBase + 'warn800_21_firer.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
-    case 'TC1': return { text: '一號戒備信號', img: hkoBase + 'warn800_01_tc1.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC3': return { text: '三號強風信號', img: hkoBase + 'warn800_02_tc3.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: hkoBase + 'warn800_04_tc8ne.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: hkoBase + 'warn800_03_tc8nw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: hkoBase + 'warn800_06_tc8se.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: hkoBase + 'warn800_05_tc8sw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: hkoBase + 'warn800_07_tc9.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC10': return { text: '十號颶風信號', img: hkoBase + 'warn800_08_tc10.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'SMS': return { text: '強烈季候風信號', img: hkoBase + 'warn800_13_ms.png', style: 'bg-slate-800 text-white border border-slate-600', iconBg: 'bg-transparent' };
-    case 'WL': return { text: '山泥傾瀉警告', img: hkoBase + 'warn800_14_landslip.png', style: 'bg-yellow-600 text-white border border-yellow-700', iconBg: 'bg-white/80' };
-    case 'FNTSA': return { text: '新界北部水浸特別報告', img: hkoBase + 'warn800_22_ntfl.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white' };
-    case 'FROST': return { text: '霜凍警告', img: hkoBase + 'warn800_23_frost.png', style: 'bg-cyan-500 text-white border border-cyan-600', iconBg: 'bg-transparent' };
+    case 'WRAINA': return { text: '黃色暴雨警告', img: '/wraina.png', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500', iconBg: 'bg-white/80' };
+    case 'WRAINR': return { text: '紅色暴雨警告', img: '/wrainr.png', style: 'bg-red-600 text-white border border-red-500', iconBg: 'bg-white' };
+    case 'WRAINB': return { text: '黑色暴雨警告', img: '/wrainb.png', style: 'bg-black text-white border border-gray-600', iconBg: 'bg-white' };
+    case 'WTS': return { text: '雷暴警告', img: '/wts.png', style: 'bg-yellow-500 text-black border border-yellow-600', iconBg: 'bg-white/80' };
+    case 'WHOT': return { text: '酷熱天氣警告', img: '/whot.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
+    case 'WCOLD': return { text: '寒冷天氣警告', img: '/wcold.png', style: 'bg-blue-400 text-blue-950 border border-blue-500', iconBg: 'bg-white/80' };
+    case 'WFIREY': return { text: '黃色火災危險警告', img: '/wfirey.png', style: 'bg-yellow-500 text-yellow-950', iconBg: 'bg-white/80' };
+    case 'WFIRER': return { text: '紅色火災危險警告', img: '/wfirer.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
+    case 'TC1': return { text: '一號戒備信號', img: '/tc1.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC3': return { text: '三號強風信號', img: '/tc3.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: '/tc8ne.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: '/tc8nw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: '/tc8se.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: '/tc8sw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: '/tc9.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC10': return { text: '十號颶風信號', img: '/tc10.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'SMS': return { text: '強烈季候風信號', img: '/sms.png', style: 'bg-slate-800 text-white border border-slate-600', iconBg: 'bg-transparent' };
+    case 'WL': return { text: '山泥傾瀉警告', img: '/wl.png', style: 'bg-yellow-600 text-white border border-yellow-700', iconBg: 'bg-white/80' };
+    case 'FNTSA': return { text: '新界北部水浸特別報告', img: '/fntsa.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white' };
+    case 'FROST': return { text: '霜凍警告', img: '/frost.png', style: 'bg-cyan-500 text-white border border-cyan-600', iconBg: 'bg-transparent' };
     default: 
       if (!originalName || originalName.trim() === '') return null;
       return { text: originalName, style: 'bg-slate-800 text-white border border-slate-700 shadow-md', iconBg: 'bg-transparent' };
   }
 };
 
-// 🛡️ 防破圖天氣警告徽章元件
 const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-6 h-6 object-contain", isSmall = false }) => {
   const [error, setError] = useState(false);
   if (error || !img) return null; 
   const padding = iconBg !== 'bg-transparent' ? (isSmall ? 'p-0.5 rounded' : 'p-1.5 rounded-lg') : '';
   return (
     <div className={`${iconBg} ${padding} shrink-0 flex items-center justify-center shadow-sm`}>
-      <img src={img} alt={text} className={className} referrerPolicy="no-referrer" onError={() => setError(true)} />
+      <img src={img} alt={text} className={className} onError={() => setError(true)} />
     </div>
   );
 };
 
-// 🚌 巴士公司智能 Logo 組件 (本地 VPS 路徑)
 const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
   const [imgError, setImgError] = useState(false);
   if (imgError) {
@@ -182,7 +179,7 @@ export default function App() {
   });
   const [leafletLoaded, setLeafletLoaded] = useState(false);
 
-  // 💡 動態引入地圖引擎 Leaflet
+  // 💡 動態引入地圖引擎 Leaflet 
   useEffect(() => {
     if (window.L) { setLeafletLoaded(true); return; }
     if (!document.getElementById('leaflet-css')) {
@@ -371,12 +368,13 @@ export default function App() {
     return null;
   }, [weatherInfo.warnings]);
 
-  const getOrFetchAllStops = async () => {
+  // 💡 極速版：一次性載入九巴全港站點快取字典 (徹底解決 API Rate Limit)
+  const getOrFetchAllKmbStops = async () => {
     try {
       const cached = localStorage.getItem('kmb_all_stops_cache');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed.timestamp && Date.now() - parsed.timestamp < 3 * 24 * 60 * 60 * 1000) return parsed.stops;
+        if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) return parsed.stops;
       }
     } catch {}
 
@@ -402,11 +400,13 @@ export default function App() {
       if (customCoords) { lat = customCoords.lat; lng = customCoords.lng; } 
       else { const pos = await getPosition(); lat = pos.coords.latitude; lng = pos.coords.longitude; }
       setUserCoords({ lat, lng }); setGpsMessage('定位成功！正在搜索周邊巴士站...');
-      const allStops = await getOrFetchAllStops();
+      
+      const allStops = await getOrFetchAllKmbStops();
       if (allStops.length === 0) throw new Error('無法取得巴士地圖資料庫');
       const withDistance = allStops.map(stop => ({ ...stop, distance: calculateDistance(lat, lng, stop.lat, stop.lng) }));
       const sortedNearby = withDistance.sort((a, b) => a.distance - b.distance).filter(s => s.distance <= nearbyRadius).slice(0, 4);
       setNearbyStops(sortedNearby); setGpsLoading(false);
+      
       if (sortedNearby.length === 0) setGpsMessage(`定位成功，但你附近 ${nearbyRadius} 米內似乎沒有巴士站點。建議到設定中調大搜尋半徑。`);
       else setGpsMessage('');
     } catch (err) {
@@ -622,21 +622,26 @@ export default function App() {
     }));
   };
 
-  // 💡 極速版快取讀取器 (專為全路線地圖設計，獲取座標)
+  // 💡 極速版：本地字典獲取單一路線的沿途車站座標
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
     const cacheKey = `kmb_stop_details_cache_${company}`;
-    try { cache = JSON.parse(localStorage.getItem(cacheKey) || '{}'); } catch {}
     
-    // 如果快取中沒有此站或沒有 lat/lng 則重新抓取
+    // 如果是九巴，直接讀取剛才建立的全港快取字典！完全無 API 請求！
+    if (company === 'kmb') {
+        const allKmbStops = await getOrFetchAllKmbStops();
+        allKmbStops.forEach(s => cache[s.id] = s);
+        return cache;
+    }
+
+    // 城巴則維持原本的部分快取與分批請求
+    try { cache = JSON.parse(localStorage.getItem(cacheKey) || '{}'); } catch {}
     const missingIds = stopIds.filter(id => !cache[id] || !cache[id].lat);
     
     if (missingIds.length > 0) {
       const fetchSingle = async (id) => {
         try { 
-          const url = company === 'ctb' 
-            ? `https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/stop/${id}`
-            : `https://data.etabus.gov.hk/v1/transport/kmb/stop/${id}`;
+          const url = `https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/stop/${id}`;
           const res = await fetch(url); 
           if (res.ok) { 
             const d = await res.json(); 
@@ -646,8 +651,7 @@ export default function App() {
         return { id, name: id, lat: null, lng: null };
       };
 
-      // 避免 API 過載崩潰，分批處理 API 請求 (Chunking)
-      const chunkSize = 8;
+      const chunkSize = 5; 
       for (let i = 0; i < missingIds.length; i += chunkSize) {
         const results = await Promise.all(missingIds.slice(i, i + chunkSize).map(fetchSingle));
         results.forEach(r => { cache[r.id] = r; });
@@ -666,7 +670,7 @@ export default function App() {
   const stopsLayerRef = useRef(null);
   const arrowsLayerRef = useRef(null);
 
-  // 💡 處理打開全路線地圖彈窗邏輯
+  // 💡 開啟全路線地圖彈窗
   const handleOpenMap = async (initialStopId, stopName, company, routeNum, dir, dest, serviceType = '1') => {
     if (!initialStopId || !routeNum) return;
     
@@ -734,7 +738,7 @@ export default function App() {
     }
   };
 
-  // 💡 OSRM 馬路貼合引擎繪製 (加入嚴密 try...catch 與防呆)
+  // 💡 地圖繪製邏輯 (完美解決 100 站崩潰與白屏問題)
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current || !mapState.isOpen || mapState.loadingStops) return;
 
@@ -746,6 +750,9 @@ export default function App() {
 
       const map = mapInstanceRef.current;
       const polylineColor = mapState.routeInfo?.company === 'ctb' ? '#3b82f6' : '#ef4444'; 
+
+      // 💡 延遲重繪解決 Modal 白屏 BUG
+      setTimeout(() => { map.invalidateSize(); }, 300);
 
       if (mapState.routeStops.length > 0 && !polylineRef.current) {
          // 過濾掉沒有座標的壞站點
@@ -776,11 +783,11 @@ export default function App() {
                    const lat2 = isGeoJson ? p2[1] : p2[0];
                    const lng2 = isGeoJson ? p2[0] : p2[1];
 
-                   if (!lat1 || !lng1 || !lat2 || !lng2) continue; // 防呆
+                   if (!lat1 || !lng1 || !lat2 || !lng2) continue; 
                    const dist = calculateDistance(lat1, lng1, lat2, lng2);
 
                    if (!isGeoJson) {
-                      if (dist > 300) { // 直線模式站距遠就畫箭頭
+                      if (dist > 300) { 
                           const midLat = (lat1 + lat2) / 2;
                           const midLng = (lng1 + lng2) / 2;
                           const dy = lat2 - lat1;
@@ -820,7 +827,6 @@ export default function App() {
              polylineRef.current = window.L.polyline(latlngs, { color: polylineColor, weight: 5, opacity: 0.8 }).addTo(map);
              drawArrows(latlngs, false);
              
-             // 設定安全縮放比例 (防呆)
              if (latlngs.length > 1) {
                  map.fitBounds(polylineRef.current.getBounds(), { padding: [40, 40], maxZoom: 16 });
              } else {
@@ -832,7 +838,7 @@ export default function App() {
                  const fetchSnappedRoute = async () => {
                    try {
                       let coords = [];
-                      // 💡 防護：控制 OSRM 座標數量避免 URL 報錯
+                      // 💡 防護：控制 OSRM 座標數量避免 URL 報錯 (Max 100)
                       if (validStops.length <= 80) {
                          coords = validStops.map(s => `${s.lng},${s.lat}`);
                       } else {
@@ -911,7 +917,7 @@ export default function App() {
     } catch (e) {}
   }, [mapState.stop, mapState.routeInfo]);
 
-  // 💡 安全的清理機制 (防白屏最重要的一環)
+  // 💡 安全的清理機制 
   useEffect(() => {
     if (!mapState.isOpen) {
        if (mapInstanceRef.current) {
@@ -1048,34 +1054,8 @@ export default function App() {
         const d = await res.json();
         const stopList = Array.isArray(d.data) ? d.data : [];
         const stopIds = stopList.map(s => s.stop);
-        
-        let cache = {};
-        const cacheKey = `kmb_stop_names_cache_${selectedRoute.company}`;
-        try { cache = JSON.parse(localStorage.getItem(cacheKey) || '{}'); } catch {}
-        const missingIds = stopIds.filter(id => !cache[id]);
-        if (missingIds.length > 0) {
-          const fetchSingle = async (id) => {
-            try { 
-              const url = selectedRoute.company === 'ctb' 
-                ? `https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/stop/${id}`
-                : `https://data.etabus.gov.hk/v1/transport/kmb/stop/${id}`;
-              const resSingle = await fetch(url); 
-              if (resSingle.ok) { 
-                const dSingle = await resSingle.json(); 
-                return { id, name: dSingle.data?.name_tc || id }; 
-              } 
-            } catch {}
-            return { id, name: id };
-          };
-          const chunkSize = 10;
-          for (let i = 0; i < missingIds.length; i += chunkSize) {
-            const results = await Promise.all(missingIds.slice(i, i + chunkSize).map(fetchSingle));
-            results.forEach(r => { cache[r.id] = r.name; });
-          }
-          try { localStorage.setItem(cacheKey, JSON.stringify(cache)); } catch {}
-        }
-        
-        setRouteStops(stopList.map(s => ({ ...s, name_tc: cache[s.stop] || s.stop })));
+        const nameCache = await fetchStopNamesInBatch(stopIds, selectedRoute.company); 
+        setRouteStops(stopList.map(s => ({ ...s, name_tc: nameCache[s.stop] || s.stop })));
       } else {
         setRouteStops([]);
       }
@@ -1085,6 +1065,35 @@ export default function App() {
     } finally { 
       setLoadingStops(false); 
     }
+  };
+
+  const fetchStopNamesInBatch = async (stopIds, company = 'kmb') => {
+    let cache = {};
+    const cacheKey = `kmb_stop_names_cache_${company}`;
+    try { cache = JSON.parse(localStorage.getItem(cacheKey) || '{}'); } catch {}
+    const missingIds = stopIds.filter(id => !cache[id]);
+    if (missingIds.length > 0) {
+      const fetchSingle = async (id) => {
+        try { 
+          const url = company === 'ctb' 
+            ? `https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/stop/${id}`
+            : `https://data.etabus.gov.hk/v1/transport/kmb/stop/${id}`;
+          const res = await fetch(url); 
+          if (res.ok) { 
+            const d = await res.json(); 
+            return { id, name: d.data?.name_tc || id }; 
+          } 
+        } catch {}
+        return { id, name: id };
+      };
+      const chunkSize = 10;
+      for (let i = 0; i < missingIds.length; i += chunkSize) {
+        const results = await Promise.all(missingIds.slice(i, i + chunkSize).map(fetchSingle));
+        results.forEach(r => { cache[r.id] = r.name; });
+      }
+      try { localStorage.setItem(cacheKey, JSON.stringify(cache)); } catch {}
+    }
+    return cache;
   };
 
   const handleSelectStop = (stopItem) => {
@@ -1129,8 +1138,7 @@ export default function App() {
     }
 
     setLocations(updatedLocations); 
-    setIsSearchModalOpen(false);
-    if (shouldReopenSettings) { setIsSettingsModalOpen(true); setShouldReopenSettings(false); }
+    handleCloseSearchModal();
     setTimeout(() => fetchCustomLocationsData(), 200);
   };
 
@@ -1240,7 +1248,6 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 主畫面實時天氣警告顯示區 (完美無 CORS 限制) */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -1275,7 +1282,6 @@ export default function App() {
               </div>
             )}
 
-            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -1397,7 +1403,6 @@ export default function App() {
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
                   </div>
                 </div>
-                {/* 💡 座枱模式警告標籤 */}
                 {validWarnings.length > 0 && (
                   <div className="flex flex-wrap gap-2 max-w-full mt-1">
                     {validWarnings.map((wData, idx) => (
@@ -1468,12 +1473,9 @@ export default function App() {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 
         /* 💡 全新 Leaflet 地圖樣式修復與覆寫 */
-        .leaflet-container {
-           background: transparent !important;
-        }
-        .leaflet-control-attribution {
-           display: none !important;
-        }
+        .leaflet-container { background: #e5e7eb !important; }
+        .dark .leaflet-container { background: #27272a !important; }
+        .leaflet-control-attribution { display: none !important; }
       `}</style>
 
       <header className={`px-4 py-3 flex items-center justify-between border-b shadow-sm z-20 shrink-0 transition-colors ${theme.topBar}`}>
@@ -1496,7 +1498,7 @@ export default function App() {
               {activeTCWarning && activeTCWarning.img && (
                 <WarningBadge img={activeTCWarning.img} text={activeTCWarning.text} iconBg={activeTCWarning.iconBg} className="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow-md" isSmall={true} />
               )}
-              {/* 💡 頂部一般天氣圖示 (無防盜鏈問題) */}
+              {/* 💡 頂部一般天氣圖示 */}
               {weatherInfo.icon && (
                 <img 
                   src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} 
@@ -1570,7 +1572,7 @@ export default function App() {
               {mapState.loadingMap && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gray-200/80 dark:bg-zinc-800/80 z-20 backdrop-blur-sm">
                   <RefreshCw className={`w-8 h-8 animate-spin ${mapState.routeInfo?.company === 'ctb' ? 'text-blue-600' : 'text-red-500'}`} />
-                  <span className="text-xs font-bold opacity-70 text-slate-800 dark:text-zinc-200">正在計算路線軌跡...</span>
+                  <span className="text-xs font-bold opacity-70 text-slate-800 dark:text-zinc-200">正在計算道路軌跡...</span>
                 </div>
               )}
               {mapState.error && (
@@ -1944,5 +1946,3 @@ export default function App() {
     </div>
   );
 }
-
-
