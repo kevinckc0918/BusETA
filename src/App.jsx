@@ -157,53 +157,27 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('kmb_theme') || 'false'); } catch { return false; }
   });
 
-  const [mapState, setMapState] = useState({ 
-    isOpen: false, 
-    loadingMap: false, 
-    loadingStops: false,
-    stop: null, 
-    routeInfo: null, 
-    routeStops: [], 
-    error: null 
-  });
-  
-  const [mapStopEtas, setMapStopEtas] = useState([]);
-  const [loadingMapEtas, setLoadingMapEtas] = useState(false);
-  const [leafletLoaded, setLeafletLoaded] = useState(false);
-
-  // 清理垃圾快取
+  // 💡 絕對領域控制：阻止瀏覽器進行強制顏色反轉
   useEffect(() => {
-    try {
-      localStorage.removeItem('kmb_all_stops_cache'); 
-      localStorage.removeItem('kmb_all_stops_cache_v2'); 
-      localStorage.removeItem('kmb_all_stops_cache_v3'); 
-      localStorage.removeItem('kmb_all_stops_cache_v5'); 
-      localStorage.removeItem('kmb_stop_details_cache_kmb'); 
-    } catch(e) {}
-  }, []);
-
-  // 動態引入地圖引擎 Leaflet
-  useEffect(() => {
-    if (window.L) { setLeafletLoaded(true); return; }
-    if (!document.getElementById('leaflet-css')) {
-      const link = document.createElement('link');
-      link.id = 'leaflet-css'; link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
+    let meta = document.querySelector('meta[name="color-scheme"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = "color-scheme";
+      document.head.appendChild(meta);
     }
-    if (!document.getElementById('leaflet-js')) {
-      const script = document.createElement('script');
-      script.id = 'leaflet-js';
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      script.onload = () => { window.dispatchEvent(new Event('leafletReady')); };
-      document.head.appendChild(script);
+    meta.content = "light dark"; // 告訴瀏覽器我們自己處理日夜模式
+    
+    // 同步到 html 標籤，確保最外層底色不會白邊
+    if (isDarkMode) {
+      document.documentElement.style.backgroundColor = '#09090b'; // zinc-950
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.style.backgroundColor = '#f8fafc'; // slate-50
+      document.documentElement.classList.remove('dark');
     }
-    const checkL = () => { if (window.L) setLeafletLoaded(true); };
-    checkL();
-    window.addEventListener('leafletReady', checkL);
-    return () => window.removeEventListener('leafletReady', checkL);
-  }, []);
+  }, [isDarkMode]);
 
+  // 💡 徹底捨棄 Tailwind `dark:` 依賴，使用嚴格的條件渲染
   const theme = {
     appBg: isDarkMode ? 'bg-zinc-950 text-white' : 'bg-slate-50 text-slate-900',
     topBar: isDarkMode ? 'bg-red-950 border-red-900/50' : 'bg-[#e3342f] border-red-700',
@@ -227,6 +201,41 @@ export default function App() {
     inputBg: isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-slate-100 border-slate-200 text-slate-800',
     controlBtn: isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200' : 'bg-slate-200 hover:bg-slate-300 text-slate-800',
   };
+
+  const [mapState, setMapState] = useState({ 
+    isOpen: false, 
+    loadingMap: false, 
+    loadingStops: false,
+    stop: null, 
+    routeInfo: null, 
+    routeStops: [], 
+    error: null 
+  });
+  
+  const [mapStopEtas, setMapStopEtas] = useState([]);
+  const [loadingMapEtas, setLoadingMapEtas] = useState(false);
+  const [leafletLoaded, setLeafletLoaded] = useState(false);
+
+  useEffect(() => {
+    if (window.L) { setLeafletLoaded(true); return; }
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link');
+      link.id = 'leaflet-css'; link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+    if (!document.getElementById('leaflet-js')) {
+      const script = document.createElement('script');
+      script.id = 'leaflet-js';
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = () => { window.dispatchEvent(new Event('leafletReady')); };
+      document.head.appendChild(script);
+    }
+    const checkL = () => { if (window.L) setLeafletLoaded(true); };
+    checkL();
+    window.addEventListener('leafletReady', checkL);
+    return () => window.removeEventListener('leafletReady', checkL);
+  }, []);
 
   const getEtaMinutes = (etaDate) => Math.floor((new Date(etaDate) - now) / 60000);
 
@@ -625,7 +634,7 @@ export default function App() {
     }));
   };
 
-  // 💡 極速版 V8 站點座標解析：從總表拿資料
+  // 💡 堅固的 V8 站點座標解析：從總表拿資料
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
     const cacheKey = `kmb_stop_details_cache_v8_${company}`;
@@ -793,8 +802,7 @@ export default function App() {
     return () => { isMounted = false; clearInterval(timer); };
   }, [mapState.isOpen, mapState.stop?.id, mapState.routeInfo]);
 
-
-  // 💡 終極地圖繪製引擎：完美繪製直連線與箭咀 (加入 InvalidateSize 防止 Modal 白屏)
+  // 💡 終極地圖繪製引擎：完美繪製直連線與箭咀 (無依賴外部導航引擎)
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current || !mapState.isOpen || mapState.loadingStops) return;
 
@@ -878,7 +886,7 @@ export default function App() {
           }
       };
 
-      // 💡 終極防白屏：等待地圖完全取得寬高後再繪製
+      // 💡 等待地圖完全取得寬高後再繪製
       const size = map.getSize();
       if (size.x === 0 || size.y === 0) {
           setTimeout(() => {
@@ -897,7 +905,7 @@ export default function App() {
     }
   }, [leafletLoaded, mapState.isOpen, mapState.loadingStops, mapState.routeStops, mapState.routeInfo]);
 
-  // 💡 當前車站實體大頭針 (Map Pin) 與 FlyTo 效果
+  // 💡 當前車站實體大頭針 (Map Pin)
   useEffect(() => {
     try {
       if (!mapInstanceRef.current || !mapState.stop?.lat || !mapState.stop?.lng || !mapState.isOpen) return;
@@ -949,7 +957,7 @@ export default function App() {
     }
   }, [mapState.isOpen]);
 
-  // 💡 安全嚴謹的備份與還原功能 (移除不相容元件防白屏)
+  // 💡 安全嚴謹的備份與還原功能 (使用 Emoji 代替未知的 Lucide 圖標防白屏)
   const handleCopyBackupCode = () => {
     const backupJson = JSON.stringify(locations);
     const textArea = document.createElement("textarea");
@@ -1159,11 +1167,11 @@ export default function App() {
     const rowPadding = isStand ? 'px-4 py-3' : 'px-5 py-4 sm:py-5';
     const primaryEtaHeight = isStand ? 'h-[40px] lg:h-[48px]' : 'h-[50px] sm:h-[60px] md:h-[72px]';
 
-    const routeNumColorClass = route.company === 'ctb' ? 'text-blue-700 dark:text-blue-400' : theme.routeNum;
+    const routeNumColorClass = route.company === 'ctb' ? (isDarkMode ? 'text-blue-400' : 'text-blue-700') : theme.routeNum;
 
     // 💡 點擊開啟地圖效果
     const isClickable = !!route.stopId;
-    const clickableClasses = isClickable ? 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 active:scale-[0.99]' : '';
+    const clickableClasses = isClickable ? (isDarkMode ? 'cursor-pointer hover:bg-white/5 active:scale-[0.99]' : 'cursor-pointer hover:bg-black/5 active:scale-[0.99]') : '';
 
     return (
       <div 
@@ -1188,7 +1196,7 @@ export default function App() {
           
           <div className={`flex items-center justify-end gap-2 sm:gap-3 ${primaryEtaHeight}`}>
             {primaryRmk && primaryMins !== null && (
-              <span className="text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded bg-[#e3342f]/10 text-[#e3342f] dark:bg-red-500/20 dark:text-red-400 border border-[#e3342f]/20 shadow-sm leading-none whitespace-nowrap">
+              <span className={`text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded shadow-sm leading-none whitespace-nowrap ${isDarkMode ? 'bg-red-500/20 text-red-400 border border-red-500/20' : 'bg-[#e3342f]/10 text-[#e3342f] border border-[#e3342f]/20'}`}>
                 {primaryRmk}
               </span>
             )}
@@ -1205,7 +1213,7 @@ export default function App() {
           
           <div className="flex items-center justify-end gap-2 sm:gap-3 mt-1.5 sm:mt-2">
             {secondaryRmk && secondaryMins !== null && secondaryMins >= 0 && (
-              <span className="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-500 dark:bg-gray-400/20 dark:text-gray-400 border border-gray-500/20 leading-none whitespace-nowrap">
+              <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm leading-none whitespace-nowrap ${isDarkMode ? 'bg-gray-400/20 text-gray-400 border border-gray-500/20' : 'bg-gray-500/10 text-gray-500 border border-gray-500/20'}`}>
                 {secondaryRmk}
               </span>
             )}
@@ -1238,7 +1246,7 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 [圖一] 主畫面實時天氣警告顯示區 (激瘦官方版排版) */}
+        {/* 💡 主畫面實時天氣警告顯示區 (激瘦官方版排版) */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-1.5 px-3 sm:px-0 mb-3 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -1283,7 +1291,7 @@ export default function App() {
                       <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded">距離 {loc.distance} 米</span>
                     </div>
                     {/* 💡 點擊看地圖提示 */}
-                    <span className="text-[11px] text-gray-500 dark:text-gray-400 font-bold flex items-center gap-1">
+                    <span className={`text-[11px] font-bold flex items-center gap-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                       <MapPin className="w-3 h-3" /> 點擊看地圖
                     </span>
                   </div>
@@ -1325,7 +1333,7 @@ export default function App() {
                         {group.groupName}
                       </span>
                       {/* 💡 點擊看地圖提示 */}
-                      <span className="text-[9px] sm:text-[10px] text-gray-400 font-bold mt-1 tracking-wider opacity-70">點擊看全路線地圖</span>
+                      <span className={`text-[9px] sm:text-[10px] font-bold mt-1 tracking-wider opacity-70 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`}>點擊看全路線地圖</span>
                     </div>
 
                     <span className="flex-1 text-right">分鐘</span>
@@ -1453,7 +1461,7 @@ export default function App() {
   };
 
   return (
-    // 💡 V10 重大修復：補回根節點的 \${isDarkMode ? 'dark' : ''} 屬性，徹底解決所有白屏與暗黑模式失效問題！
+    // 💡 終極防護：使用純條件 className 來徹底無視系統深色模式，由 appBg 與 transition 控制底層。
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${isDarkMode ? 'dark' : ''} ${theme.appBg}`}>
       <style>{`
         /* 防止 iOS 電話連結變色覆蓋 */
@@ -1492,7 +1500,7 @@ export default function App() {
         <div className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 min-w-0">
           <h1 className="text-base sm:text-lg md:text-xl font-black tracking-widest text-white truncate">巴士到站看板</h1>
           {(weatherInfo.temp !== '--' || activeTCWarning) && (
-            <div className="flex items-center gap-1.5 bg-black/20 dark:bg-black/40 border border-white/10 px-2 py-0.5 rounded-full shadow-inner shrink-0">
+            <div className="flex items-center gap-1.5 bg-black/20 border border-white/10 px-2 py-0.5 rounded-full shadow-inner shrink-0">
               {/* 💡 頂部颱風標誌 */}
               {activeTCWarning && activeTCWarning.img && (
                 <WarningBadge img={activeTCWarning.img} text={activeTCWarning.text} iconBg={activeTCWarning.iconBg} className="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow-md" isSmall={true} />
@@ -1565,17 +1573,17 @@ export default function App() {
             </div>
             
             {/* 💡 上半部：Leaflet 零延遲直連軌跡引擎地圖 */}
-            <div className="h-[40%] min-h-[220px] shrink-0 relative border-b border-gray-300 dark:border-zinc-700 shadow-inner">
+            <div className={`h-[40%] min-h-[220px] shrink-0 relative border-b shadow-inner ${isDarkMode ? 'border-zinc-700' : 'border-gray-300'}`}>
               <div ref={mapContainerRef} className="w-full h-full z-0" />
               
               {mapState.loadingMap && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gray-200/80 dark:bg-zinc-800/80 z-20 backdrop-blur-sm">
+                <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 z-20 backdrop-blur-sm ${isDarkMode ? 'bg-zinc-800/80' : 'bg-gray-200/80'}`}>
                   <RefreshCw className={`w-8 h-8 animate-spin ${mapState.routeInfo?.company === 'ctb' ? 'text-blue-600' : 'text-red-500'}`} />
-                  <span className="text-xs font-bold opacity-70 text-slate-800 dark:text-zinc-200">正在準備路線軌跡...</span>
+                  <span className={`text-xs font-bold opacity-70 ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>正在準備路線軌跡...</span>
                 </div>
               )}
               {mapState.error && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-red-500 bg-red-50 dark:bg-red-950/20 z-20">
+                <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 text-red-500 z-20 ${isDarkMode ? 'bg-red-950/20' : 'bg-red-50'}`}>
                   <AlertTriangle className="w-8 h-8" />
                   <span className="text-xs font-bold px-4 text-center">{mapState.error}</span>
                 </div>
@@ -1587,7 +1595,7 @@ export default function App() {
                   href={`https://www.google.com/maps/search/?api=1&query=${mapState.stop.lat},${mapState.stop.lng}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="absolute bottom-3 right-3 z-[1000] bg-white/90 dark:bg-zinc-900/90 backdrop-blur text-blue-600 dark:text-blue-400 p-2.5 rounded-xl shadow-lg hover:scale-105 transition-transform flex items-center justify-center border border-gray-200 dark:border-zinc-700"
+                  className={`absolute bottom-3 right-3 z-[1000] backdrop-blur p-2.5 rounded-xl shadow-lg hover:scale-105 transition-transform flex items-center justify-center border ${isDarkMode ? 'bg-zinc-900/90 text-blue-400 border-zinc-700' : 'bg-white/90 text-blue-600 border-gray-200'}`}
                   title="在 Google Maps 開啟"
                 >
                   <MapPin className="w-5 h-5" />
@@ -1595,10 +1603,10 @@ export default function App() {
               )}
             </div>
             
-            {/* 💡 下半部：全路線站點時間軸列表 */}
-            <div className="flex-1 overflow-y-auto relative shadow-[inset_0_10px_10px_-10px_rgba(0,0,0,0.05)]" ref={listRef}>
+            {/* 💡 [圖三] 下半部：全路線站點時間軸列表 (帶有動態 ETA) */}
+            <div className={`flex-1 overflow-y-auto relative shadow-[inset_0_10px_10px_-10px_rgba(0,0,0,0.05)] ${isDarkMode ? 'bg-zinc-950' : 'bg-slate-50'}`} ref={listRef}>
               {mapState.loadingStops ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-800 dark:text-zinc-200">
+                <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>
                   <RefreshCw className={`w-8 h-8 animate-spin ${mapState.routeInfo?.company === 'ctb' ? 'text-blue-600' : 'text-red-500'}`} />
                   <span className="text-xs font-bold opacity-70">正在載入全線巴士站...</span>
                 </div>
@@ -1616,27 +1624,27 @@ export default function App() {
                         onClick={() => {
                           setMapState(prev => ({ ...prev, stop: stop }));
                         }}
-                        className={`flex items-stretch px-4 sm:px-6 cursor-pointer transition-colors duration-300 ${isCurrent ? (isCTB ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-red-50 dark:bg-red-950/20') : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                        className={`flex items-stretch px-4 sm:px-6 cursor-pointer transition-colors duration-300 ${isCurrent ? (isCTB ? (isDarkMode ? 'bg-blue-900/20' : 'bg-blue-50') : (isDarkMode ? 'bg-red-950/20' : 'bg-red-50')) : (isDarkMode ? 'hover:bg-white/5' : 'hover:bg-black/5')}`}
                       >
                         
                         {/* 繪製左側時間軸 */}
                         <div className="flex flex-col items-center mr-4 w-6 shrink-0 relative pointer-events-none">
-                          <div className={`w-1 flex-1 ${idx === 0 ? 'bg-transparent' : 'bg-gray-300 dark:bg-zinc-700'}`} />
-                          <div className={`w-3.5 h-3.5 rounded-full border-[2.5px] border-white dark:border-zinc-900 shadow-sm z-10 my-1 transition-all ${
+                          <div className={`w-1 flex-1 ${idx === 0 ? 'bg-transparent' : (isDarkMode ? 'bg-zinc-700' : 'bg-gray-300')}`} />
+                          <div className={`w-3.5 h-3.5 rounded-full border-[2.5px] shadow-sm z-10 my-1 transition-all ${isDarkMode ? 'border-zinc-900' : 'border-white'} ${
                             isCurrent 
                               ? (isCTB ? 'bg-blue-600 border-blue-200 w-4 h-4 scale-110' : 'bg-red-500 border-red-200 w-4 h-4 scale-110') 
-                              : 'bg-gray-400 dark:bg-zinc-500'
+                              : (isDarkMode ? 'bg-zinc-500' : 'bg-gray-400')
                           }`} />
-                          <div className={`w-1 flex-1 ${isLast ? 'bg-transparent' : 'bg-gray-300 dark:bg-zinc-700'}`} />
+                          <div className={`w-1 flex-1 ${isLast ? 'bg-transparent' : (isDarkMode ? 'bg-zinc-700' : 'bg-gray-300')}`} />
                         </div>
                         
                         {/* 站點名稱與展開的 ETA */}
-                        <div className={`py-3.5 flex-1 border-b border-gray-200 dark:border-zinc-800 ${isLast ? 'border-transparent' : ''}`}>
+                        <div className={`py-3.5 flex-1 border-b ${isLast ? 'border-transparent' : (isDarkMode ? 'border-zinc-800' : 'border-gray-200')}`}>
                           <div className="flex items-center gap-2">
-                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${isCurrent ? (isCTB ? 'bg-blue-500 text-white' : 'bg-red-500 text-white') : 'bg-gray-200 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${isCurrent ? (isCTB ? 'bg-blue-500 text-white' : 'bg-red-500 text-white') : (isDarkMode ? 'bg-zinc-800 text-zinc-400' : 'bg-gray-200 text-gray-600')}`}>
                               {idx + 1}
                             </span>
-                            <span className={`text-sm ${isCurrent ? 'font-black text-slate-900 dark:text-white text-base' : 'font-bold text-slate-700 dark:text-zinc-300'}`}>
+                            <span className={`text-sm ${isCurrent ? (isDarkMode ? 'font-black text-white text-base' : 'font-black text-slate-900 text-base') : (isDarkMode ? 'font-bold text-zinc-300' : 'font-bold text-slate-700')}`}>
                               {stop.name}
                             </span>
                           </div>
@@ -1644,12 +1652,12 @@ export default function App() {
                           {/* 💡 當前車站：載入並顯示未來 3 班車 ETA */}
                           {isCurrent && (
                             <div className="mt-3 mb-1 pl-1 flex flex-col gap-2 relative">
-                               <span className={`text-[10px] font-bold absolute -top-1.5 right-0 ${isCTB ? 'text-blue-500' : 'text-red-500'}`}>
+                               <span className={`text-[10px] font-bold absolute -top-1.5 right-0 ${isCTB ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : (isDarkMode ? 'text-red-400' : 'text-red-500')}`}>
                                   📍 當前選取車站
                                </span>
                                
                                {loadingMapEtas ? (
-                                  <div className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-zinc-400 py-1">
+                                  <div className={`flex items-center gap-2 text-xs font-bold py-1 ${isDarkMode ? 'text-zinc-400' : 'text-gray-500'}`}>
                                      <RefreshCw className="w-3 h-3 animate-spin" /> 正在為您讀取班次...
                                   </div>
                                ) : mapStopEtas.length > 0 ? (
@@ -1662,13 +1670,13 @@ export default function App() {
                                      return (
                                        <div key={eIdx} className="flex items-center gap-3">
                                           <Bus className={`w-3.5 h-3.5 ${isMissed ? 'text-gray-300' : 'text-blue-500'}`} />
-                                          <span className={`w-7 text-right font-black text-lg leading-none ${isMissed ? 'text-gray-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                                          <span className={`w-7 text-right font-black text-lg leading-none ${isMissed ? 'text-gray-400' : (isDarkMode ? 'text-blue-400' : 'text-blue-600')}`}>
                                              {isMissed ? '-' : isImminent ? '即將' : mins}
                                           </span>
                                           <span className="text-xs font-bold text-gray-500 shrink-0 min-w-[32px]">
                                              {isMissed ? '已開出' : isImminent ? '到站' : '分鐘'}
                                           </span>
-                                          {rmk && <span className="text-[10px] font-bold bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-gray-500 truncate">{rmk}</span>}
+                                          {rmk && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded truncate ${isDarkMode ? 'bg-zinc-800 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>{rmk}</span>}
                                        </div>
                                      )
                                   })
@@ -1685,7 +1693,7 @@ export default function App() {
                   })}
                 </div>
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center opacity-50 p-6 text-center text-slate-800 dark:text-zinc-200">
+                <div className={`absolute inset-0 flex flex-col items-center justify-center opacity-50 p-6 text-center ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>
                   <span className="text-sm font-bold">無法載入路線沿途站點</span>
                   <span className="text-xs mt-1">此路線可能已暫停服務或資料庫更新中</span>
                 </div>
@@ -1695,35 +1703,34 @@ export default function App() {
         </div>
       )}
 
-      {/* ⚙️ Settings Modal (💡 V10 修復：嚴謹的閉合標籤解決切換白屏) */}
+      {/* ⚙️ Settings Modal (💡 V11 修復：安全的閉合標籤與純淨 Emoji 防白屏) */}
       {isSettingsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade-in">
           <div className={`w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden border ${theme.modalBg}`}>
             
-            <div className="px-5 py-4 border-b border-gray-500/10 flex items-center justify-between shrink-0">
+            <div className={`px-5 py-4 border-b flex items-center justify-between shrink-0 ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'}`}>
               <h3 className="font-extrabold text-base flex items-center gap-2 text-[#e3342f]">
                 <Settings className="w-5 h-5 animate-spin-hover" />
                 看板設定中心
               </h3>
               
               <div className="flex items-center gap-2">
-                <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors border border-gray-200 dark:border-zinc-700 shadow-sm" title="切換深淺色主題">
-                  <Sun className="w-5 h-5 hidden dark:block text-yellow-500" />
-                  <Moon className="w-5 h-5 block dark:hidden text-slate-700" />
+                <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-1.5 rounded-full transition-colors border shadow-sm ${isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700' : 'bg-slate-100 hover:bg-gray-200 border-gray-200'}`} title="切換深淺色主題">
+                  {isDarkMode ? <Moon className="w-5 h-5 text-slate-400" /> : <Sun className="w-5 h-5 text-yellow-500" />}
                 </button>
-                <button onClick={() => { setIsSettingsModalOpen(false); setBackupError(''); setBackupSuccess(''); setImportText(''); }} className="p-1.5 rounded-full hover:bg-gray-500/10 bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">
+                <button onClick={() => { setIsSettingsModalOpen(false); setBackupError(''); setBackupSuccess(''); setImportText(''); }} className={`p-1.5 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-zinc-400' : 'hover:bg-black/10 text-slate-500'}`}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            <div className="flex border-b border-gray-500/10 bg-slate-500/5 shrink-0 text-xs font-black">
+            <div className={`flex border-b shrink-0 text-xs font-black ${isDarkMode ? 'border-zinc-700 bg-zinc-900/50' : 'border-gray-200 bg-slate-50'}`}>
               <button onClick={() => { setSettingsTab('FAVORITES'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'FAVORITES' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>📁 最愛管理</button>
               <button onClick={() => { setSettingsTab('BACKUP'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'BACKUP' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>💾 備份還原</button>
               <button onClick={() => { setSettingsTab('ADVANCED'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'ADVANCED' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>⚙️ 進階設定</button>
             </div>
 
-            <div className="flex-1 p-5 overflow-y-auto bg-slate-50 dark:bg-zinc-950/50">
+            <div className={`flex-1 p-5 overflow-y-auto ${isDarkMode ? 'bg-zinc-950/50' : 'bg-slate-50'}`}>
               {backupSuccess ? <div className="mb-4 bg-green-500/10 border border-green-500/20 text-green-500 p-2.5 text-center text-xs font-bold rounded-lg animate-pulse">{backupSuccess}</div> : null}
               {backupError ? <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-500 p-2.5 text-center text-xs font-bold rounded-lg">{backupError}</div> : null}
 
@@ -1741,22 +1748,22 @@ export default function App() {
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       {locations.map((loc) => (
-                        <div key={loc.id} className="p-4 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm flex flex-col gap-3 relative">
-                          <div className="flex items-start justify-between border-b border-gray-100 dark:border-zinc-800 pb-2.5">
+                        <div key={loc.id} className={`p-4 rounded-xl border shadow-sm flex flex-col gap-3 relative ${isDarkMode ? 'border-zinc-800 bg-zinc-900' : 'border-gray-200 bg-white'}`}>
+                          <div className={`flex items-start justify-between border-b pb-2.5 ${isDarkMode ? 'border-zinc-800' : 'border-gray-100'}`}>
                             <div className="flex flex-col pr-2">
-                              <span className="text-sm font-black text-slate-800 dark:text-zinc-100">{loc.name}</span>
-                              <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-500 mt-0.5">📂 {loc.groupName || '預設'}</span>
+                              <span className={`text-sm font-black ${isDarkMode ? 'text-zinc-100' : 'text-slate-800'}`}>{loc.name}</span>
+                              <span className={`text-[10px] font-bold mt-0.5 ${isDarkMode ? 'text-zinc-500' : 'text-slate-500'}`}>📂 {loc.groupName || '預設'}</span>
                             </div>
-                            <button onClick={(e) => handleDeleteLocation(loc.id, e)} className="p-1.5 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 rounded-lg transition-all shrink-0" title="刪除整個車站">
+                            <button onClick={(e) => handleDeleteLocation(loc.id, e)} className={`p-1.5 text-red-500 rounded-lg transition-all shrink-0 ${isDarkMode ? 'bg-red-500/10 hover:bg-red-500/20' : 'bg-red-50 hover:bg-red-100'}`} title="刪除整個車站">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                           
                           <div className="flex flex-col gap-2">
                             {loc.routes.map((r, rIdx) => (
-                              <div key={`${r.route}-${r.dir}-${rIdx}`} className="flex items-center gap-2 bg-slate-50 dark:bg-zinc-800/50 p-2 rounded-lg border border-gray-100 dark:border-zinc-800">
+                              <div key={`${r.route}-${r.dir}-${rIdx}`} className={`flex items-center gap-2 p-2 rounded-lg border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-800' : 'bg-slate-50 border-gray-100'}`}>
                                 <CompanyBadge company={r.company} className="h-3 sm:h-3.5 object-contain opacity-80" />
-                                <span className={`text-sm font-black w-10 text-center ${r.company === 'ctb' ? 'text-blue-600 dark:text-blue-400' : 'text-red-500'}`}>{r.route}</span>
+                                <span className={`text-sm font-black w-10 text-center ${r.company === 'ctb' ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : 'text-red-500'}`}>{r.route}</span>
                                 
                                 <input 
                                   type="text"
@@ -1764,7 +1771,7 @@ export default function App() {
                                   onChange={(e) => handleUpdateCustomDest(loc.id, r.route, r.dir, e.target.value)}
                                   onBlur={() => setTimeout(fetchCustomLocationsData, 200)}
                                   placeholder={r.dest || '自訂目的地'}
-                                  className="flex-1 min-w-0 text-xs font-bold bg-transparent border-b border-dashed border-gray-300 dark:border-zinc-600 focus:border-blue-500 text-slate-700 dark:text-zinc-300 outline-none pb-0.5 transition-colors placeholder:text-gray-400"
+                                  className={`flex-1 min-w-0 text-xs font-bold bg-transparent border-b border-dashed focus:border-blue-500 outline-none pb-0.5 transition-colors placeholder:text-gray-400 ${isDarkMode ? 'border-zinc-600 text-zinc-300' : 'border-gray-300 text-slate-700'}`}
                                   title="點擊直接修改目的地文字"
                                 />
 
@@ -1787,18 +1794,18 @@ export default function App() {
 
               {settingsTab === 'BACKUP' && (
                 <div className="flex flex-col gap-4">
-                  <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 flex flex-col gap-3">
+                  <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
                     <span className="text-xs font-black">📥 匯出最愛備份設定</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">您可以將自訂巴士看板數據導出保存，便於同步至您的 iPad 或其他家人的裝置。</p>
                     <div className="grid grid-cols-2 gap-2">
-                      <button onClick={handleDownloadBackupFile} className="bg-[#e3342f] hover:bg-red-600 text-white py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1">📥 下載備份檔 (.json)</button>
-                      <button onClick={handleCopyBackupCode} className={`py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1 transition-colors ${theme.controlBtn}`}>📋 複製設定代碼</button>
+                      <button onClick={handleDownloadBackupFile} className="bg-[#e3342f] hover:bg-red-600 text-white py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1">📥 下載備份檔</button>
+                      <button onClick={handleCopyBackupCode} className={`py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1 transition-colors ${theme.controlBtn}`}>📋 複製代碼</button>
                     </div>
                   </div>
-                  <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 flex flex-col gap-3">
-                    <span className="text-xs font-black text-red-600 dark:text-red-400">📤 覆蓋還原自訂最愛</span>
+                  <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-red-950/20 border-red-900/30' : 'bg-red-50 border-red-100'}`}>
+                    <span className={`text-xs font-black ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>📤 覆蓋還原自訂最愛</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">上傳先前保存的備份檔案，或者直接在下方貼上備份 JSON 代碼。注意這將覆蓋現有看板最愛。</p>
-                    <div className="border border-dashed border-gray-300 dark:border-gray-700 p-3 rounded-lg flex flex-col items-center justify-center gap-2 bg-white/50 dark:bg-black/20">
+                    <div className={`border border-dashed p-3 rounded-lg flex flex-col items-center justify-center gap-2 ${isDarkMode ? 'border-gray-700 bg-black/20' : 'border-gray-300 bg-white/50'}`}>
                       <input type="file" accept=".json" onChange={handleUploadFile} className="hidden" id="setting-backup-upload" />
                       <label htmlFor="setting-backup-upload" className="px-4 py-1.5 bg-[#e3342f] text-white hover:bg-red-600 rounded-lg text-xs font-bold cursor-pointer transition-colors">選擇上傳設定檔 (.json)</label>
                     </div>
@@ -1809,7 +1816,7 @@ export default function App() {
                       value={importText} 
                       onChange={(e) => setImportText(e.target.value)} 
                       className={`w-full py-1.5 px-3 rounded-lg border font-mono text-[10px] resize-none focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} 
-                    ></textarea>
+                    />
                     <button onClick={handleConfirmImport} className="bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-extrabold text-xs flex items-center justify-center gap-1 shadow-sm transition-colors"><Check className="w-3.5 h-3.5" />確認匯入並覆蓋最愛</button>
                   </div>
                 </div>
@@ -1817,7 +1824,7 @@ export default function App() {
 
               {settingsTab === 'ADVANCED' && (
                 <div className="flex flex-col gap-5">
-                  <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 flex flex-col gap-3">
+                  <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
                     <span className="text-xs font-black flex items-center gap-1.5"><Settings className="w-4 h-4 text-blue-500" />🛰️ 附近巴士站搜尋範圍設定</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">微調 GPS 定位搜尋周圍巴士站點的最大允許半徑，目前半徑為：<strong className="text-blue-500 text-xs ml-1">{nearbyRadius} 米</strong></p>
                     <div className="flex items-center gap-3">
@@ -1826,8 +1833,8 @@ export default function App() {
                       <span className="text-[10px] font-bold opacity-50">2000米</span>
                     </div>
                   </div>
-                  <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 flex flex-col gap-3">
-                    <span className="text-xs font-black text-red-600 dark:text-red-400 flex items-center gap-1.5"><RefreshCw className="w-4 h-4" />還原原廠預設值</span>
+                  <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-red-950/20 border-red-900/30' : 'bg-red-50 border-red-100'}`}>
+                    <span className={`text-xs font-black flex items-center gap-1.5 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}><RefreshCw className="w-4 h-4" />還原原廠預設值</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">還原最愛看板設定回範例（預設峻巒總站、形點 II、大欖隧道配置），這將重置所有自訂設定。</p>
                     {!showResetConfirm ? (
                       <button onClick={() => setShowResetConfirm(true)} className="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-bold text-xs transition-colors">重設我的最愛站點</button>
@@ -1850,11 +1857,11 @@ export default function App() {
       {isSearchModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
           <div className={`w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border ${theme.modalBg}`}>
-            <div className="px-5 py-4 border-b border-gray-500/10 flex items-center justify-between shrink-0">
+            <div className={`px-5 py-4 border-b flex items-center justify-between shrink-0 ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'}`}>
               <h3 className="font-extrabold text-base flex items-center gap-2"><Plus className="w-5 h-5 text-red-500" />新增路線至看板</h3>
-              <button onClick={handleCloseSearchModal} className="p-1 rounded-full hover:bg-gray-500/10"><X className="w-5 h-5" /></button>
+              <button onClick={handleCloseSearchModal} className={`p-1 rounded-full ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/10'}`}><X className="w-5 h-5" /></button>
             </div>
-            <div className="bg-slate-500/5 px-5 py-2 flex items-center justify-between text-xs font-bold shrink-0 border-b border-gray-500/10">
+            <div className={`px-5 py-2 flex items-center justify-between text-xs font-bold shrink-0 border-b ${isDarkMode ? 'bg-zinc-900/50 border-zinc-700' : 'bg-slate-50 border-gray-200'}`}>
               <span className={searchStep === 1 ? "text-red-500" : "opacity-60"}>1. 搜尋路線</span><ChevronRight className="w-3.5 h-3.5 opacity-40" />
               <span className={searchStep === 2 ? "text-red-500" : "opacity-60"}>2. 選方向</span><ChevronRight className="w-3.5 h-3.5 opacity-40" />
               <span className={searchStep === 3 ? "text-red-500" : "opacity-60"}>3. 挑中途站</span><ChevronRight className="w-3.5 h-3.5 opacity-40" />
@@ -1880,7 +1887,7 @@ export default function App() {
                         {filteredRoutesList.map((r, idx) => (
                           <button key={idx} onClick={() => handleSelectRoute(r)} className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all hover:scale-[1.02] ${theme.controlBtn}`}>
                             <div className="flex items-center gap-1.5">
-                              <span className={`text-lg font-black leading-none ${r.company === 'ctb' ? 'text-blue-600 dark:text-blue-400' : 'text-red-500'}`}>{r.route}</span>
+                              <span className={`text-lg font-black leading-none ${r.company === 'ctb' ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : 'text-red-500'}`}>{r.route}</span>
                               <CompanyBadge company={r.company} className="h-3 object-contain" />
                             </div>
                             <span className="text-[10px] font-bold opacity-60 truncate">{r.orig_tc} ⇆ {r.dest_tc}</span>
@@ -1898,8 +1905,8 @@ export default function App() {
 
               {searchStep === 2 && selectedRoute && (
                 <div className="flex flex-col gap-4">
-                  <div className={`${selectedRoute.company === 'ctb' ? 'bg-blue-500/10 border-blue-500/20' : 'bg-red-500/10 border-red-500/20'} p-3.5 rounded-xl border text-center flex flex-col items-center gap-1.5`}>
-                    <span className={`text-3xl font-black block ${selectedRoute.company === 'ctb' ? 'text-blue-600 dark:text-blue-400' : 'text-red-500'}`}>{selectedRoute.route}</span>
+                  <div className={`p-3.5 rounded-xl border text-center flex flex-col items-center gap-1.5 ${selectedRoute.company === 'ctb' ? (isDarkMode ? 'bg-blue-900/20 border-blue-900/30' : 'bg-blue-50 border-blue-100') : (isDarkMode ? 'bg-red-950/20 border-red-900/30' : 'bg-red-50 border-red-100')}`}>
+                    <span className={`text-3xl font-black block ${selectedRoute.company === 'ctb' ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : 'text-red-500'}`}>{selectedRoute.route}</span>
                     <span className="text-xs font-bold opacity-70">請選擇方向：</span>
                   </div>
                   <div className="flex flex-col gap-3">
@@ -1919,7 +1926,7 @@ export default function App() {
 
               {searchStep === 3 && selectedDirection && (
                 <div className="flex flex-col gap-3">
-                  <div className="bg-slate-500/10 p-3 rounded-xl text-center text-xs">設定 <strong className={selectedRoute.company === 'ctb' ? 'text-blue-600' : 'text-red-500'}>{selectedDirection.route}</strong> 往 <strong className={selectedRoute.company === 'ctb' ? 'text-blue-600' : 'text-red-500'}>{selectedDirection.dest_tc}</strong> 的站點</div>
+                  <div className={`p-3 rounded-xl text-center text-xs ${isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'}`}>設定 <strong className={selectedRoute.company === 'ctb' ? 'text-blue-500' : 'text-red-500'}>{selectedDirection.route}</strong> 往 <strong className={selectedRoute.company === 'ctb' ? 'text-blue-500' : 'text-red-500'}>{selectedDirection.dest_tc}</strong> 的站點</div>
                   {loadingStops ? (
                     <div className="py-12 text-center text-sm font-bold opacity-70 flex flex-col items-center justify-center gap-2"><RefreshCw className={`w-5 h-5 animate-spin ${selectedRoute.company === 'ctb' ? 'text-blue-500' : 'text-red-500'}`} /><span>正在獲取巴士站點資訊...</span></div>
                   ) : (
@@ -1929,7 +1936,7 @@ export default function App() {
                         {routeStops.map((stop, idx) => (
                           <button key={idx} onClick={() => handleSelectStop(stop)} className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all ${theme.controlBtn}`}>
                             <div className="flex items-center gap-3">
-                              <span className="text-xs font-black bg-slate-500/10 dark:bg-zinc-800 w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-slate-800 dark:text-zinc-200">{idx + 1}</span>
+                              <span className={`text-xs font-black w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${isDarkMode ? 'bg-zinc-700 text-zinc-200' : 'bg-gray-200 text-slate-800'}`}>{idx + 1}</span>
                               <span className="text-sm font-bold truncate">{stop.name_tc}</span>
                             </div>
                             <ChevronRight className="w-4 h-4 opacity-50 shrink-0" />
@@ -1944,10 +1951,10 @@ export default function App() {
 
               {searchStep === 4 && selectedStop && (
                 <div className="flex flex-col gap-4">
-                  <div className="bg-green-500/10 p-4 rounded-xl border border-green-500/20 text-center flex flex-col gap-1">
+                  <div className={`p-4 rounded-xl border text-center flex flex-col gap-1 ${isDarkMode ? 'bg-green-900/20 border-green-900/30' : 'bg-green-50 border-green-100'}`}>
                     <span className="text-green-500 font-extrabold text-xs tracking-wider">確認設定</span>
                     <div className="flex items-center justify-center gap-2">
-                      <span className={`text-lg font-black ${selectedRoute.company === 'ctb' ? 'text-blue-600 dark:text-blue-400' : 'text-red-500'}`}>{selectedDirection.route} 號巴士</span>
+                      <span className={`text-lg font-black ${selectedRoute.company === 'ctb' ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : 'text-red-500'}`}>{selectedDirection.route} 號巴士</span>
                       <CompanyBadge company={selectedRoute.company} className="h-4 object-contain" />
                     </div>
                     <span className="text-sm font-bold opacity-80">於「{selectedStop.name_tc}」上車</span>
