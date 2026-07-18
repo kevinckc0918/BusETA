@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-// 💡 修復白屏關鍵：完整補回 Download, Copy, Sliders, RotateCcw 等圖標載入！
 import { 
   Bus, 
   RefreshCw, 
@@ -22,7 +21,8 @@ import {
   Download,
   Copy,
   Sliders,
-  RotateCcw
+  RotateCcw,
+  Pencil
 } from 'lucide-react';
 
 // ==========================================
@@ -175,14 +175,13 @@ export default function App() {
     
     if (isDarkMode) {
       document.documentElement.style.backgroundColor = '#09090b'; 
-      document.documentElement.classList.add('dark');
+      document.documentElement.classList.add('kmb-dark');
     } else {
       document.documentElement.style.backgroundColor = '#f8fafc'; 
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove('kmb-dark');
     }
   }, [isDarkMode]);
 
-  // 💡 安全的樣式變數宣告
   const theme = {
     appBg: isDarkMode ? 'bg-zinc-950 text-white' : 'bg-slate-50 text-slate-900',
     topBar: isDarkMode ? 'bg-red-950 border-red-900/50' : 'bg-[#e3342f] border-red-700',
@@ -228,6 +227,7 @@ export default function App() {
       localStorage.removeItem('kmb_all_stops_cache_v2'); 
       localStorage.removeItem('kmb_all_stops_cache_v3'); 
       localStorage.removeItem('kmb_all_stops_cache_v5'); 
+      localStorage.removeItem('kmb_all_stops_cache_v8'); 
       localStorage.removeItem('kmb_stop_details_cache_kmb'); 
     } catch(e) {}
   }, []);
@@ -400,7 +400,7 @@ export default function App() {
   // 💡 極速版快取：下載九巴全港站點 (0 網絡請求)
   const getOrFetchAllKmbStops = async () => {
     try {
-      const cached = localStorage.getItem('kmb_all_stops_cache_v8');
+      const cached = localStorage.getItem('kmb_all_stops_cache_v9');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) return parsed.stops;
@@ -414,7 +414,7 @@ export default function App() {
         const miniStops = (d.data || []).map(s => ({
           id: s.stop, name: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long)
         })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
-        try { localStorage.setItem('kmb_all_stops_cache_v8', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
+        try { localStorage.setItem('kmb_all_stops_cache_v9', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
         return miniStops;
       }
     } catch (e) {}
@@ -440,7 +440,7 @@ export default function App() {
       else setGpsMessage('');
     } catch (err) {
       setGpsLoading(false);
-      let errorText = '無法取得定位。請開啟 GPS 或手手允許定位權限。';
+      let errorText = '無法取得定位。請開啟 GPS 或手動允許定位權限。';
       if (err.code === 1) errorText = '定位授權遭拒。請在瀏覽器設定中允許此網頁讀取位置。';
       else if (err.code === 3) errorText = 'GPS 定位超時，請重試。';
       setGpsMessage(errorText);
@@ -651,9 +651,10 @@ export default function App() {
     }));
   };
 
+  // 💡 極速版 V9 站點座標解析：從總表拿資料
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
-    const cacheKey = `kmb_stop_details_cache_v8_${company}`;
+    const cacheKey = `kmb_stop_details_cache_v9_${company}`;
     
     if (company === 'kmb') {
         const allKmbStops = await getOrFetchAllKmbStops();
@@ -699,10 +700,12 @@ export default function App() {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const polylineRef = useRef(null);
+  const snappedPolylineRef = useRef(null);
   const markerRef = useRef(null);
   const stopsLayerRef = useRef(null);
   const arrowsLayerRef = useRef(null);
 
+  // 💡 開啟全路線地圖彈窗
   const handleOpenMap = async (initialStopId, stopName, company, routeNum, dir, dest, serviceType = '1') => {
     if (!initialStopId || !routeNum) return;
     
@@ -770,6 +773,7 @@ export default function App() {
     }
   };
 
+  // 💡 獲取單一車站 3 班車 ETA (地圖模式專用)
   useEffect(() => {
     if (!mapState.isOpen || !mapState.stop?.id || !mapState.routeInfo) return;
     let isMounted = true;
@@ -816,6 +820,9 @@ export default function App() {
     return () => { isMounted = false; clearInterval(timer); };
   }, [mapState.isOpen, mapState.stop?.id, mapState.routeInfo]);
 
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  // 💡 終極 V14 地圖繪製引擎：智能分段拼接演算法 (Chunking) 解決 100 站報錯問題
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current || !mapState.isOpen || mapState.loadingStops) return;
 
@@ -828,7 +835,7 @@ export default function App() {
       const map = mapInstanceRef.current;
       const polylineColor = mapState.routeInfo?.company === 'ctb' ? '#3b82f6' : '#ef4444'; 
 
-      const drawRouteAndArrows = () => {
+      const drawRouteAndArrows = async () => {
           if (mapState.routeStops.length > 0 && !polylineRef.current) {
              const validStops = mapState.routeStops.filter(s => s.lat && s.lng && !isNaN(s.lat) && !isNaN(s.lng));
              const latlngs = validStops.map(s => [s.lat, s.lng]);
@@ -851,50 +858,128 @@ export default function App() {
                     window.L.marker([s.lat, s.lng], { icon: busStopIcon }).addTo(stopsLayerRef.current);
                  });
 
-                 polylineRef.current = window.L.polyline(latlngs, { color: polylineColor, weight: 6, opacity: 0.85, lineJoin: 'round' }).addTo(map);
+                 // 先畫出半透明直連軌跡，防白屏保底
+                 polylineRef.current = window.L.polyline(latlngs, { color: polylineColor, weight: 6, opacity: 0.4, dashArray: '10, 10' }).addTo(map);
 
-                 for(let i=0; i<latlngs.length-1; i++) {
-                     if (i % 2 === 0) { 
-                         const p1 = latlngs[i];
-                         const p2 = latlngs[i+1];
-                         const dist = calculateDistance(p1[0], p1[1], p2[0], p2[1]);
+                 // 繪製方向箭頭邏輯
+                 const drawArrows = (coords, isGeoJson = false) => {
+                     arrowsLayerRef.current.clearLayers();
+                     let accDist = 0;
+                     for(let i=0; i<coords.length-1; i++) {
+                         const p1 = coords[i];
+                         const p2 = coords[i+1];
+                         
+                         const lat1 = isGeoJson ? p1[1] : p1[0];
+                         const lng1 = isGeoJson ? p1[0] : p1[1];
+                         const lat2 = isGeoJson ? p2[1] : p2[0];
+                         const lng2 = isGeoJson ? p2[0] : p2[1];
 
-                         if (dist > 80) { 
-                             const midLat = (p1[0] + p2[0]) / 2;
-                             const midLng = (p1[1] + p2[1]) / 2;
-                             const dy = p2[0] - p1[0];
-                             const dx = Math.cos(Math.PI / 180 * p1[0]) * (p2[1] - p1[1]);
-                             const heading = 90 - (Math.atan2(dy, dx) * 180 / Math.PI);
-                             
-                             if (!isNaN(heading)) {
-                                 const arrowIcon = window.L.divIcon({
-                                     className: 'route-arrow',
-                                     html: `<div style="transform: rotate(${heading}deg); width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.5)); z-index: 50;">
-                                               <svg viewBox="0 0 24 24" width="16" height="16" fill="white" stroke="${polylineColor}" stroke-width="2" stroke-linejoin="round">
-                                                  <path d="M12 3L20 21L12 17L4 21L12 3Z" />
-                                               </svg>
-                                            </div>`,
-                                     iconSize: [16, 16],
-                                     iconAnchor: [8, 8]
-                                 });
-                                 window.L.marker([midLat, midLng], {icon: arrowIcon, interactive: false}).addTo(arrowsLayerRef.current);
-                             }
+                         const dist = calculateDistance(lat1, lng1, lat2, lng2);
+
+                         if (!isGeoJson) {
+                            if (i % 3 === 0 && dist > 150) { 
+                                const midLat = (lat1 + lat2) / 2;
+                                const midLng = (lng1 + lng2) / 2;
+                                const dy = lat2 - lat1;
+                                const dx = Math.cos(Math.PI / 180 * lat1) * (lng2 - lng1);
+                                const heading = 90 - (Math.atan2(dy, dx) * 180 / Math.PI);
+                                createArrowMarker(midLat, midLng, heading);
+                            }
+                         } else {
+                            accDist += dist;
+                            if (accDist > 800) {  // 沿馬路每 800 米畫一個箭頭
+                                accDist = 0;
+                                const dy = lat2 - lat1;
+                                const dx = Math.cos(Math.PI / 180 * lat1) * (lng2 - lng1);
+                                const heading = 90 - (Math.atan2(dy, dx) * 180 / Math.PI);
+                                createArrowMarker(lat2, lng2, heading);
+                            }
                          }
                      }
-                 }
+                 };
+
+                 const createArrowMarker = (lat, lng, heading) => {
+                     if (isNaN(heading)) return; 
+                     const arrowIcon = window.L.divIcon({
+                         className: 'route-arrow',
+                         html: `<div style="transform: rotate(${heading}deg); width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.5)); z-index: 50;">
+                                   <svg viewBox="0 0 24 24" width="16" height="16" fill="white" stroke="${polylineColor}" stroke-width="2" stroke-linejoin="round">
+                                      <path d="M12 3L20 21L12 17L4 21L12 3Z" />
+                                   </svg>
+                                </div>`,
+                         iconSize: [16, 16],
+                         iconAnchor: [8, 8]
+                     });
+                     window.L.marker([lat, lng], {icon: arrowIcon, interactive: false}).addTo(arrowsLayerRef.current);
+                 };
+
+                 drawArrows(latlngs, false);
 
                  if (latlngs.length > 1) {
                      map.fitBounds(polylineRef.current.getBounds(), { padding: [40, 40], maxZoom: 16 });
                  } else {
                      map.setView(latlngs[0], 16);
                  }
-                 setMapState(prev => ({ ...prev, loadingMap: false }));
+
+                 // 💡 V14 核心：智能分段拼接 OSRM 馬路軌跡 (完全解決 100 站崩潰)
+                 if (latlngs.length > 1) {
+                     setMapState(prev => ({ ...prev, loadingMap: true }));
+                     
+                     let allSnappedCoords = [];
+                     const CHUNK_SIZE = 25; // 每 25 站一段
+                     const chunks = [];
+                     
+                     for(let i=0; i<validStops.length; i += CHUNK_SIZE - 1) {
+                         chunks.push(validStops.slice(i, i + CHUNK_SIZE));
+                         if (i + CHUNK_SIZE >= validStops.length) break;
+                     }
+
+                     for (const chunk of chunks) {
+                         if (chunk.length < 2) continue;
+                         const coordsStr = chunk.map(s => `${s.lng},${s.lat}`).join(';');
+                         const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`;
+                         
+                         try {
+                             await sleep(150); // 防禦客戶端 API Rate Limit
+                             const res = await fetch(osrmUrl);
+                             if (res.ok) {
+                                 const data = await res.json();
+                                 if (data.code === 'Ok' && data.routes && data.routes[0]) {
+                                     const routeCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]); // [lng, lat] -> [lat, lng]
+                                     allSnappedCoords.push(...routeCoords);
+                                 } else {
+                                     allSnappedCoords.push(...chunk.map(s => [s.lat, s.lng])); // 該段退回直線
+                                 }
+                             } else {
+                                 allSnappedCoords.push(...chunk.map(s => [s.lat, s.lng]));
+                             }
+                         } catch (e) {
+                             allSnappedCoords.push(...chunk.map(s => [s.lat, s.lng]));
+                         }
+                     }
+
+                     if (allSnappedCoords.length > 0) {
+                         // 成功拿到拼接好的馬路軌跡，刪除直線保底
+                         if (polylineRef.current) map.removeLayer(polylineRef.current);
+                         if (snappedPolylineRef.current) map.removeLayer(snappedPolylineRef.current);
+
+                         snappedPolylineRef.current = window.L.polyline(allSnappedCoords, {
+                             color: polylineColor, weight: 6, opacity: 0.85, lineJoin: 'round'
+                         }).addTo(map);
+
+                         drawArrows(allSnappedCoords, false); // 將馬路軌跡傳給箭頭引擎
+                     }
+                     setMapState(prev => ({ ...prev, loadingMap: false }));
+                 } else {
+                     setMapState(prev => ({ ...prev, loadingMap: false }));
+                 }
              } else {
                  setMapState(prev => ({ ...prev, loadingMap: false, error: '坐標載入失敗，無法繪製路線' }));
              }
           }
       };
 
+      // 💡 終極防白屏：等待地圖完全取得寬高後再繪製
       const size = map.getSize();
       if (size.x === 0 || size.y === 0) {
           setTimeout(() => {
@@ -913,6 +998,7 @@ export default function App() {
     }
   }, [leafletLoaded, mapState.isOpen, mapState.loadingStops, mapState.routeStops, mapState.routeInfo]);
 
+  // 💡 當前車站實體大頭針 (Map Pin) 與 FlyTo 效果
   useEffect(() => {
     try {
       if (!mapInstanceRef.current || !mapState.stop?.lat || !mapState.stop?.lng || !mapState.isOpen) return;
@@ -949,6 +1035,7 @@ export default function App() {
     } catch (e) {}
   }, [mapState.stop, mapState.isOpen]);
 
+  // 💡 安全的清理機制
   useEffect(() => {
     if (!mapState.isOpen) {
        if (mapInstanceRef.current) {
@@ -956,6 +1043,7 @@ export default function App() {
           mapInstanceRef.current = null;
        }
        polylineRef.current = null;
+       snappedPolylineRef.current = null;
        stopsLayerRef.current = null;
        arrowsLayerRef.current = null;
        markerRef.current = null;
@@ -963,6 +1051,7 @@ export default function App() {
     }
   }, [mapState.isOpen]);
 
+  // 💡 安全嚴謹的備份與還原功能
   const handleCopyBackupCode = () => {
     const backupJson = JSON.stringify(locations);
     const textArea = document.createElement("textarea");
@@ -1174,6 +1263,7 @@ export default function App() {
 
     const routeNumColorClass = route.company === 'ctb' ? (isDarkMode ? 'text-blue-400' : 'text-blue-700') : theme.routeNum;
 
+    // 💡 點擊開啟地圖效果
     const isClickable = !!route.stopId;
     const clickableClasses = isClickable ? (isDarkMode ? 'cursor-pointer hover:bg-white/5 active:scale-[0.99]' : 'cursor-pointer hover:bg-black/5 active:scale-[0.99]') : '';
 
@@ -1242,6 +1332,7 @@ export default function App() {
       .filter(wData => wData !== null); 
   }, [weatherInfo.warnings]);
 
+  // === 📱 列表模式 ===
   const renderListMode = () => {
     const filteredGroups = groupedFavoritesData.filter(g => activeTab === 'ALL' || g.groupName === activeTab);
 
@@ -1249,7 +1340,7 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 主畫面即時天氣警告顯示區 (官方瘦身版) */}
+        {/* 💡 主畫面實時天氣警告顯示區 (激瘦官方版排版) */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-1.5 px-3 sm:px-0 mb-3 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -1261,6 +1352,7 @@ export default function App() {
           </div>
         )}
 
+        {/* ================= 🛰️ 附近巴士站專屬分頁 ================= */}
         {activeTab === 'NEARBY' && (
           <div className="flex flex-col gap-4 px-3 sm:px-0 mt-3 sm:mt-0">
             {(!userCoords || gpsLoading) ? (
@@ -1283,6 +1375,7 @@ export default function App() {
               </div>
             )}
 
+            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -1291,11 +1384,13 @@ export default function App() {
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-extrabold shadow-sm ${theme.pillBg}`}>{loc.name}</span>
                       <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded">距離 {loc.distance} 米</span>
                     </div>
+                    {/* 💡 點擊看地圖提示 */}
                     <span className={`text-[11px] font-bold flex items-center gap-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                       <MapPin className="w-3 h-3" /> 點擊看地圖
                     </span>
                   </div>
                   <div className="flex flex-col">
+                    {/* 傳入 stopId 供地圖使用 */}
                     {loc.routesData.map((route, rIdx) => renderRow({...route, stopId: loc.id, stopName: loc.name}, rIdx, true, 'LIST'))}
                   </div>
                 </div>
@@ -1309,6 +1404,7 @@ export default function App() {
           </div>
         )}
 
+        {/* ================= ⭐️ 我的收藏 ================= */}
         {activeTab !== 'NEARBY' && (
           <>
             {locations.length === 0 && (
@@ -1330,6 +1426,7 @@ export default function App() {
                       <span className="bg-[#e3342f] text-white px-6 py-1.5 rounded-full text-sm sm:text-base tracking-widest shadow-sm">
                         {group.groupName}
                       </span>
+                      {/* 💡 點擊看地圖提示 */}
                       <span className={`text-[9px] sm:text-[10px] font-bold mt-1 tracking-wider opacity-70 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`}>點擊看全路線地圖</span>
                     </div>
 
@@ -1337,6 +1434,7 @@ export default function App() {
                   </div>
 
                   <div className="flex flex-col">
+                    {/* 收藏已包含 stopId */}
                     {group.routesData.map((route, rIdx) => renderRow(route, rIdx, false, 'LIST'))}
                   </div>
                 </div>
@@ -1348,6 +1446,7 @@ export default function App() {
     );
   };
 
+  // === 🖥️ 橫向「座枱模式」 ===
   const renderStandMode = () => {
     let displayRoutes = [];
     let title = "我的最愛";
@@ -1398,6 +1497,7 @@ export default function App() {
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
                   </div>
                 </div>
+                {/* 💡 座枱模式警告標籤 (瘦身版) */}
                 {validWarnings.length > 0 && (
                   <div className="flex flex-col gap-1.5 w-full max-w-sm mt-1">
                     {validWarnings.map((wData, idx) => (
@@ -1493,9 +1593,11 @@ export default function App() {
           <h1 className="text-base sm:text-lg md:text-xl font-black tracking-widest text-white truncate">巴士到站看板</h1>
           {(weatherInfo.temp !== '--' || activeTCWarning) && (
             <div className="flex items-center gap-1.5 bg-black/20 border border-white/10 px-2 py-0.5 rounded-full shadow-inner shrink-0">
+              {/* 💡 頂部颱風標誌 */}
               {activeTCWarning && activeTCWarning.img && (
                 <WarningBadge img={activeTCWarning.img} text={activeTCWarning.text} iconBg={activeTCWarning.iconBg} className="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow-md" isSmall={true} />
               )}
+              {/* 💡 頂部一般天氣圖示 */}
               {weatherInfo.icon && (
                 <img 
                   src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} 
@@ -1541,7 +1643,7 @@ export default function App() {
         </footer>
       )}
 
-      {/* 🗺️ 終極 V13 全路線互動地圖與時間軸彈出視窗 Modal */}
+      {/* 🗺️ 終極 V14 全路線互動地圖與時間軸彈出視窗 Modal */}
       {mapState.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 sm:p-4 backdrop-blur-md animate-fade-in" onClick={() => setMapState({ ...mapState, isOpen: false })}>
           <div className={`w-full h-full sm:h-[85vh] sm:max-w-md shadow-2xl flex flex-col overflow-hidden sm:rounded-2xl border ${theme.modalBg}`} onClick={(e) => e.stopPropagation()}>
@@ -1562,14 +1664,14 @@ export default function App() {
               </button>
             </div>
             
-            {/* 💡 上半部：Leaflet 零延遲直連軌跡引擎地圖 */}
+            {/* 💡 上半部：Leaflet 零延遲馬路軌跡引擎地圖 */}
             <div className={`h-[40%] min-h-[220px] shrink-0 relative border-b shadow-inner ${isDarkMode ? 'border-zinc-700 bg-zinc-900' : 'border-gray-300 bg-gray-200'}`}>
               <div ref={mapContainerRef} className="w-full h-full z-0" />
               
               {mapState.loadingMap && (
                 <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 z-20 backdrop-blur-sm ${isDarkMode ? 'bg-zinc-800/80' : 'bg-gray-200/80'}`}>
                   <RefreshCw className={`w-8 h-8 animate-spin ${mapState.routeInfo?.company === 'ctb' ? 'text-blue-600' : 'text-red-500'}`} />
-                  <span className={`text-xs font-bold opacity-70 ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>正在準備路線軌跡...</span>
+                  <span className={`text-xs font-bold opacity-70 ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>正在計算馬路軌跡...</span>
                 </div>
               )}
               {mapState.error && (
@@ -1593,7 +1695,7 @@ export default function App() {
               )}
             </div>
             
-            {/* 💡 下半部：全路線站點時間軸列表 (帶有動態 ETA) */}
+            {/* 💡 [圖三] 下半部：全路線站點時間軸列表 (帶有動態 ETA) */}
             <div className={`flex-1 overflow-y-auto relative shadow-[inset_0_10px_10px_-10px_rgba(0,0,0,0.05)] ${isDarkMode ? 'bg-zinc-950' : 'bg-slate-50'}`} ref={listRef}>
               {mapState.loadingStops ? (
                 <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>
@@ -1650,7 +1752,7 @@ export default function App() {
                                   <div className={`flex items-center gap-2 text-xs font-bold py-1 ${isDarkMode ? 'text-zinc-400' : 'text-gray-500'}`}>
                                      <RefreshCw className="w-3 h-3 animate-spin" /> 正在為您讀取班次...
                                   </div>
-                               ) : mapStopEtas.length > 0 ? (
+                                ) : mapStopEtas.length > 0 ? (
                                   mapStopEtas.map((eta, eIdx) => {
                                      const mins = Math.floor((new Date(eta.eta) - now) / 60000);
                                      const isMissed = mins < 0;
@@ -1693,7 +1795,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ⚙️ Settings Modal (💡 V13 終極防護：嚴謹的寫法保證切換設定永不白屏) */}
+      {/* ⚙️ Settings Modal */}
       {isSettingsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade-in">
           <div className={`w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden border ${theme.modalBg}`}>
@@ -1803,7 +1905,6 @@ export default function App() {
                       <input type="file" accept=".json" onChange={handleUploadFile} className="hidden" id="setting-backup-upload" />
                       <label htmlFor="setting-backup-upload" className="px-4 py-1.5 bg-[#e3342f] text-white hover:bg-red-600 rounded-lg text-xs font-bold cursor-pointer transition-colors">選擇上傳設定檔 (.json)</label>
                     </div>
-                    {/* 💡 嚴格遵守非自閉合標籤，徹底杜絕白屏 */}
                     <textarea 
                       rows={3} 
                       placeholder="或在此處貼上備份 JSON 代碼..." 
