@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-// 💡 只保留絕對安全的基礎圖標，防止 VPS 圖標庫版本不一致導致白屏崩潰
 import { 
   Bus, 
   RefreshCw, 
@@ -91,30 +90,29 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心 (官方高解析度圖片)
+// 🌩️ 天氣警告資料處理中心 (使用本地圖庫)
 const getWarningData = (code, originalName) => {
-  const hkoBase = 'https://www.hko.gov.hk/images/HKOWarningSymbols/';
   switch(code) {
-    case 'WRAINA': return { text: '黃色暴雨警告', img: hkoBase + 'warn800_15_wraina.png', style: 'bg-[#eab308] text-[#713f12]', iconBg: 'bg-transparent' };
-    case 'WRAINR': return { text: '紅色暴雨警告', img: hkoBase + 'warn800_16_wrainr.png', style: 'bg-[#dc2626] text-white', iconBg: 'bg-transparent' };
-    case 'WRAINB': return { text: '黑色暴雨警告', img: hkoBase + 'warn800_17_wrainb.png', style: 'bg-black text-white border border-gray-600', iconBg: 'bg-white rounded-sm' };
-    case 'WTS': return { text: '雷暴警告', img: hkoBase + 'warn800_12_ts.png', style: 'bg-[#eab308] text-yellow-950', iconBg: 'bg-transparent' };
-    case 'WHOT': return { text: '酷熱天氣警告', img: hkoBase + 'warn800_18_vhot.png', style: 'bg-red-500 text-white', iconBg: 'bg-transparent' };
-    case 'WCOLD': return { text: '寒冷天氣警告', img: hkoBase + 'warn800_19_cold.png', style: 'bg-[#3b82f6] text-white', iconBg: 'bg-transparent' };
-    case 'WFIREY': return { text: '黃色火災危險警告', img: hkoBase + 'warn800_20_firey.png', style: 'bg-yellow-500 text-yellow-950', iconBg: 'bg-transparent' };
-    case 'WFIRER': return { text: '紅色火災危險警告', img: hkoBase + 'warn800_21_firer.png', style: 'bg-red-500 text-white', iconBg: 'bg-transparent' };
-    case 'TC1': return { text: '一號戒備信號', img: hkoBase + 'warn800_01_tc1.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC3': return { text: '三號強風信號', img: hkoBase + 'warn800_02_tc3.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: hkoBase + 'warn800_04_tc8ne.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: hkoBase + 'warn800_03_tc8nw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: hkoBase + 'warn800_06_tc8se.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: hkoBase + 'warn800_05_tc8sw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: hkoBase + 'warn800_07_tc9.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC10': return { text: '十號颶風信號', img: hkoBase + 'warn800_08_tc10.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'SMS': return { text: '強烈季候風信號', img: hkoBase + 'warn800_13_ms.png', style: 'bg-slate-800 text-white border border-slate-600', iconBg: 'bg-transparent' };
-    case 'WL': return { text: '山泥傾瀉警告', img: hkoBase + 'warn800_14_landslip.png', style: 'bg-yellow-600 text-white', iconBg: 'bg-transparent' };
-    case 'FNTSA': return { text: '新界北部水浸特別報告', img: hkoBase + 'warn800_22_ntfl.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white rounded-sm' };
-    case 'FROST': return { text: '霜凍警告', img: hkoBase + 'warn800_23_frost.png', style: 'bg-cyan-500 text-white', iconBg: 'bg-transparent' };
+    case 'WRAINA': return { text: '黃色暴雨警告', img: '/wraina.png', style: 'bg-[#eab308] text-[#713f12]', iconBg: 'bg-transparent' };
+    case 'WRAINR': return { text: '紅色暴雨警告', img: '/wrainr.png', style: 'bg-[#dc2626] text-white', iconBg: 'bg-transparent' };
+    case 'WRAINB': return { text: '黑色暴雨警告', img: '/wrainb.png', style: 'bg-black text-white border border-gray-600', iconBg: 'bg-white rounded-sm' };
+    case 'WTS': return { text: '雷暴警告', img: '/wts.png', style: 'bg-[#eab308] text-yellow-950', iconBg: 'bg-transparent' };
+    case 'WHOT': return { text: '酷熱天氣警告', img: '/whot.png', style: 'bg-red-500 text-white', iconBg: 'bg-transparent' };
+    case 'WCOLD': return { text: '寒冷天氣警告', img: '/wcold.png', style: 'bg-[#3b82f6] text-white', iconBg: 'bg-transparent' };
+    case 'WFIREY': return { text: '黃色火災危險警告', img: '/wfirey.png', style: 'bg-yellow-500 text-yellow-950', iconBg: 'bg-transparent' };
+    case 'WFIRER': return { text: '紅色火災危險警告', img: '/wfirer.png', style: 'bg-red-500 text-white', iconBg: 'bg-transparent' };
+    case 'TC1': return { text: '一號戒備信號', img: '/tc1.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC3': return { text: '三號強風信號', img: '/tc3.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: '/tc8ne.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: '/tc8nw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: '/tc8se.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: '/tc8sw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: '/tc9.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC10': return { text: '十號颶風信號', img: '/tc10.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'SMS': return { text: '強烈季候風信號', img: '/sms.png', style: 'bg-slate-800 text-white border border-slate-600', iconBg: 'bg-transparent' };
+    case 'WL': return { text: '山泥傾瀉警告', img: '/wl.png', style: 'bg-yellow-600 text-white border border-yellow-700', iconBg: 'bg-white/80' };
+    case 'FNTSA': return { text: '新界北部水浸特別報告', img: '/fntsa.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white rounded-sm' };
+    case 'FROST': return { text: '霜凍警告', img: '/frost.png', style: 'bg-cyan-500 text-white border border-cyan-600', iconBg: 'bg-transparent' };
     default: 
       if (!originalName || originalName.trim() === '') return null;
       return { text: originalName, style: 'bg-slate-800 text-white border border-slate-700 shadow-md', iconBg: 'bg-transparent' };
@@ -173,6 +171,7 @@ export default function App() {
   const [loadingMapEtas, setLoadingMapEtas] = useState(false);
   const [leafletLoaded, setLeafletLoaded] = useState(false);
 
+  // 清理垃圾快取
   useEffect(() => {
     try {
       localStorage.removeItem('kmb_all_stops_cache'); 
@@ -183,6 +182,7 @@ export default function App() {
     } catch(e) {}
   }, []);
 
+  // 動態引入地圖引擎 Leaflet
   useEffect(() => {
     if (window.L) { setLeafletLoaded(true); return; }
     if (!document.getElementById('leaflet-css')) {
@@ -223,7 +223,7 @@ export default function App() {
     groupHeaderText: isDarkMode ? 'text-red-400 border-zinc-800/50' : 'text-[#e3342f] border-gray-100',
     badgeGroupItem: isDarkMode ? 'bg-zinc-800 text-zinc-200 border-zinc-700' : 'bg-slate-100 text-slate-800 border-gray-200',
     emptyStateBg: isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-100',
-    modalBg: isDarkMode ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-slate-100 text-slate-800',
+    modalBg: isDarkMode ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-slate-100 text-slate-800',
     inputBg: isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-slate-100 border-slate-200 text-slate-800',
     controlBtn: isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200' : 'bg-slate-200 hover:bg-slate-300 text-slate-800',
   };
@@ -371,6 +371,7 @@ export default function App() {
     return null;
   }, [weatherInfo.warnings]);
 
+  // 💡 極速版快取：下載九巴全港站點 (0 網絡請求)
   const getOrFetchAllKmbStops = async () => {
     try {
       const cached = localStorage.getItem('kmb_all_stops_cache_v8');
@@ -624,7 +625,7 @@ export default function App() {
     }));
   };
 
-  // 💡 極速版 V8 站點座標解析：從總表拿資料，徹底避免 Rate Limit
+  // 💡 極速版 V8 站點座標解析：從總表拿資料
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
     const cacheKey = `kmb_stop_details_cache_v8_${company}`;
@@ -816,7 +817,7 @@ export default function App() {
                  stopsLayerRef.current = window.L.layerGroup().addTo(map);
                  arrowsLayerRef.current = window.L.layerGroup().addTo(map);
 
-                 // 💡 [圖二] 完美復刻：真實巴士站專用小圖示 (所有未選車站)
+                 // 💡 真實巴士站專用小圖示 (所有未選車站)
                  const busStopHtml = `
                     <div style="background-color: white; border: 2px solid #9ca3af; border-radius: 4px; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.3);">
                       <svg viewBox="0 0 24 24" width="10" height="10" stroke="#6b7280" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -948,7 +949,7 @@ export default function App() {
     }
   }, [mapState.isOpen]);
 
-  // 💡 嚴格處理備份還原文字框，防止 React 渲染崩潰
+  // 💡 安全嚴謹的備份與還原功能 (移除不相容元件防白屏)
   const handleCopyBackupCode = () => {
     const backupJson = JSON.stringify(locations);
     const textArea = document.createElement("textarea");
@@ -996,18 +997,18 @@ export default function App() {
     try {
       if (!importText.trim()) { setBackupError('請先貼上代碼或上傳檔案'); return; }
       const parsed = JSON.parse(importText.trim());
-      if (!Array.isArray(parsed)) throw new Error('匯入格式必須為巴士站卡片陣列！');
+      if (!Array.isArray(parsed)) throw new Error('匯入格式必須為巴士站陣列！');
       const isValid = parsed.every(item => item.id && item.name && Array.isArray(item.routes));
       if (!isValid) throw new Error('匯入資料遺漏關鍵欄位！');
       setLocations(parsed);
-      setBackupSuccess('🎉 成功從備份中還原最愛看板配置！');
+      setBackupSuccess('🎉 成功還原！');
       setImportText('');
       setTimeout(() => { setIsSettingsModalOpen(false); setBackupSuccess(''); fetchCustomLocationsData(); }, 1500);
-    } catch (e) { setBackupError(`匯入驗證失敗: ${e.message || '格式錯誤'}`); }
+    } catch (e) { setBackupError(`驗證失敗: ${e.message || '格式錯誤'}`); }
   };
 
   const handleResetToPreload = () => {
-    setLocations(DEFAULT_LOCATIONS); setShowResetConfirm(false); setBackupSuccess('已成功重設為原裝最愛路線範例！');
+    setLocations(DEFAULT_LOCATIONS); setShowResetConfirm(false); setBackupSuccess('已成功重設為預設範例！');
     setTimeout(() => { setBackupSuccess(''); fetchCustomLocationsData(); }, 2000);
   };
 
@@ -1160,6 +1161,7 @@ export default function App() {
 
     const routeNumColorClass = route.company === 'ctb' ? 'text-blue-700 dark:text-blue-400' : theme.routeNum;
 
+    // 💡 點擊開啟地圖效果
     const isClickable = !!route.stopId;
     const clickableClasses = isClickable ? 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 active:scale-[0.99]' : '';
 
@@ -1236,7 +1238,7 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 主畫面實時天氣警告顯示區 (激瘦官方版排版) */}
+        {/* 💡 [圖一] 主畫面實時天氣警告顯示區 (激瘦官方版排版) */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-1.5 px-3 sm:px-0 mb-3 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -1330,6 +1332,7 @@ export default function App() {
                   </div>
 
                   <div className="flex flex-col">
+                    {/* 收藏已包含 stopId */}
                     {group.routesData.map((route, rIdx) => renderRow(route, rIdx, false, 'LIST'))}
                   </div>
                 </div>
@@ -1450,7 +1453,8 @@ export default function App() {
   };
 
   return (
-    <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
+    // 💡 V10 重大修復：補回根節點的 \${isDarkMode ? 'dark' : ''} 屬性，徹底解決所有白屏與暗黑模式失效問題！
+    <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${isDarkMode ? 'dark' : ''} ${theme.appBg}`}>
       <style>{`
         /* 防止 iOS 電話連結變色覆蓋 */
         a[x-apple-data-detectors], a[href^="tel"] {
@@ -1462,10 +1466,15 @@ export default function App() {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 
-        /* 💡 全新 Leaflet 地圖樣式修復與覆寫 */
+        /* 💡 全新 Leaflet 地圖樣式修復與覆寫 (加入暗黑模式地圖魔法濾鏡) */
         .leaflet-container { background: #e5e7eb !important; }
         .dark .leaflet-container { background: #27272a !important; }
         .leaflet-control-attribution { display: none !important; }
+        
+        /* 魔法反轉濾鏡：讓白天 OSM 地圖一秒變成黑夜導航地圖 */
+        .dark .leaflet-layer {
+           filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
       `}</style>
 
       <header className={`px-4 py-3 flex items-center justify-between border-b shadow-sm z-20 shrink-0 transition-colors ${theme.topBar}`}>
@@ -1534,7 +1543,7 @@ export default function App() {
         </footer>
       )}
 
-      {/* 🗺️ 終極 V8 全路線互動地圖與時間軸彈出視窗 Modal */}
+      {/* 🗺️ 終極 V10 全路線互動地圖與時間軸彈出視窗 Modal */}
       {mapState.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 sm:p-4 backdrop-blur-md animate-fade-in" onClick={() => setMapState({ ...mapState, isOpen: false })}>
           <div className={`w-full h-full sm:h-[85vh] sm:max-w-md shadow-2xl flex flex-col overflow-hidden sm:rounded-2xl border ${theme.modalBg}`} onClick={(e) => e.stopPropagation()}>
@@ -1556,7 +1565,7 @@ export default function App() {
             </div>
             
             {/* 💡 上半部：Leaflet 零延遲直連軌跡引擎地圖 */}
-            <div className="h-[40%] min-h-[220px] shrink-0 relative bg-[#e5e7eb] dark:bg-[#27272a] border-b border-gray-300 dark:border-zinc-700 shadow-inner">
+            <div className="h-[40%] min-h-[220px] shrink-0 relative border-b border-gray-300 dark:border-zinc-700 shadow-inner">
               <div ref={mapContainerRef} className="w-full h-full z-0" />
               
               {mapState.loadingMap && (
@@ -1586,8 +1595,8 @@ export default function App() {
               )}
             </div>
             
-            {/* 💡 [圖三] 下半部：全路線站點時間軸列表 (帶有動態 ETA) */}
-            <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-zinc-950 relative shadow-[inset_0_10px_10px_-10px_rgba(0,0,0,0.05)]" ref={listRef}>
+            {/* 💡 下半部：全路線站點時間軸列表 */}
+            <div className="flex-1 overflow-y-auto relative shadow-[inset_0_10px_10px_-10px_rgba(0,0,0,0.05)]" ref={listRef}>
               {mapState.loadingStops ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-800 dark:text-zinc-200">
                   <RefreshCw className={`w-8 h-8 animate-spin ${mapState.routeInfo?.company === 'ctb' ? 'text-blue-600' : 'text-red-500'}`} />
@@ -1686,7 +1695,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ⚙️ Settings Modal (💡 V9 修復：嚴謹的閉合標籤與純淨圖標解決切換白屏) */}
+      {/* ⚙️ Settings Modal (💡 V10 修復：嚴謹的閉合標籤解決切換白屏) */}
       {isSettingsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade-in">
           <div className={`w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden border ${theme.modalBg}`}>
