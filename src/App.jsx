@@ -99,29 +99,31 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心 (💡 全面改用您的 VPS 本地根目錄 PNG 圖片)
+// 🌩️ 天氣警告資料處理中心 (💡 已更新為天文台最新高解析度 PNG 路徑)
 const getWarningData = (code, originalName) => {
+  const hkoBase = 'https://www.hko.gov.hk/images/HKOWarningSymbols/';
+  
   switch(code) {
-    case 'WRAINA': return { text: '黃色暴雨警告', img: '/wraina.png', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500', iconBg: 'bg-white/80' };
-    case 'WRAINR': return { text: '紅色暴雨警告', img: '/wrainr.png', style: 'bg-red-600 text-white border border-red-500', iconBg: 'bg-white' };
-    case 'WRAINB': return { text: '黑色暴雨警告', img: '/wrainb.png', style: 'bg-black text-white border border-gray-600', iconBg: 'bg-white' };
-    case 'WTS': return { text: '雷暴警告', img: '/wts.png', style: 'bg-yellow-500 text-black border border-yellow-600', iconBg: 'bg-white/80' };
-    case 'WHOT': return { text: '酷熱天氣警告', img: '/whot.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
-    case 'WCOLD': return { text: '寒冷天氣警告', img: '/wcold.png', style: 'bg-blue-400 text-blue-950 border border-blue-500', iconBg: 'bg-white/80' };
-    case 'WFIREY': return { text: '黃色火災危險警告', img: '/wfirey.png', style: 'bg-yellow-500 text-yellow-950', iconBg: 'bg-white/80' };
-    case 'WFIRER': return { text: '紅色火災危險警告', img: '/wfirer.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
-    case 'TC1': return { text: '一號戒備信號', img: '/tc1.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC3': return { text: '三號強風信號', img: '/tc3.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: '/tc8ne.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: '/tc8nw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: '/tc8se.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: '/tc8sw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: '/tc9.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC10': return { text: '十號颶風信號', img: '/tc10.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'SMS': return { text: '強烈季候風信號', img: '/sms.png', style: 'bg-slate-800 text-white border border-slate-600', iconBg: 'bg-transparent' };
-    case 'WL': return { text: '山泥傾瀉警告', img: '/wl.png', style: 'bg-yellow-600 text-white border border-yellow-700', iconBg: 'bg-white/80' };
-    case 'FNTSA': return { text: '新界北部水浸特別報告', img: '/fntsa.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white' };
-    case 'FROST': return { text: '霜凍警告', img: '/frost.png', style: 'bg-cyan-500 text-white border border-cyan-600', iconBg: 'bg-transparent' };
+    case 'WRAINA': return { text: '黃色暴雨警告', img: hkoBase + 'warn800_15_wraina.png', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500', iconBg: 'bg-white/80' };
+    case 'WRAINR': return { text: '紅色暴雨警告', img: hkoBase + 'warn800_16_wrainr.png', style: 'bg-red-600 text-white border border-red-500', iconBg: 'bg-white' };
+    case 'WRAINB': return { text: '黑色暴雨警告', img: hkoBase + 'warn800_17_wrainb.png', style: 'bg-black text-white border border-gray-600', iconBg: 'bg-white' };
+    case 'WTS': return { text: '雷暴警告', img: hkoBase + 'warn800_12_ts.png', style: 'bg-yellow-500 text-black border border-yellow-600', iconBg: 'bg-white/80' };
+    case 'WHOT': return { text: '酷熱天氣警告', img: hkoBase + 'warn800_18_vhot.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
+    case 'WCOLD': return { text: '寒冷天氣警告', img: hkoBase + 'warn800_19_cold.png', style: 'bg-blue-400 text-blue-950 border border-blue-500', iconBg: 'bg-white/80' };
+    case 'WFIREY': return { text: '黃色火災危險警告', img: hkoBase + 'warn800_20_firey.png', style: 'bg-yellow-500 text-yellow-950', iconBg: 'bg-white/80' };
+    case 'WFIRER': return { text: '紅色火災危險警告', img: hkoBase + 'warn800_21_firer.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
+    case 'TC1': return { text: '一號戒備信號', img: hkoBase + 'warn800_01_tc1.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC3': return { text: '三號強風信號', img: hkoBase + 'warn800_02_tc3.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: hkoBase + 'warn800_04_tc8ne.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: hkoBase + 'warn800_03_tc8nw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: hkoBase + 'warn800_06_tc8se.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: hkoBase + 'warn800_05_tc8sw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: hkoBase + 'warn800_07_tc9.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC10': return { text: '十號颶風信號', img: hkoBase + 'warn800_08_tc10.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'SMS': return { text: '強烈季候風信號', img: hkoBase + 'warn800_13_ms.png', style: 'bg-slate-800 text-white border border-slate-600', iconBg: 'bg-transparent' };
+    case 'WL': return { text: '山泥傾瀉警告', img: hkoBase + 'warn800_14_landslip.png', style: 'bg-yellow-600 text-white border border-yellow-700', iconBg: 'bg-white/80' };
+    case 'FNTSA': return { text: '新界北部水浸特別報告', img: hkoBase + 'warn800_22_ntfl.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white' };
+    case 'FROST': return { text: '霜凍警告', img: hkoBase + 'warn800_23_frost.png', style: 'bg-cyan-500 text-white border border-cyan-600', iconBg: 'bg-transparent' };
     default: 
       if (!originalName || originalName.trim() === '') return null;
       return { text: originalName, style: 'bg-slate-800 text-white border border-slate-700 shadow-md', iconBg: 'bg-transparent' };
@@ -141,6 +143,7 @@ const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-6 h
         src={img} 
         alt={text} 
         className={className} 
+        referrerPolicy="no-referrer" // 💡 加入 referrerPolicy
         onError={() => setError(true)} 
       />
     </div>
@@ -612,7 +615,7 @@ export default function App() {
     try {
       const successful = document.execCommand('copy');
       if (successful) { setBackupSuccess('備份代碼複製成功！'); setTimeout(() => setBackupSuccess(''), 2000); } 
-      else setBackupError('複製失敗，請手手動複製文本。');
+      else setBackupError('複製失敗，請手動複製文本。');
     } catch (err) { setBackupError('瀏覽器不支持自動複製。'); }
     document.body.removeChild(textArea);
   };
@@ -1047,6 +1050,7 @@ export default function App() {
                       src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} 
                       alt="Weather" 
                       className="w-16 h-16 drop-shadow-xl" 
+                      referrerPolicy="no-referrer" 
                     />
                   )}
                   <div className="flex flex-col">
@@ -1151,6 +1155,7 @@ export default function App() {
                   src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} 
                   alt="weather icon" 
                   className="w-4 h-4 sm:w-5 sm:h-5 object-contain"
+                  referrerPolicy="no-referrer" 
                 />
               )}
               {weatherInfo.temp !== '--' && (
