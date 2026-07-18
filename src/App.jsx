@@ -99,37 +99,48 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心
+// 🌩️ 天氣警告資料處理中心 (💡 全面替換為 PNG 縮圖，徹底繞過防盜鏈限制)
 const getWarningData = (code, originalName) => {
-  const wikiBase = 'https://upload.wikimedia.org/wikipedia/commons/';
+  const wikiBase = 'https://upload.wikimedia.org/wikipedia/commons/thumb/';
   switch(code) {
-    case 'WRAINA': return { text: '黃色暴雨警告', img: wikiBase + '2/25/HK_Amber_Rainstorm_Warning.svg', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500' };
-    case 'WRAINR': return { text: '紅色暴雨警告', img: wikiBase + '0/05/HK_Red_Rainstorm_Warning.svg', style: 'bg-red-600 text-white border border-red-500' };
-    case 'WRAINB': return { text: '黑色暴雨警告', img: wikiBase + '9/91/HK_Black_Rainstorm_Warning.svg', style: 'bg-black text-white border border-gray-600' };
-    case 'WTS': return { text: '雷暴警告', img: wikiBase + 'c/cd/HK_Thunderstorm_Warning.svg', style: 'bg-yellow-500 text-black border border-yellow-600' };
-    case 'WHOT': return { text: '酷熱天氣警告', img: wikiBase + '3/36/HK_Very_Hot_Weather_Warning.svg', style: 'bg-red-500 text-white' };
-    case 'WCOLD': return { text: '寒冷天氣警告', img: wikiBase + '2/28/HK_Cold_Weather_Warning.svg', style: 'bg-blue-400 text-blue-950 border border-blue-500' };
-    case 'WFIREY': return { text: '黃色火災危險警告', img: wikiBase + '1/1f/HK_Yellow_Fire_Danger_Warning.svg', style: 'bg-yellow-500 text-yellow-950' };
-    case 'WFIRER': return { text: '紅色火災危險警告', img: wikiBase + '5/59/HK_Red_Fire_Danger_Warning.svg', style: 'bg-red-500 text-white' };
-    case 'TC1': return { text: '一號戒備信號', img: wikiBase + 'a/a4/No._1_Standby_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC3': return { text: '三號強風信號', img: wikiBase + '3/30/No._3_Strong_Wind_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: wikiBase + '8/82/No._8_Northeast_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: wikiBase + '8/86/No._8_Northwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: wikiBase + '6/69/No._8_Southeast_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: wikiBase + '6/61/No._8_Southwest_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: wikiBase + '7/77/No._9_Increasing_Gale_or_Storm_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'TC10': return { text: '十號颶風信號', img: wikiBase + '9/91/No._10_Hurricane_Signal.svg', style: 'bg-white text-black border border-gray-200' };
-    case 'SMS': return { text: '強烈季候風信號', style: 'bg-slate-800 text-white border border-slate-600' };
-    case 'WL': return { text: '山泥傾瀉警告', style: 'bg-yellow-600 text-white border border-yellow-700' };
-    case 'FNTSA': return { text: '新界北部水浸特別報告', style: 'bg-blue-600 text-white border border-blue-700' };
-    case 'FROST': return { text: '霜凍警告', style: 'bg-cyan-500 text-white border border-cyan-600' };
+    case 'WRAINA': 
+      return { text: '黃色暴雨警告', img: wikiBase + '2/25/HK_Amber_Rainstorm_Warning.svg/240px-HK_Amber_Rainstorm_Warning.svg.png', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500', iconBg: 'bg-white/80' };
+    case 'WRAINR': 
+      return { text: '紅色暴雨警告', img: wikiBase + '0/05/HK_Red_Rainstorm_Warning.svg/240px-HK_Red_Rainstorm_Warning.svg.png', style: 'bg-red-600 text-white border border-red-500', iconBg: 'bg-white' };
+    case 'WRAINB': 
+      return { text: '黑色暴雨警告', img: wikiBase + '9/91/HK_Black_Rainstorm_Warning.svg/240px-HK_Black_Rainstorm_Warning.svg.png', style: 'bg-black text-white border border-gray-600', iconBg: 'bg-white' };
+    case 'WTS': 
+      return { text: '雷暴警告', img: wikiBase + 'c/cd/HK_Thunderstorm_Warning.svg/240px-HK_Thunderstorm_Warning.svg.png', style: 'bg-yellow-500 text-black border border-yellow-600', iconBg: 'bg-white/80' };
+    case 'WHOT': 
+      return { text: '酷熱天氣警告', img: wikiBase + '3/36/HK_Very_Hot_Weather_Warning.svg/240px-HK_Very_Hot_Weather_Warning.svg.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
+    case 'WCOLD': 
+      return { text: '寒冷天氣警告', img: wikiBase + '2/28/HK_Cold_Weather_Warning.svg/240px-HK_Cold_Weather_Warning.svg.png', style: 'bg-blue-400 text-blue-950 border border-blue-500', iconBg: 'bg-white/80' };
+    case 'WFIREY': 
+      return { text: '黃色火災危險警告', img: wikiBase + '1/1f/HK_Yellow_Fire_Danger_Warning.svg/240px-HK_Yellow_Fire_Danger_Warning.svg.png', style: 'bg-yellow-500 text-yellow-950', iconBg: 'bg-white/80' };
+    case 'WFIRER': 
+      return { text: '紅色火災危險警告', img: wikiBase + '5/59/HK_Red_Fire_Danger_Warning.svg/240px-HK_Red_Fire_Danger_Warning.svg.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
+    case 'TC1': return { text: '一號戒備信號', img: wikiBase + 'a/a4/No._1_Standby_Signal.svg/240px-No._1_Standby_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC3': return { text: '三號強風信號', img: wikiBase + '3/30/No._3_Strong_Wind_Signal.svg/240px-No._3_Strong_Wind_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: wikiBase + '8/82/No._8_Northeast_Gale_or_Storm_Signal.svg/240px-No._8_Northeast_Gale_or_Storm_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: wikiBase + '8/86/No._8_Northwest_Gale_or_Storm_Signal.svg/240px-No._8_Northwest_Gale_or_Storm_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: wikiBase + '6/69/No._8_Southeast_Gale_or_Storm_Signal.svg/240px-No._8_Southeast_Gale_or_Storm_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: wikiBase + '6/61/No._8_Southwest_Gale_or_Storm_Signal.svg/240px-No._8_Southwest_Gale_or_Storm_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: wikiBase + '7/77/No._9_Increasing_Gale_or_Storm_Signal.svg/240px-No._9_Increasing_Gale_or_Storm_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    case 'TC10': return { text: '十號颶風信號', img: wikiBase + '9/91/No._10_Hurricane_Signal.svg/240px-No._10_Hurricane_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
+    
+    // 其他警告也換成 PNG
+    case 'SMS': return { text: '強烈季候風信號', img: wikiBase + '1/18/Strong_Monsoon_Signal.svg/240px-Strong_Monsoon_Signal.svg.png', style: 'bg-slate-800 text-white border border-slate-600', iconBg: 'bg-transparent' };
+    case 'WL': return { text: '山泥傾瀉警告', img: wikiBase + '0/00/HK_Landslip_Warning.svg/240px-HK_Landslip_Warning.svg.png', style: 'bg-yellow-600 text-white border border-yellow-700', iconBg: 'bg-white/80' };
+    case 'FNTSA': return { text: '新界北部水浸特別報告', img: wikiBase + '0/05/HK_Special_Announcement_on_Flooding_in_the_Northern_New_Territories.svg/240px-HK_Special_Announcement_on_Flooding_in_the_Northern_New_Territories.svg.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white' };
+    case 'FROST': return { text: '霜凍警告', img: wikiBase + '0/00/HK_Frost_Warning.svg/240px-HK_Frost_Warning.svg.png', style: 'bg-cyan-500 text-white border border-cyan-600', iconBg: 'bg-transparent' };
+    
     default: 
       if (!originalName || originalName.trim() === '') return null;
-      return { text: originalName, style: 'bg-slate-800 text-white border border-slate-700 shadow-md' };
+      return { text: originalName, style: 'bg-slate-800 text-white border border-slate-700 shadow-md', iconBg: 'bg-transparent' };
   }
 };
 
-// 🚌 巴士公司智能 Logo 組件 (本地伺服器路徑)
+// 🚌 巴士公司智能 Logo 組件 (讀取 public 內的 PNG)
 const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
   const [imgError, setImgError] = useState(false);
   
@@ -141,6 +152,7 @@ const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
     );
   }
 
+  // 💡 確認此處使用的是 .png
   const src = company === 'ctb' ? "/ctb-logo.png" : "/kmb-logo.png";
 
   return (
@@ -213,6 +225,9 @@ export default function App() {
   const [settingsTab, setSettingsTab] = useState('FAVORITES'); 
   const [shouldReopenSettings, setShouldReopenSettings] = useState(false); 
   const [showResetConfirm, setShowResetConfirm] = useState(false); 
+
+  const [editingRouteDest, setEditingRouteDest] = useState(null);
+  const [editDestValue, setEditDestValue] = useState('');
 
   const [nearbyRadius, setNearbyRadius] = useState(() => {
     try { return parseInt(localStorage.getItem('kmb_nearby_radius') || '1200'); } 
@@ -482,7 +497,7 @@ export default function App() {
               company: comp,
               route: routeObj.route, 
               dest: primaryDest.includes('荃灣西') ? '荃灣西站' : primaryDest, 
-              customDest: routeObj.customDest, // 保留供編輯框使用
+              customDest: routeObj.customDest, 
               etas: uniqueEtas.slice(0, 2).map(e => ({ 
                 time: new Date(e.eta), 
                 rmk: (e.rmk_tc && e.rmk_tc.trim() !== "" && e.rmk_tc !== "原定班次") ? e.rmk_tc : null 
@@ -521,7 +536,6 @@ export default function App() {
     });
   }, [locationsData]);
 
-  // 💡 智能過濾與去重搜尋結果
   const filteredRoutesList = useMemo(() => {
     if (!routeQuery || !Array.isArray(allRoutesList)) return [];
     const q = routeQuery.toUpperCase().trim();
@@ -532,7 +546,6 @@ export default function App() {
     allRoutesList
       .filter(r => r && r.route && r.route.toUpperCase().includes(q))
       .forEach(r => {
-        // 使用公司與路線號碼作為唯一鍵值，去除來回方向重覆顯示
         const key = `${r.company}-${r.route}`;
         if (!seen.has(key)) {
           seen.add(key);
@@ -565,7 +578,6 @@ export default function App() {
     }).filter(loc => loc.routesData.length > 0));
   };
 
-  // 💡 處理 Grid Inline 內嵌直接更改目的地
   const handleUpdateCustomDest = (locId, routeNum, dir, newDest) => {
     setLocations(prev => prev.map(loc => {
       if (loc.id === locId) {
@@ -793,9 +805,6 @@ export default function App() {
     return cache;
   };
 
-  // ========================================================
-  // 🚌 核心升級：巴士路線行渲染
-  // ========================================================
   const renderRow = (route, rIdx, isNearbySource = false, layoutType = 'LIST') => {
     const isEven = rIdx % 2 === 0;
     const rowBg = isEven ? theme.rowEven : theme.rowOdd;
@@ -894,19 +903,22 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
+        {/* 💡 主畫面實時天氣警告顯示區 */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
               <div key={idx} className={`flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl font-black text-base shadow-md animate-pulse ${wData.style}`}>
                 {wData.img && (
-                  <img 
-                    src={wData.img} 
-                    alt={wData.text} 
-                    className="w-7 h-7 object-contain" 
-                    referrerPolicy="no-referrer" 
-                    crossOrigin="anonymous" 
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
+                  <div className={`${wData.iconBg || 'bg-transparent'} p-1 rounded-lg shrink-0 flex items-center justify-center shadow-sm`}>
+                    <img 
+                      src={wData.img} 
+                      alt={wData.text} 
+                      className="w-6 h-6 object-contain" 
+                      referrerPolicy="no-referrer" 
+                      crossOrigin="anonymous" 
+                      onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                    />
+                  </div>
                 )}
                 <span>{wData.text}</span>
               </div>
@@ -937,6 +949,7 @@ export default function App() {
               </div>
             )}
 
+            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -1047,14 +1060,16 @@ export default function App() {
                     {validWarnings.map((wData, idx) => (
                       <div key={idx} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-black text-sm shadow-lg animate-pulse ${wData.style}`}>
                         {wData.img && (
-                          <img 
-                            src={wData.img} 
-                            alt={wData.text} 
-                            className="w-5 h-5 object-contain" 
-                            referrerPolicy="no-referrer" 
-                            crossOrigin="anonymous" 
-                            onError={(e) => { e.target.style.display = 'none'; }}
-                          />
+                          <div className={`${wData.iconBg || 'bg-transparent'} p-0.5 rounded shrink-0 flex items-center justify-center`}>
+                            <img 
+                              src={wData.img} 
+                              alt={wData.text} 
+                              className="w-4 h-4 object-contain" 
+                              referrerPolicy="no-referrer" 
+                              crossOrigin="anonymous" 
+                              onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                            />
+                          </div>
                         )}
                         <span>{wData.text}</span>
                       </div>
@@ -1135,13 +1150,15 @@ export default function App() {
           {(weatherInfo.temp !== '--' || activeTCWarning) && (
             <div className="flex items-center gap-1.5 bg-black/20 dark:bg-black/40 border border-white/10 px-2 py-0.5 rounded-full shadow-inner shrink-0">
               {activeTCWarning && activeTCWarning.img && (
-                <img 
-                  src={activeTCWarning.img} 
-                  alt={activeTCWarning.text} 
-                  className="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow-md"
-                  referrerPolicy="no-referrer" 
-                  crossOrigin="anonymous" 
-                />
+                <div className={`flex items-center justify-center shrink-0 ${activeTCWarning.iconBg || 'bg-transparent'} rounded-full p-0.5`}>
+                  <img 
+                    src={activeTCWarning.img} 
+                    alt={activeTCWarning.text} 
+                    className="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow-md"
+                    referrerPolicy="no-referrer" 
+                    crossOrigin="anonymous" 
+                  />
+                </div>
               )}
               {weatherInfo.icon && (
                 <img 
@@ -1187,7 +1204,7 @@ export default function App() {
         </footer>
       )}
 
-      {/* ⚙️ Settings Modal 包含全新 Grid 佈局的 Favorites 管理 */}
+      {/* ⚙️ Settings Modal */}
       {isSettingsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade-in">
           <div className={`w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden border ${theme.modalBg}`}>
@@ -1219,7 +1236,6 @@ export default function App() {
               {backupSuccess && <div className="mb-4 bg-green-500/10 border border-green-500/20 text-green-500 p-2.5 text-center text-xs font-bold rounded-lg animate-pulse">{backupSuccess}</div>}
               {backupError && <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-500 p-2.5 text-center text-xs font-bold rounded-lg">{backupError}</div>}
 
-              {/* 💡 全新 Grid View 的最愛管理與 Inline Edit */}
               {settingsTab === 'FAVORITES' && (
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1251,7 +1267,6 @@ export default function App() {
                                 <CompanyBadge company={r.company} className="h-3 sm:h-3.5 object-contain opacity-80" />
                                 <span className={`text-sm font-black w-10 text-center ${r.company === 'ctb' ? 'text-blue-600 dark:text-blue-400' : 'text-red-500'}`}>{r.route}</span>
                                 
-                                {/* 💡 Inline Edit 輸入框 */}
                                 <input 
                                   type="text"
                                   value={r.customDest !== undefined ? r.customDest : (r.dest || '')}
@@ -1364,7 +1379,6 @@ export default function App() {
                     <div className="flex flex-col gap-2">
                       <span className="text-[11px] font-bold opacity-60">搜尋建議：</span>
                       <div className="grid grid-cols-2 gap-2 max-h-[250px] overflow-y-auto pr-1">
-                        {/* 💡 新版去重後的搜尋結果卡片 */}
                         {filteredRoutesList.map((r, idx) => (
                           <button key={idx} onClick={() => handleSelectRoute(r)} className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all hover:scale-[1.02] ${theme.controlBtn}`}>
                             <div className="flex items-center gap-1.5">
@@ -1445,7 +1459,7 @@ export default function App() {
                     <input type="text" placeholder={selectedStop.name_tc} value={customStopName} onChange={(e) => setCustomStopName(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-black opacity-70">自訂顯示目的地 (可後續於設定更改)：</label>
+                    <label className="text-xs font-black opacity-70">自訂顯示目的地 (解決循環線方向，選填)：</label>
                     <input type="text" placeholder={`${selectedDirection.dest_tc}`} value={customStopDesc} onChange={(e) => setCustomStopDesc(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
                   </div>
                   <div className="flex flex-col gap-1.5">
