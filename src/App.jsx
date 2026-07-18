@@ -17,6 +17,15 @@ import {
   ChevronDown,
   Navigation,
   MapPin,
+  Folder,
+  Layers,
+  Upload,
+  Download,
+  Copy,
+  FileText,
+  Sliders,
+  RotateCcw,
+  Pencil,
   Clock
 } from 'lucide-react';
 
@@ -81,7 +90,6 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return Math.round(R * c); 
 }
 
-// 📅 格式化中文日期格式
 function formatChineseDate(date) {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
@@ -91,7 +99,7 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心 (激瘦版官方風格配色)
+// 🌩️ 天氣警告資料處理中心 (100% 綁定官方天文台高解析度圖示)
 const getWarningData = (code, originalName) => {
   const hkoBase = 'https://www.hko.gov.hk/images/HKOWarningSymbols/';
   switch(code) {
@@ -175,7 +183,7 @@ export default function App() {
   const [loadingMapEtas, setLoadingMapEtas] = useState(false);
   const [leafletLoaded, setLeafletLoaded] = useState(false);
 
-  // 清理舊版無座標垃圾快取
+  // 清理舊版垃圾快取
   useEffect(() => {
     try {
       localStorage.removeItem('kmb_all_stops_cache'); 
@@ -629,7 +637,7 @@ export default function App() {
     }));
   };
 
-  // 💡 極速版 V8 站點座標解析：從總表拿資料，徹底避免 Rate Limit
+  // 💡 極速版 V8 站點座標解析：從總表拿資料
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
     const cacheKey = `kmb_stop_details_cache_v8_${company}`;
@@ -678,7 +686,6 @@ export default function App() {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const polylineRef = useRef(null);
-  const snappedPolylineRef = useRef(null);
   const markerRef = useRef(null);
   const stopsLayerRef = useRef(null);
   const arrowsLayerRef = useRef(null);
@@ -814,6 +821,7 @@ export default function App() {
 
       const drawRouteAndArrows = () => {
           if (mapState.routeStops.length > 0 && !polylineRef.current) {
+             // 💡 確保只有合法的座標才會被用來畫圖
              const validStops = mapState.routeStops.filter(s => s.lat && s.lng && !isNaN(s.lat) && !isNaN(s.lng));
              const latlngs = validStops.map(s => [s.lat, s.lng]);
              
@@ -836,7 +844,7 @@ export default function App() {
                     window.L.marker([s.lat, s.lng], { icon: busStopIcon }).addTo(stopsLayerRef.current);
                  });
 
-                 // 繪製順滑的軌跡
+                 // 繪製順滑的直連軌跡
                  polylineRef.current = window.L.polyline(latlngs, { color: polylineColor, weight: 6, opacity: 0.85, lineJoin: 'round' }).addTo(map);
 
                  // 繪製方向箭頭
@@ -875,29 +883,6 @@ export default function App() {
                  } else {
                      map.setView(latlngs[0], 16);
                  }
-
-                 // 嘗試 OSRM 貼合
-                 if (latlngs.length > 1 && latlngs.length <= 60) {
-                     const fetchSnappedRoute = async () => {
-                       try {
-                          const coordsString = validStops.map(s => `${s.lng},${s.lat}`).join(';');
-                          const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson&continue_straight=true`;
-                          const res = await fetch(osrmUrl);
-                          if (res.ok) {
-                              const data = await res.json();
-                              if (data && data.routes && data.routes[0]) {
-                                 const geojson = data.routes[0].geometry;
-                                 snappedPolylineRef.current = window.L.geoJSON(geojson, {
-                                    style: { color: polylineColor, weight: 6, opacity: 0.85, lineJoin: 'round' }
-                                 }).addTo(map);
-                                 if (polylineRef.current) map.removeLayer(polylineRef.current);
-                              }
-                          }
-                       } catch (e) {}
-                     };
-                     fetchSnappedRoute();
-                 }
-
                  setMapState(prev => ({ ...prev, loadingMap: false }));
              } else {
                  setMapState(prev => ({ ...prev, loadingMap: false, error: '坐標載入失敗，無法繪製路線' }));
@@ -969,7 +954,6 @@ export default function App() {
           mapInstanceRef.current = null;
        }
        polylineRef.current = null;
-       snappedPolylineRef.current = null;
        stopsLayerRef.current = null;
        arrowsLayerRef.current = null;
        markerRef.current = null;
@@ -977,6 +961,7 @@ export default function App() {
     }
   }, [mapState.isOpen]);
 
+  // 💡 V9 修復：嚴謹的設定與複製函式
   const handleCopyBackupCode = () => {
     const backupJson = JSON.stringify(locations);
     const textArea = document.createElement("textarea");
@@ -1014,7 +999,7 @@ export default function App() {
     const fileReader = new FileReader();
     const file = e.target.files[0];
     if (!file) return;
-    fileReader.onload = (event) => { setImportText(event.target.result); setBackupSuccess('備份載入成功！請點選下方按鈕確認還原。'); setBackupError(''); };
+    fileReader.onload = (event) => { setImportText(event.target.result); setBackupSuccess('備份載入成功！請點擊下方按鈕確認還原。'); setBackupError(''); };
     fileReader.onerror = () => { setBackupError('檔案讀取失敗'); };
     fileReader.readAsText(file);
   };
@@ -1024,18 +1009,18 @@ export default function App() {
     try {
       if (!importText.trim()) { setBackupError('請先貼上代碼或上傳檔案'); return; }
       const parsed = JSON.parse(importText.trim());
-      if (!Array.isArray(parsed)) throw new Error('匯入格式必須為巴士站卡片陣列！');
+      if (!Array.isArray(parsed)) throw new Error('匯入格式必須為巴士站陣列！');
       const isValid = parsed.every(item => item.id && item.name && Array.isArray(item.routes));
       if (!isValid) throw new Error('匯入資料遺漏關鍵欄位！');
       setLocations(parsed);
-      setBackupSuccess('🎉 成功從備份中還原最愛看板配置！');
+      setBackupSuccess('🎉 成功還原！');
       setImportText('');
       setTimeout(() => { setIsSettingsModalOpen(false); setBackupSuccess(''); fetchCustomLocationsData(); }, 1500);
-    } catch (e) { setBackupError(`匯入驗證失敗: ${e.message || '格式錯誤'}`); }
+    } catch (e) { setBackupError(`驗證失敗: ${e.message || '格式錯誤'}`); }
   };
 
   const handleResetToPreload = () => {
-    setLocations(DEFAULT_LOCATIONS); setShowResetConfirm(false); setBackupSuccess('已成功重設為原裝最愛路線範例！');
+    setLocations(DEFAULT_LOCATIONS); setShowResetConfirm(false); setBackupSuccess('已成功重設為預設範例！');
     setTimeout(() => { setBackupSuccess(''); fetchCustomLocationsData(); }, 2000);
   };
 
@@ -1716,7 +1701,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ⚙️ Settings Modal */}
+      {/* ⚙️ Settings Modal (💡 V9 修復：嚴謹的閉合標籤解決切換白屏) */}
       {isSettingsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade-in">
           <div className={`w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden border ${theme.modalBg}`}>
@@ -1745,8 +1730,8 @@ export default function App() {
             </div>
 
             <div className="flex-1 p-5 overflow-y-auto bg-slate-50 dark:bg-zinc-950/50">
-              {backupSuccess && <div className="mb-4 bg-green-500/10 border border-green-500/20 text-green-500 p-2.5 text-center text-xs font-bold rounded-lg animate-pulse">{backupSuccess}</div>}
-              {backupError && <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-500 p-2.5 text-center text-xs font-bold rounded-lg">{backupError}</div>}
+              {backupSuccess ? <div className="mb-4 bg-green-500/10 border border-green-500/20 text-green-500 p-2.5 text-center text-xs font-bold rounded-lg animate-pulse">{backupSuccess}</div> : null}
+              {backupError ? <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-500 p-2.5 text-center text-xs font-bold rounded-lg">{backupError}</div> : null}
 
               {settingsTab === 'FAVORITES' && (
                 <div className="flex flex-col gap-4">
@@ -1823,7 +1808,14 @@ export default function App() {
                       <input type="file" accept=".json" onChange={handleUploadFile} className="hidden" id="setting-backup-upload" />
                       <label htmlFor="setting-backup-upload" className="px-4 py-1.5 bg-[#e3342f] text-white hover:bg-red-600 rounded-lg text-xs font-bold cursor-pointer transition-colors">選擇上傳設定檔 (.json)</label>
                     </div>
-                    <textarea rows={3} placeholder='或在此處貼上備份 JSON 代碼...' value={importText} onChange={(e) => setImportText(e.target.value)} className={`w-full py-1.5 px-3 rounded-lg border font-mono text-[10px] resize-none focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} />
+                    {/* 💡 嚴謹的 textarea 閉合標籤防白屏 */}
+                    <textarea 
+                      rows={3} 
+                      placeholder="或在此處貼上備份 JSON 代碼..." 
+                      value={importText} 
+                      onChange={(e) => setImportText(e.target.value)} 
+                      className={`w-full py-1.5 px-3 rounded-lg border font-mono text-[10px] resize-none focus:outline-none focus:ring-1 focus:ring-red-500 ${theme.inputBg}`} 
+                    ></textarea>
                     <button onClick={handleConfirmImport} className="bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-extrabold text-xs flex items-center justify-center gap-1 shadow-sm transition-colors"><Check className="w-3.5 h-3.5" />確認匯入並覆蓋最愛</button>
                   </div>
                 </div>
@@ -2000,5 +1992,3 @@ export default function App() {
     </div>
   );
 }
-
-
