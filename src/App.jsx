@@ -17,15 +17,7 @@ import {
   ChevronDown,
   Navigation,
   MapPin,
-  Folder,
-  Layers,
-  Upload,
-  Download,
-  Copy,
-  FileText,
-  Sliders,
-  RotateCcw,
-  Pencil
+  Clock
 } from 'lucide-react';
 
 // ==========================================
@@ -89,6 +81,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return Math.round(R * c); 
 }
 
+// 📅 格式化中文日期格式
 function formatChineseDate(date) {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
@@ -98,18 +91,18 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心 (100% 綁定官方天文台高解析度圖示)
+// 🌩️ 天氣警告資料處理中心 (激瘦版官方風格配色)
 const getWarningData = (code, originalName) => {
   const hkoBase = 'https://www.hko.gov.hk/images/HKOWarningSymbols/';
   switch(code) {
-    case 'WRAINA': return { text: '黃色暴雨警告', img: hkoBase + 'warn800_15_wraina.png', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500', iconBg: 'bg-white/80' };
-    case 'WRAINR': return { text: '紅色暴雨警告', img: hkoBase + 'warn800_16_wrainr.png', style: 'bg-red-600 text-white border border-red-500', iconBg: 'bg-white' };
-    case 'WRAINB': return { text: '黑色暴雨警告', img: hkoBase + 'warn800_17_wrainb.png', style: 'bg-black text-white border border-gray-600', iconBg: 'bg-white' };
-    case 'WTS': return { text: '雷暴警告', img: hkoBase + 'warn800_12_ts.png', style: 'bg-yellow-500 text-black border border-yellow-600', iconBg: 'bg-white/80' };
-    case 'WHOT': return { text: '酷熱天氣警告', img: hkoBase + 'warn800_18_vhot.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
-    case 'WCOLD': return { text: '寒冷天氣警告', img: hkoBase + 'warn800_19_cold.png', style: 'bg-blue-400 text-blue-950 border border-blue-500', iconBg: 'bg-white/80' };
-    case 'WFIREY': return { text: '黃色火災危險警告', img: hkoBase + 'warn800_20_firey.png', style: 'bg-yellow-500 text-yellow-950', iconBg: 'bg-white/80' };
-    case 'WFIRER': return { text: '紅色火災危險警告', img: hkoBase + 'warn800_21_firer.png', style: 'bg-red-500 text-white', iconBg: 'bg-white' };
+    case 'WRAINA': return { text: '黃色暴雨警告', img: hkoBase + 'warn800_15_wraina.png', style: 'bg-[#eab308] text-[#713f12]', iconBg: 'bg-transparent' };
+    case 'WRAINR': return { text: '紅色暴雨警告', img: hkoBase + 'warn800_16_wrainr.png', style: 'bg-[#dc2626] text-white', iconBg: 'bg-transparent' };
+    case 'WRAINB': return { text: '黑色暴雨警告', img: hkoBase + 'warn800_17_wrainb.png', style: 'bg-black text-white border border-gray-600', iconBg: 'bg-white rounded-sm' };
+    case 'WTS': return { text: '雷暴警告', img: hkoBase + 'warn800_12_ts.png', style: 'bg-[#eab308] text-yellow-950', iconBg: 'bg-transparent' };
+    case 'WHOT': return { text: '酷熱天氣警告', img: hkoBase + 'warn800_18_vhot.png', style: 'bg-red-500 text-white', iconBg: 'bg-transparent' };
+    case 'WCOLD': return { text: '寒冷天氣警告', img: hkoBase + 'warn800_19_cold.png', style: 'bg-[#3b82f6] text-white', iconBg: 'bg-transparent' };
+    case 'WFIREY': return { text: '黃色火災危險警告', img: hkoBase + 'warn800_20_firey.png', style: 'bg-yellow-500 text-yellow-950', iconBg: 'bg-transparent' };
+    case 'WFIRER': return { text: '紅色火災危險警告', img: hkoBase + 'warn800_21_firer.png', style: 'bg-red-500 text-white', iconBg: 'bg-transparent' };
     case 'TC1': return { text: '一號戒備信號', img: hkoBase + 'warn800_01_tc1.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
     case 'TC3': return { text: '三號強風信號', img: hkoBase + 'warn800_02_tc3.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
     case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: hkoBase + 'warn800_04_tc8ne.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
@@ -119,21 +112,20 @@ const getWarningData = (code, originalName) => {
     case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: hkoBase + 'warn800_07_tc9.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
     case 'TC10': return { text: '十號颶風信號', img: hkoBase + 'warn800_08_tc10.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
     case 'SMS': return { text: '強烈季候風信號', img: hkoBase + 'warn800_13_ms.png', style: 'bg-slate-800 text-white border border-slate-600', iconBg: 'bg-transparent' };
-    case 'WL': return { text: '山泥傾瀉警告', img: hkoBase + 'warn800_14_landslip.png', style: 'bg-yellow-600 text-white border border-yellow-700', iconBg: 'bg-white/80' };
-    case 'FNTSA': return { text: '新界北部水浸特別報告', img: hkoBase + 'warn800_22_ntfl.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white' };
-    case 'FROST': return { text: '霜凍警告', img: hkoBase + 'warn800_23_frost.png', style: 'bg-cyan-500 text-white border border-cyan-600', iconBg: 'bg-transparent' };
+    case 'WL': return { text: '山泥傾瀉警告', img: hkoBase + 'warn800_14_landslip.png', style: 'bg-yellow-600 text-white', iconBg: 'bg-transparent' };
+    case 'FNTSA': return { text: '新界北部水浸特別報告', img: hkoBase + 'warn800_22_ntfl.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white rounded-sm' };
+    case 'FROST': return { text: '霜凍警告', img: hkoBase + 'warn800_23_frost.png', style: 'bg-cyan-500 text-white', iconBg: 'bg-transparent' };
     default: 
       if (!originalName || originalName.trim() === '') return null;
       return { text: originalName, style: 'bg-slate-800 text-white border border-slate-700 shadow-md', iconBg: 'bg-transparent' };
   }
 };
 
-const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-6 h-6 object-contain", isSmall = false }) => {
+const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-4 h-4 object-contain", isSmall = false }) => {
   const [error, setError] = useState(false);
   if (error || !img) return null; 
-  const padding = iconBg !== 'bg-transparent' ? (isSmall ? 'p-0.5 rounded' : 'p-1.5 rounded-lg') : '';
   return (
-    <div className={`${iconBg} ${padding} shrink-0 flex items-center justify-center shadow-sm`}>
+    <div className={`${iconBg} shrink-0 flex items-center justify-center p-0.5`}>
       <img src={img} alt={text} className={className} referrerPolicy="no-referrer" onError={() => setError(true)} />
     </div>
   );
@@ -154,9 +146,6 @@ const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
   );
 };
 
-// 💡 記憶體快取：全港九巴巴士站坐標 (徹底解決被官方 API 封鎖拿不到坐標的問題)
-let globalKmbStopsCache = null;
-
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [locationsData, setLocationsData] = useState([]);
@@ -170,7 +159,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('kmb_theme') || 'false'); } catch { return false; }
   });
 
-  // 地圖狀態
+  // 💡 地圖與路線視窗狀態管理
   const [mapState, setMapState] = useState({ 
     isOpen: false, 
     loadingMap: false, 
@@ -180,7 +169,22 @@ export default function App() {
     routeStops: [], 
     error: null 
   });
+  
+  // 💡 地圖內 ETA 讀取狀態
+  const [mapStopEtas, setMapStopEtas] = useState([]);
+  const [loadingMapEtas, setLoadingMapEtas] = useState(false);
   const [leafletLoaded, setLeafletLoaded] = useState(false);
+
+  // 清理舊版無座標垃圾快取
+  useEffect(() => {
+    try {
+      localStorage.removeItem('kmb_all_stops_cache'); 
+      localStorage.removeItem('kmb_all_stops_cache_v2'); 
+      localStorage.removeItem('kmb_all_stops_cache_v3'); 
+      localStorage.removeItem('kmb_all_stops_cache_v5'); 
+      localStorage.removeItem('kmb_stop_details_cache_kmb'); 
+    } catch(e) {}
+  }, []);
 
   // 動態引入地圖引擎 Leaflet
   useEffect(() => {
@@ -228,7 +232,7 @@ export default function App() {
     controlBtn: isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200' : 'bg-slate-200 hover:bg-slate-300 text-slate-800',
   };
 
-  const getEtaMinutes = (etaDate) => Math.floor((etaDate - now) / 60000);
+  const getEtaMinutes = (etaDate) => Math.floor((new Date(etaDate) - now) / 60000);
 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [userCoords, setUserCoords] = useState(null); 
@@ -371,33 +375,28 @@ export default function App() {
     return null;
   }, [weatherInfo.warnings]);
 
-  // 💡 極速版快取核心：保證一次性載入全港九巴坐標，再也不會觸發 Rate Limit
-  const fetchAllKmbStopsDict = async () => {
-    if (globalKmbStopsCache) return globalKmbStopsCache;
+  // 💡 極速版快取：下載九巴全港站點 (0 網絡請求)
+  const getOrFetchAllKmbStops = async () => {
     try {
-        const cached = localStorage.getItem('kmb_stops_v6');
-        if (cached) {
-            const parsed = JSON.parse(cached);
-            if (Date.now() - parsed.ts < 7 * 24 * 60 * 60 * 1000) {
-                globalKmbStopsCache = parsed.data;
-                return globalKmbStopsCache;
-            }
-        }
-    } catch(e) {}
+      const cached = localStorage.getItem('kmb_all_stops_cache_v8');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) return parsed.stops;
+      }
+    } catch {}
 
     try {
-        const res = await fetch('https://data.etabus.gov.hk/v1/transport/kmb/stop');
-        const data = await res.json();
-        const dict = {};
-        (data.data || []).forEach(s => {
-            dict[s.stop] = { name: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long) };
-        });
-        globalKmbStopsCache = dict;
-        localStorage.setItem('kmb_stops_v6', JSON.stringify({ ts: Date.now(), data: dict }));
-        return dict;
-    } catch(e) {
-        return {};
-    }
+      const res = await fetch('https://data.etabus.gov.hk/v1/transport/kmb/stop');
+      if (res.ok) {
+        const d = await res.json();
+        const miniStops = (d.data || []).map(s => ({
+          id: s.stop, name: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long)
+        })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
+        try { localStorage.setItem('kmb_all_stops_cache_v8', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
+        return miniStops;
+      }
+    } catch (e) {}
+    return [];
   };
 
   const findNearbyStops = useCallback(async (customCoords = null) => {
@@ -409,9 +408,7 @@ export default function App() {
       else { const pos = await getPosition(); lat = pos.coords.latitude; lng = pos.coords.longitude; }
       setUserCoords({ lat, lng }); setGpsMessage('定位成功！正在搜索周邊巴士站...');
       
-      const stopsDict = await fetchAllKmbStopsDict();
-      const allStops = Object.keys(stopsDict).map(k => ({ id: k, ...stopsDict[k] }));
-
+      const allStops = await getOrFetchAllKmbStops();
       if (allStops.length === 0) throw new Error('無法取得巴士地圖資料庫');
       const withDistance = allStops.map(stop => ({ ...stop, distance: calculateDistance(lat, lng, stop.lat, stop.lng) }));
       const sortedNearby = withDistance.sort((a, b) => a.distance - b.distance).filter(s => s.distance <= nearbyRadius).slice(0, 4);
@@ -632,12 +629,61 @@ export default function App() {
     }));
   };
 
+  // 💡 極速版 V8 站點座標解析：從總表拿資料，徹底避免 Rate Limit
+  const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
+    let cache = {};
+    const cacheKey = `kmb_stop_details_cache_v8_${company}`;
+    
+    if (company === 'kmb') {
+        const allKmbStops = await getOrFetchAllKmbStops();
+        allKmbStops.forEach(s => {
+           if (s.lat && s.lng) cache[s.id] = s;
+        });
+        return cache;
+    }
+
+    try { 
+      const localCache = JSON.parse(localStorage.getItem(cacheKey) || '{}'); 
+      cache = { ...localCache, ...cache };
+    } catch {}
+
+    const missingIds = stopIds.filter(id => !cache[id] || !cache[id].lat);
+    
+    if (missingIds.length > 0) {
+      const fetchSingle = async (id) => {
+        try { 
+          const url = `https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/stop/${id}`;
+          const res = await fetch(url); 
+          if (res.ok) { 
+            const d = await res.json(); 
+            if (d.data?.lat) {
+               return { id, name: d.data?.name_tc || id, lat: parseFloat(d.data?.lat), lng: parseFloat(d.data?.long || d.data?.lng) }; 
+            }
+          } 
+        } catch {}
+        return { id, name: id, lat: null, lng: null };
+      };
+
+      const chunkSize = 5; 
+      for (let i = 0; i < missingIds.length; i += chunkSize) {
+        const results = await Promise.all(missingIds.slice(i, i + chunkSize).map(fetchSingle));
+        results.forEach(r => { if(r.lat) cache[r.id] = r; });
+      }
+      try { localStorage.setItem(cacheKey, JSON.stringify(cache)); } catch {}
+    }
+    return cache;
+  };
+
   const listRef = useRef(null);
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const activeMarkerRef = useRef(null);
+  const polylineRef = useRef(null);
+  const snappedPolylineRef = useRef(null);
+  const markerRef = useRef(null);
+  const stopsLayerRef = useRef(null);
+  const arrowsLayerRef = useRef(null);
 
-  // 💡 開啟全路線地圖彈窗 (採用雙層字典機制保證拿到坐標)
+  // 💡 開啟全路線地圖彈窗
   const handleOpenMap = async (initialStopId, stopName, company, routeNum, dir, dest, serviceType = '1') => {
     if (!initialStopId || !routeNum) return;
     
@@ -646,7 +692,7 @@ export default function App() {
       loadingMap: true, 
       loadingStops: true, 
       stop: { id: initialStopId, name: stopName }, 
-      routeInfo: { company, route: routeNum, dir, dest },
+      routeInfo: { company, route: routeNum, dir, dest, serviceType },
       routeStops: [],
       error: null 
     });
@@ -670,37 +716,16 @@ export default function App() {
       }
 
       if (stopsList.length > 0) {
+        const stopIds = stopsList.map(s => s.stop);
+        const detailsMap = await fetchStopDetailsInBatch(stopIds, company);
         
-        let processedStops = [];
-        if (company === 'kmb') {
-           const dict = await fetchAllKmbStopsDict();
-           processedStops = stopsList.map(s => {
-              const info = dict[s.stop] || {};
-              return { id: s.stop, seq: s.seq || 0, name: info.name || s.stop, lat: info.lat, lng: info.lng };
-           });
-        } else {
-           // CTB 需單獨獲取
-           const stopIds = stopsList.map(s => s.stop);
-           let cache = {};
-           const fetchSingle = async (id) => {
-             try { 
-               const res = await fetch(`https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/stop/${id}`); 
-               if (res.ok) { 
-                 const d = await res.json(); 
-                 if (d.data?.lat) return { id, name: d.data?.name_tc || id, lat: parseFloat(d.data?.lat), lng: parseFloat(d.data?.long || d.data?.lng) }; 
-               } 
-             } catch {}
-             return { id, name: id, lat: null, lng: null };
-           };
-           const chunks = await Promise.all(stopIds.map(fetchSingle));
-           chunks.forEach(r => { if(r.lat) cache[r.id] = r; });
-           
-           processedStops = stopsList.map(s => ({
-              id: s.stop, seq: s.seq || 0, 
-              name: cache[s.stop]?.name || s.stop,
-              lat: cache[s.stop]?.lat, lng: cache[s.stop]?.lng
-           }));
-        }
+        const processedStops = stopsList.map(s => ({ 
+          id: s.stop, 
+          seq: s.seq || 0, 
+          name: detailsMap[s.stop]?.name || s.stop,
+          lat: detailsMap[s.stop]?.lat,
+          lng: detailsMap[s.stop]?.lng
+        }));
         
         const targetStop = processedStops.find(s => s.id === initialStopId) || processedStops[0];
 
@@ -718,7 +743,6 @@ export default function App() {
             activeStopEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
         }, 300);
-
       } else {
          setMapState(prev => ({ ...prev, loadingMap: false, loadingStops: false, error: '無法獲取此路線的詳細資料' }));
       }
@@ -727,180 +751,231 @@ export default function App() {
     }
   };
 
-  // 💡 終極地圖引擎：完全解決 Container 衝突導致的白屏及隱形
+  // 💡 獲取單一車站 3 班車 ETA (地圖模式專用)
   useEffect(() => {
-    if (!leafletLoaded || !mapState.isOpen || mapState.loadingStops || !mapContainerRef.current) return;
-
-    // 清理舊的地圖避免 React 的 Ref 衝突
-    if (mapInstanceRef.current) {
-         mapInstanceRef.current.remove();
-         mapInstanceRef.current = null;
-    }
-
-    const container = mapContainerRef.current;
-    if (container._leaflet_id) container._leaflet_id = null; // 強制解鎖
-
-    const map = window.L.map(container, { zoomControl: false, attributionControl: false });
-    mapInstanceRef.current = map;
-
-    window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
-
-    // 💡 延遲觸發地圖重新計算，徹底消滅白屏
-    setTimeout(() => map.invalidateSize(), 300);
-
-    const validStops = mapState.routeStops.filter(s => s.lat && s.lng && !isNaN(s.lat) && !isNaN(s.lng));
+    if (!mapState.isOpen || !mapState.stop?.id || !mapState.routeInfo) return;
+    let isMounted = true;
     
-    if (validStops.length > 0) {
-        const polylineColor = mapState.routeInfo?.company === 'ctb' ? '#3b82f6' : '#ef4444'; 
-        const latlngs = validStops.map(s => [s.lat, s.lng]);
+    const fetchMapStopETA = async () => {
+       setLoadingMapEtas(true);
+       try {
+          const { company, route, dir } = mapState.routeInfo;
+          let url = company === 'ctb' 
+             ? `https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/eta/CTB/${mapState.stop.id}/${route}`
+             : `https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${mapState.stop.id}`;
+             
+          const res = await fetch(url);
+          const d = await res.json();
+          if (!isMounted) return;
 
-        // 畫所有車站小白點
-        validStops.forEach(s => {
-           window.L.circleMarker([s.lat, s.lng], { radius: 3.5, fillColor: '#ffffff', color: polylineColor, weight: 2, fillOpacity: 1 }).addTo(map);
-        });
-
-        // 畫連線
-        const straightLine = window.L.polyline(latlngs, { color: polylineColor, weight: 5, opacity: 0.85, lineJoin: 'round' }).addTo(map);
-
-        // 畫箭頭
-        const arrowGroup = window.L.layerGroup().addTo(map);
-        for(let i=0; i<latlngs.length-1; i++) {
-            if (i > 0 && i % 3 === 0) { // 避免過密
-                const p1 = latlngs[i];
-                const p2 = latlngs[i+1];
-                const dist = calculateDistance(p1[0], p1[1], p2[0], p2[1]);
-
-                if (dist > 100) { 
-                    const midLat = (p1[0] + p2[0]) / 2;
-                    const midLng = (p1[1] + p2[1]) / 2;
-                    const dy = p2[0] - p1[0];
-                    const dx = Math.cos(Math.PI / 180 * p1[0]) * (p2[1] - p1[1]);
-                    const heading = 90 - (Math.atan2(dy, dx) * 180 / Math.PI);
-                    
-                    if (!isNaN(heading)) {
-                        const arrowIcon = window.L.divIcon({
-                            className: 'route-arrow',
-                            html: `<div style="transform: rotate(${heading}deg); width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.5));">
-                                      <svg viewBox="0 0 24 24" width="16" height="16" fill="white" stroke="${polylineColor}" stroke-width="2" stroke-linejoin="round">
-                                         <path d="M12 3L20 21L12 17L4 21L12 3Z" />
-                                      </svg>
-                                   </div>`,
-                            iconSize: [16, 16],
-                            iconAnchor: [8, 8]
-                        });
-                        window.L.marker([midLat, midLng], {icon: arrowIcon, interactive: false}).addTo(arrowGroup);
-                    }
+          const currentMins = Math.floor(Date.now() / 60000);
+          if (d && d.data) {
+             let validEtas = d.data.filter(e => e.route === route && e.dir === dir && e.eta);
+             validEtas.sort((a,b) => new Date(a.eta) - new Date(b.eta));
+             const uniqueEtas = [];
+             const seenMinutes = new Set();
+             
+             validEtas.forEach(e => {
+                const m = Math.floor(new Date(e.eta).getTime() / 60000);
+                if (!seenMinutes.has(m) && (m - currentMins) >= -1) {
+                   seenMinutes.add(m);
+                   uniqueEtas.push(e);
                 }
-            }
-        }
+             });
+             setMapStopEtas(uniqueEtas.slice(0, 3)); 
+          } else {
+             setMapStopEtas([]);
+          }
+       } catch(e) {
+          if (isMounted) setMapStopEtas([]);
+       } finally {
+          if (isMounted) setLoadingMapEtas(false);
+       }
+    };
+    
+    fetchMapStopETA();
+    const timer = setInterval(fetchMapStopETA, 30000);
+    return () => { isMounted = false; clearInterval(timer); };
+  }, [mapState.isOpen, mapState.stop?.id, mapState.routeInfo]);
 
-        // 嘗試載入 OSRM (如果 OSRM 失敗，還有直線保底)
-        if (latlngs.length > 1) {
-            map.fitBounds(straightLine.getBounds(), { padding: [40, 40], maxZoom: 16 });
 
-            const fetchOsrm = async () => {
-                 try {
-                     const maxPoints = 80;
-                     let osrmPoints = latlngs;
-                     if (latlngs.length > maxPoints) {
-                         const step = Math.ceil(latlngs.length / maxPoints);
-                         osrmPoints = latlngs.filter((_, idx) => idx % step === 0 || idx === latlngs.length - 1);
-                     }
-                     const coordsStr = osrmPoints.map(p => `${p[1]},${p[0]}`).join(';');
-                     const url = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&continue_straight=true`;
-                     
-                     const res = await fetch(url);
-                     if (res.ok) {
-                         const data = await res.json();
-                         if (data.code === 'Ok' && data.routes && data.routes[0]) {
-                             // 成功拿到馬路軌跡，刪除直線
-                             map.removeLayer(straightLine);
-                             map.removeLayer(arrowGroup);
+  // 💡 終極地圖繪製引擎：完美繪製直連線與箭咀 (加入 InvalidateSize 防止 Modal 白屏)
+  useEffect(() => {
+    if (!leafletLoaded || !mapContainerRef.current || !mapState.isOpen || mapState.loadingStops) return;
 
-                             const geojson = data.routes[0].geometry;
-                             window.L.geoJSON(geojson, {
-                                 style: { color: polylineColor, weight: 6, opacity: 0.9, lineJoin: 'round' }
-                             }).addTo(map);
+    try {
+      if (!mapInstanceRef.current) {
+        mapInstanceRef.current = window.L.map(mapContainerRef.current, { zoomControl: false, attributionControl: false });
+        window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(mapInstanceRef.current);
+      }
 
-                             // 重畫精準馬路箭頭
-                             const routeCoords = geojson.coordinates.map(c => [c[1], c[0]]);
-                             let accDist = 0;
-                             for(let i=0; i<routeCoords.length-1; i++) {
-                                 const dist = calculateDistance(routeCoords[i][0], routeCoords[i][1], routeCoords[i+1][0], routeCoords[i+1][1]);
-                                 accDist += dist;
-                                 if (accDist > 600) {
-                                     accDist = 0;
-                                     const dy = routeCoords[i+1][0] - routeCoords[i][0];
-                                     const dx = Math.cos(Math.PI / 180 * routeCoords[i][0]) * (routeCoords[i+1][1] - routeCoords[i][1]);
-                                     const heading = 90 - (Math.atan2(dy, dx) * 180 / Math.PI);
-                                     
-                                     const arrowIcon = window.L.divIcon({
-                                        className: 'route-arrow',
-                                        html: `<div style="transform: rotate(${heading}deg); width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.5));">
-                                                  <svg viewBox="0 0 24 24" width="16" height="16" fill="white" stroke="${polylineColor}" stroke-width="2" stroke-linejoin="round">
-                                                     <path d="M12 3L20 21L12 17L4 21L12 3Z" />
-                                                  </svg>
-                                               </div>`,
-                                        iconSize: [16, 16], iconAnchor: [8, 8]
-                                     });
-                                     window.L.marker(routeCoords[i+1], {icon: arrowIcon, interactive: false}).addTo(map);
-                                 }
+      const map = mapInstanceRef.current;
+      const polylineColor = mapState.routeInfo?.company === 'ctb' ? '#3b82f6' : '#ef4444'; 
+
+      const drawRouteAndArrows = () => {
+          if (mapState.routeStops.length > 0 && !polylineRef.current) {
+             const validStops = mapState.routeStops.filter(s => s.lat && s.lng && !isNaN(s.lat) && !isNaN(s.lng));
+             const latlngs = validStops.map(s => [s.lat, s.lng]);
+             
+             if (latlngs.length > 0) {
+                 stopsLayerRef.current = window.L.layerGroup().addTo(map);
+                 arrowsLayerRef.current = window.L.layerGroup().addTo(map);
+
+                 // 💡 [圖二] 完美復刻：真實巴士站專用小圖示 (所有未選車站)
+                 const busStopHtml = `
+                    <div style="background-color: white; border: 2px solid #9ca3af; border-radius: 4px; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+                      <svg viewBox="0 0 24 24" width="10" height="10" stroke="#6b7280" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                      </svg>
+                    </div>`;
+                 const busStopIcon = window.L.divIcon({ className: '', html: busStopHtml, iconSize: [14, 14], iconAnchor: [7, 7] });
+
+                 validStops.forEach(s => {
+                    window.L.marker([s.lat, s.lng], { icon: busStopIcon }).addTo(stopsLayerRef.current);
+                 });
+
+                 // 繪製順滑的軌跡
+                 polylineRef.current = window.L.polyline(latlngs, { color: polylineColor, weight: 6, opacity: 0.85, lineJoin: 'round' }).addTo(map);
+
+                 // 繪製方向箭頭
+                 for(let i=0; i<latlngs.length-1; i++) {
+                     if (i % 2 === 0) { 
+                         const p1 = latlngs[i];
+                         const p2 = latlngs[i+1];
+                         const dist = calculateDistance(p1[0], p1[1], p2[0], p2[1]);
+
+                         if (dist > 80) { 
+                             const midLat = (p1[0] + p2[0]) / 2;
+                             const midLng = (p1[1] + p2[1]) / 2;
+                             const dy = p2[0] - p1[0];
+                             const dx = Math.cos(Math.PI / 180 * p1[0]) * (p2[1] - p1[1]);
+                             const heading = 90 - (Math.atan2(dy, dx) * 180 / Math.PI);
+                             
+                             if (!isNaN(heading)) {
+                                 const arrowIcon = window.L.divIcon({
+                                     className: 'route-arrow',
+                                     html: `<div style="transform: rotate(${heading}deg); width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.5)); z-index: 50;">
+                                               <svg viewBox="0 0 24 24" width="16" height="16" fill="white" stroke="${polylineColor}" stroke-width="2" stroke-linejoin="round">
+                                                  <path d="M12 3L20 21L12 17L4 21L12 3Z" />
+                                               </svg>
+                                            </div>`,
+                                     iconSize: [16, 16],
+                                     iconAnchor: [8, 8]
+                                 });
+                                 window.L.marker([midLat, midLng], {icon: arrowIcon, interactive: false}).addTo(arrowsLayerRef.current);
                              }
                          }
                      }
-                 } catch (err) {}
-            };
-            fetchOsrm();
-        } else {
-            map.setView(latlngs[0], 16);
-        }
-        setMapState(prev => ({ ...prev, loadingMap: false }));
-    } else {
-        setMapState(prev => ({ ...prev, loadingMap: false, error: '無法顯示路線軌跡：缺乏有效座標' }));
+                 }
+
+                 if (latlngs.length > 1) {
+                     map.fitBounds(polylineRef.current.getBounds(), { padding: [40, 40], maxZoom: 16 });
+                 } else {
+                     map.setView(latlngs[0], 16);
+                 }
+
+                 // 嘗試 OSRM 貼合
+                 if (latlngs.length > 1 && latlngs.length <= 60) {
+                     const fetchSnappedRoute = async () => {
+                       try {
+                          const coordsString = validStops.map(s => `${s.lng},${s.lat}`).join(';');
+                          const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson&continue_straight=true`;
+                          const res = await fetch(osrmUrl);
+                          if (res.ok) {
+                              const data = await res.json();
+                              if (data && data.routes && data.routes[0]) {
+                                 const geojson = data.routes[0].geometry;
+                                 snappedPolylineRef.current = window.L.geoJSON(geojson, {
+                                    style: { color: polylineColor, weight: 6, opacity: 0.85, lineJoin: 'round' }
+                                 }).addTo(map);
+                                 if (polylineRef.current) map.removeLayer(polylineRef.current);
+                              }
+                          }
+                       } catch (e) {}
+                     };
+                     fetchSnappedRoute();
+                 }
+
+                 setMapState(prev => ({ ...prev, loadingMap: false }));
+             } else {
+                 setMapState(prev => ({ ...prev, loadingMap: false, error: '坐標載入失敗，無法繪製路線' }));
+             }
+          }
+      };
+
+      // 💡 終極防白屏：等待地圖完全取得寬高後再繪製
+      const size = map.getSize();
+      if (size.x === 0 || size.y === 0) {
+          setTimeout(() => {
+              if (mapInstanceRef.current) {
+                  mapInstanceRef.current.invalidateSize();
+                  drawRouteAndArrows();
+              }
+          }, 300);
+      } else {
+          drawRouteAndArrows();
+      }
+
+    } catch(err) {
+      console.error("Map Drawing Error:", err);
+      setMapState(prev => ({ ...prev, loadingMap: false }));
     }
+  }, [leafletLoaded, mapState.isOpen, mapState.loadingStops, mapState.routeStops, mapState.routeInfo]);
 
-    return () => {
-         if (mapInstanceRef.current) {
-             mapInstanceRef.current.remove();
-             mapInstanceRef.current = null;
-         }
-    };
-  }, [leafletLoaded, mapState.isOpen, mapState.loadingStops]);
-
-  // 💡 當前車站的實體大頭針 (Map Pin) 與 FlyTo 效果
+  // 💡 當前車站實體大頭針 (Map Pin) 與 FlyTo 效果
   useEffect(() => {
-    if (!mapInstanceRef.current || !mapState.stop?.lat || !mapState.stop?.lng || !mapState.isOpen) return;
-    
-    const map = mapInstanceRef.current;
-    const stop = mapState.stop;
+    try {
+      if (!mapInstanceRef.current || !mapState.stop?.lat || !mapState.stop?.lng || !mapState.isOpen) return;
+      
+      const map = mapInstanceRef.current;
+      const stop = mapState.stop;
 
-    if (activeMarkerRef.current) {
-       map.removeLayer(activeMarkerRef.current);
-    }
+      if (markerRef.current) { map.removeLayer(markerRef.current); }
 
-    const isCTB = mapState.routeInfo?.company === 'ctb';
-    const pinColor = isCTB ? '#eab308' : '#e3342f';
-    const pinShadow = isCTB ? 'rgba(234,179,8,0.4)' : 'rgba(227,52,47,0.4)';
+      const isCTB = mapState.routeInfo?.company === 'ctb';
+      const pinColor = isCTB ? '#eab308' : '#e3342f';
+      const pinShadow = isCTB ? 'rgba(234,179,8,0.4)' : 'rgba(227,52,47,0.4)';
 
-    const customIcon = window.L.divIcon({
-        className: 'custom-bus-pin',
-        html: `<div style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin-top: -44px; margin-left: -22px; z-index: 1000;">
-                 <svg viewBox="0 0 24 24" fill="${pinColor}" style="position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0px 6px 6px ${pinShadow});">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-                 </svg>
-                 <svg viewBox="0 0 24 24" fill="white" style="position: absolute; width: 22px; height: 22px; margin-bottom: 6px; z-index: 10;">
-                    <path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z" />
-                 </svg>
-               </div>`,
-        iconSize: [44, 44],
-        iconAnchor: [0, 0] 
-    });
+      const customIcon = window.L.divIcon({
+          className: 'custom-bus-pin',
+          html: `<div style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin-top: -44px; margin-left: -22px; z-index: 1000;">
+                   <svg viewBox="0 0 24 24" fill="${pinColor}" style="position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0px 6px 6px ${pinShadow});">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                   </svg>
+                   <svg viewBox="0 0 24 24" fill="white" style="position: absolute; width: 22px; height: 22px; margin-bottom: 6px; z-index: 10;">
+                      <path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z" />
+                   </svg>
+                 </div>`,
+          iconSize: [44, 44],
+          iconAnchor: [0, 0] 
+      });
 
-    activeMarkerRef.current = window.L.marker([stop.lat, stop.lng], { icon: customIcon, zIndexOffset: 1000 }).addTo(map);
-    map.flyTo([stop.lat, stop.lng], 16, { animate: true, duration: 0.5 });
-
+      markerRef.current = window.L.marker([stop.lat, stop.lng], { icon: customIcon, zIndexOffset: 1000 }).addTo(map);
+      
+      const size = map.getSize();
+      if (size.x > 0 && size.y > 0) {
+          map.flyTo([stop.lat, stop.lng], 16, { animate: true, duration: 0.5 });
+      }
+    } catch (e) {}
   }, [mapState.stop, mapState.isOpen]);
 
+  // 💡 安全的清理機制
+  useEffect(() => {
+    if (!mapState.isOpen) {
+       if (mapInstanceRef.current) {
+          try { mapInstanceRef.current.remove(); } catch(e) {}
+          mapInstanceRef.current = null;
+       }
+       polylineRef.current = null;
+       snappedPolylineRef.current = null;
+       stopsLayerRef.current = null;
+       arrowsLayerRef.current = null;
+       markerRef.current = null;
+       setMapStopEtas([]);
+    }
+  }, [mapState.isOpen]);
 
   const handleCopyBackupCode = () => {
     const backupJson = JSON.stringify(locations);
@@ -1024,27 +1099,13 @@ export default function App() {
         const d = await res.json();
         const stopList = Array.isArray(d.data) ? d.data : [];
         const stopIds = stopList.map(s => s.stop);
-        
-        let cache = {};
-        if (selectedRoute.company === 'kmb') {
-           const dict = await fetchAllKmbStopsDict();
-           stopIds.forEach(id => { if (dict[id]) cache[id] = dict[id]; });
-        } else {
-           const fetchSingle = async (id) => {
-             try { 
-               const r = await fetch(`https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/stop/${id}`); 
-               if (r.ok) { const d2 = await r.json(); return { id, name: d2.data?.name_tc || id }; } 
-             } catch {} return { id, name: id };
-           };
-           const chunks = await Promise.all(stopIds.map(fetchSingle));
-           chunks.forEach(r => { cache[r.id] = r; });
-        }
-
-        setRouteStops(stopList.map(s => ({ ...s, name_tc: cache[s.stop]?.name || s.stop })));
+        const nameCache = await fetchStopDetailsInBatch(stopIds, selectedRoute.company); 
+        setRouteStops(stopList.map(s => ({ ...s, name_tc: nameCache[s.stop]?.name || s.stop })));
       } else {
         setRouteStops([]);
       }
     } catch (e) { 
+      console.error("無法取得巴士站清單", e); 
       setRouteStops([]);
     } finally { 
       setLoadingStops(false); 
@@ -1204,13 +1265,13 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 主畫面實時天氣警告顯示區 (完美無 CORS 限制) */}
+        {/* 💡 [圖一] 主畫面實時天氣警告顯示區 (激瘦官方版排版) */}
         {validWarnings.length > 0 && (
-          <div className="flex flex-col gap-2 px-3 sm:px-0 mb-4 mt-2">
+          <div className="flex flex-col gap-1.5 px-3 sm:px-0 mb-3 mt-2">
             {validWarnings.map((wData, idx) => (
-              <div key={idx} className={`flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl font-black text-base shadow-md animate-pulse ${wData.style}`}>
-                <WarningBadge img={wData.img} text={wData.text} iconBg={wData.iconBg} className="w-7 h-7 object-contain" />
-                <span>{wData.text}</span>
+              <div key={idx} className={`flex items-center justify-center gap-2 w-full py-1.5 px-3 rounded text-sm font-extrabold shadow-sm ${wData.style}`}>
+                <WarningBadge img={wData.img} text={wData.text} iconBg={wData.iconBg} className="w-4 h-4 object-contain drop-shadow-sm" />
+                <span className="drop-shadow-sm tracking-wide">{wData.text}</span>
               </div>
             ))}
           </div>
@@ -1361,13 +1422,13 @@ export default function App() {
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
                   </div>
                 </div>
-                {/* 💡 座枱模式警告標籤 */}
+                {/* 💡 座枱模式警告標籤 (瘦身版) */}
                 {validWarnings.length > 0 && (
-                  <div className="flex flex-wrap gap-2 max-w-full mt-1">
+                  <div className="flex flex-col gap-1.5 w-full max-w-sm mt-1">
                     {validWarnings.map((wData, idx) => (
-                      <div key={idx} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-black text-sm shadow-lg animate-pulse ${wData.style}`}>
-                        <WarningBadge img={wData.img} text={wData.text} iconBg={wData.iconBg} className="w-5 h-5 object-contain" isSmall={true} />
-                        <span>{wData.text}</span>
+                      <div key={idx} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold shadow-lg animate-pulse ${wData.style}`}>
+                        <WarningBadge img={wData.img} text={wData.text} iconBg={wData.iconBg} className="w-4 h-4 object-contain" isSmall={true} />
+                        <span className="drop-shadow-sm tracking-wide">{wData.text}</span>
                       </div>
                     ))}
                   </div>
@@ -1503,7 +1564,7 @@ export default function App() {
         </footer>
       )}
 
-      {/* 🗺️ 全新全路線互動地圖與時間軸彈出視窗 Modal (終極無死角修復版) */}
+      {/* 🗺️ 終極 V8 全路線互動地圖與時間軸彈出視窗 Modal */}
       {mapState.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 sm:p-4 backdrop-blur-md animate-fade-in" onClick={() => setMapState({ ...mapState, isOpen: false })}>
           <div className={`w-full h-full sm:h-[85vh] sm:max-w-md shadow-2xl flex flex-col overflow-hidden sm:rounded-2xl border ${theme.modalBg}`} onClick={(e) => e.stopPropagation()}>
@@ -1525,7 +1586,7 @@ export default function App() {
             </div>
             
             {/* 💡 上半部：Leaflet 零延遲直連軌跡引擎地圖 */}
-            <div className="h-[40%] min-h-[220px] shrink-0 relative bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-700 shadow-inner">
+            <div className="h-[40%] min-h-[220px] shrink-0 relative bg-[#e5e7eb] dark:bg-[#27272a] border-b border-gray-300 dark:border-zinc-700 shadow-inner">
               <div ref={mapContainerRef} className="w-full h-full z-0" />
               
               {mapState.loadingMap && (
@@ -1555,7 +1616,7 @@ export default function App() {
               )}
             </div>
             
-            {/* 💡 下半部：全路線站點時間軸列表 (Click to Fly) */}
+            {/* 💡 [圖三] 下半部：全路線站點時間軸列表 (帶有動態 ETA) */}
             <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-zinc-950 relative shadow-[inset_0_10px_10px_-10px_rgba(0,0,0,0.05)]" ref={listRef}>
               {mapState.loadingStops ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-800 dark:text-zinc-200">
@@ -1590,7 +1651,7 @@ export default function App() {
                           <div className={`w-1 flex-1 ${isLast ? 'bg-transparent' : 'bg-gray-300 dark:bg-zinc-700'}`} />
                         </div>
                         
-                        {/* 站點名稱 */}
+                        {/* 站點名稱與展開的 ETA */}
                         <div className={`py-3.5 flex-1 border-b border-gray-200 dark:border-zinc-800 ${isLast ? 'border-transparent' : ''}`}>
                           <div className="flex items-center gap-2">
                             <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${isCurrent ? (isCTB ? 'bg-blue-500 text-white' : 'bg-red-500 text-white') : 'bg-gray-200 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
@@ -1600,10 +1661,44 @@ export default function App() {
                               {stop.name}
                             </span>
                           </div>
+                          
+                          {/* 💡 當前車站：載入並顯示未來 3 班車 ETA */}
                           {isCurrent && (
-                            <span className={`text-[10px] font-bold mt-1.5 flex items-center gap-1 ${isCTB ? 'text-blue-600 dark:text-blue-400' : 'text-red-500 dark:text-red-400'}`}>
-                              <MapPin className="w-3 h-3" /> 當前選取車站
-                            </span>
+                            <div className="mt-3 mb-1 pl-1 flex flex-col gap-2 relative">
+                               <span className={`text-[10px] font-bold absolute -top-1.5 right-0 ${isCTB ? 'text-blue-500' : 'text-red-500'}`}>
+                                  📍 當前選取車站
+                               </span>
+                               
+                               {loadingMapEtas ? (
+                                  <div className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-zinc-400 py-1">
+                                     <RefreshCw className="w-3 h-3 animate-spin" /> 正在為您讀取班次...
+                                  </div>
+                               ) : mapStopEtas.length > 0 ? (
+                                  mapStopEtas.map((eta, eIdx) => {
+                                     const mins = Math.floor((new Date(eta.eta) - now) / 60000);
+                                     const isMissed = mins < 0;
+                                     const isImminent = mins === 0;
+                                     const rmk = eta.rmk_tc && eta.rmk_tc !== "原定班次" ? eta.rmk_tc : "";
+                                     
+                                     return (
+                                       <div key={eIdx} className="flex items-center gap-3">
+                                          <Bus className={`w-3.5 h-3.5 ${isMissed ? 'text-gray-300' : 'text-blue-500'}`} />
+                                          <span className={`w-7 text-right font-black text-lg leading-none ${isMissed ? 'text-gray-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                                             {isMissed ? '-' : isImminent ? '即將' : mins}
+                                          </span>
+                                          <span className="text-xs font-bold text-gray-500 shrink-0 min-w-[32px]">
+                                             {isMissed ? '已開出' : isImminent ? '到站' : '分鐘'}
+                                          </span>
+                                          {rmk && <span className="text-[10px] font-bold bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-gray-500 truncate">{rmk}</span>}
+                                       </div>
+                                     )
+                                  })
+                               ) : (
+                                  <div className="flex items-center gap-2 text-xs font-bold text-gray-400 py-1">
+                                     <Clock className="w-3.5 h-3.5" /> 此站暫時沒有班次資料
+                                  </div>
+                               )}
+                            </div>
                           )}
                         </div>
                       </div>
