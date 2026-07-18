@@ -99,7 +99,7 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心 (使用本地圖庫)
+// 🌩️ 天氣警告資料處理中心 (使用本地圖庫，100% 避開防盜鏈)
 const getWarningData = (code, originalName) => {
   switch(code) {
     case 'WRAINA': return { text: '黃色暴雨警告', img: '/wraina.png', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500', iconBg: 'bg-white/80' };
@@ -179,7 +179,16 @@ export default function App() {
   });
   const [leafletLoaded, setLeafletLoaded] = useState(false);
 
-  // 💡 動態引入地圖引擎 Leaflet 
+  // 初始化並清理舊版無座標的垃圾快取
+  useEffect(() => {
+    try {
+      localStorage.removeItem('kmb_all_stops_cache'); 
+      localStorage.removeItem('kmb_stop_names_cache_kmb'); 
+      localStorage.removeItem('kmb_stop_names_cache_ctb'); 
+    } catch(e) {}
+  }, []);
+
+  // 動態引入地圖引擎 Leaflet
   useEffect(() => {
     if (window.L) { setLeafletLoaded(true); return; }
     if (!document.getElementById('leaflet-css')) {
@@ -368,10 +377,10 @@ export default function App() {
     return null;
   }, [weatherInfo.warnings]);
 
-  // 💡 極速版：一次性載入九巴全港站點快取字典 (徹底解決 API Rate Limit)
+  // 💡 V2 升級版：保證儲存有經緯度座標的全港車站清單
   const getOrFetchAllKmbStops = async () => {
     try {
-      const cached = localStorage.getItem('kmb_all_stops_cache');
+      const cached = localStorage.getItem('kmb_all_stops_cache_v2');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) return parsed.stops;
@@ -385,7 +394,7 @@ export default function App() {
         const miniStops = (d.data || []).map(s => ({
           id: s.stop, name: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long)
         })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
-        try { localStorage.setItem('kmb_all_stops_cache', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
+        try { localStorage.setItem('kmb_all_stops_cache_v2', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
         return miniStops;
       }
     } catch (e) {}
@@ -622,19 +631,18 @@ export default function App() {
     }));
   };
 
-  // 💡 極速版：本地字典獲取單一路線的沿途車站座標
+  // 💡 極速版 V2 站點座標解析 (避免舊快取無效的 BUG)
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
-    const cacheKey = `kmb_stop_details_cache_${company}`;
+    const cacheKey = `kmb_stop_details_cache_v2_${company}`;
     
-    // 如果是九巴，直接讀取剛才建立的全港快取字典！完全無 API 請求！
+    // 如果是九巴，直接調用全港座標總表，速度極快無 API 消耗
     if (company === 'kmb') {
         const allKmbStops = await getOrFetchAllKmbStops();
         allKmbStops.forEach(s => cache[s.id] = s);
         return cache;
     }
 
-    // 城巴則維持原本的部分快取與分批請求
     try { cache = JSON.parse(localStorage.getItem(cacheKey) || '{}'); } catch {}
     const missingIds = stopIds.filter(id => !cache[id] || !cache[id].lat);
     
@@ -729,7 +737,7 @@ export default function App() {
           if (activeStopEl && listRef.current) {
             activeStopEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
-        }, 100);
+        }, 300);
       } else {
          setMapState(prev => ({ ...prev, loadingMap: false, loadingStops: false, error: '無法獲取此路線的詳細資料' }));
       }
@@ -738,7 +746,7 @@ export default function App() {
     }
   };
 
-  // 💡 地圖繪製邏輯 (完美解決 100 站崩潰與白屏問題)
+  // 💡 地圖繪製邏輯 (加入 InvalidateSize 防止 Modal 白屏)
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current || !mapState.isOpen || mapState.loadingStops) return;
 
@@ -749,13 +757,14 @@ export default function App() {
       }
 
       const map = mapInstanceRef.current;
-      const polylineColor = mapState.routeInfo?.company === 'ctb' ? '#3b82f6' : '#ef4444'; 
-
-      // 💡 延遲重繪解決 Modal 白屏 BUG
+      
+      // 💡 確保 Modal 打開後，地圖容器有正確高度
       setTimeout(() => { map.invalidateSize(); }, 300);
 
+      const polylineColor = mapState.routeInfo?.company === 'ctb' ? '#3b82f6' : '#ef4444'; 
+
       if (mapState.routeStops.length > 0 && !polylineRef.current) {
-         // 過濾掉沒有座標的壞站點
+         // 過濾掉沒有座標的壞站點 (防護)
          const validStops = mapState.routeStops.filter(s => s.lat && s.lng && !isNaN(s.lat) && !isNaN(s.lng));
          const latlngs = validStops.map(s => [s.lat, s.lng]);
          
@@ -763,16 +772,14 @@ export default function App() {
              stopsLayerRef.current = window.L.layerGroup().addTo(map);
              arrowsLayerRef.current = window.L.layerGroup().addTo(map);
 
-             // 畫沿途小白點
              validStops.forEach(s => {
                 window.L.circleMarker([s.lat, s.lng], { radius: 3, fillColor: '#ffffff', color: polylineColor, weight: 2, fillOpacity: 1 }).addTo(stopsLayerRef.current);
              });
 
-             // 智慧箭頭繪製函數
              const drawArrows = (points, isGeoJson = false) => {
                 arrowsLayerRef.current.clearLayers();
                 let accumulatedDistance = 0;
-                const INTERVAL = 800; // 每 800 米畫一個箭咀
+                const INTERVAL = 600; // 每隔距離畫箭頭
 
                 for(let i=0; i<points.length-1; i++) {
                    const p1 = points[i];
@@ -787,7 +794,7 @@ export default function App() {
                    const dist = calculateDistance(lat1, lng1, lat2, lng2);
 
                    if (!isGeoJson) {
-                      if (dist > 300) { 
+                      if (dist > 250) { 
                           const midLat = (lat1 + lat2) / 2;
                           const midLng = (lng1 + lng2) / 2;
                           const dy = lat2 - lat1;
@@ -823,8 +830,8 @@ export default function App() {
                 window.L.marker([lat, lng], {icon: arrowIcon, interactive: false}).addTo(arrowsLayerRef.current);
              };
 
-             // Layer 1: 初步實線直線軌跡 (無條件畫出，保證不白屏)
-             polylineRef.current = window.L.polyline(latlngs, { color: polylineColor, weight: 5, opacity: 0.8 }).addTo(map);
+             // Layer 1: 初步半透明直線 (保證 0 延遲顯示，防止白屏)
+             polylineRef.current = window.L.polyline(latlngs, { color: polylineColor, weight: 5, opacity: 0.4 }).addTo(map);
              drawArrows(latlngs, false);
              
              if (latlngs.length > 1) {
@@ -833,12 +840,12 @@ export default function App() {
                  map.setView(latlngs[0], 16);
              }
 
-             // Layer 2: OSRM 馬路貼合
+             // Layer 2: 呼叫 OSRM API 繪製真實馬路貼合軌跡
              if (latlngs.length > 1) {
                  const fetchSnappedRoute = async () => {
                    try {
                       let coords = [];
-                      // 💡 防護：控制 OSRM 座標數量避免 URL 報錯 (Max 100)
+                      // 💡 防護 OSRM 限制 (最高允許約 90 個坐標)
                       if (validStops.length <= 80) {
                          coords = validStops.map(s => `${s.lng},${s.lat}`);
                       } else {
@@ -858,7 +865,7 @@ export default function App() {
                                     style: { color: polylineColor, weight: 5, opacity: 0.85 }
                                  }).addTo(map);
                                  
-                                 // 成功拿到底層資料才刪除 Layer 1 直線
+                                 // 成功後隱藏 Layer 1 直線，並畫出新箭頭
                                  if (polylineRef.current) map.removeLayer(polylineRef.current);
                                  drawArrows(geojson.coordinates, true);
                               }
@@ -917,7 +924,7 @@ export default function App() {
     } catch (e) {}
   }, [mapState.stop, mapState.routeInfo]);
 
-  // 💡 安全的清理機制 
+  // 💡 安全的清理機制 (防白屏)
   useEffect(() => {
     if (!mapState.isOpen) {
        if (mapInstanceRef.current) {
@@ -1054,8 +1061,8 @@ export default function App() {
         const d = await res.json();
         const stopList = Array.isArray(d.data) ? d.data : [];
         const stopIds = stopList.map(s => s.stop);
-        const nameCache = await fetchStopNamesInBatch(stopIds, selectedRoute.company); 
-        setRouteStops(stopList.map(s => ({ ...s, name_tc: nameCache[s.stop] || s.stop })));
+        const nameCache = await fetchStopDetailsInBatch(stopIds, selectedRoute.company); 
+        setRouteStops(stopList.map(s => ({ ...s, name_tc: nameCache[s.stop]?.name || s.stop })));
       } else {
         setRouteStops([]);
       }
@@ -1065,35 +1072,6 @@ export default function App() {
     } finally { 
       setLoadingStops(false); 
     }
-  };
-
-  const fetchStopNamesInBatch = async (stopIds, company = 'kmb') => {
-    let cache = {};
-    const cacheKey = `kmb_stop_names_cache_${company}`;
-    try { cache = JSON.parse(localStorage.getItem(cacheKey) || '{}'); } catch {}
-    const missingIds = stopIds.filter(id => !cache[id]);
-    if (missingIds.length > 0) {
-      const fetchSingle = async (id) => {
-        try { 
-          const url = company === 'ctb' 
-            ? `https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/stop/${id}`
-            : `https://data.etabus.gov.hk/v1/transport/kmb/stop/${id}`;
-          const res = await fetch(url); 
-          if (res.ok) { 
-            const d = await res.json(); 
-            return { id, name: d.data?.name_tc || id }; 
-          } 
-        } catch {}
-        return { id, name: id };
-      };
-      const chunkSize = 10;
-      for (let i = 0; i < missingIds.length; i += chunkSize) {
-        const results = await Promise.all(missingIds.slice(i, i + chunkSize).map(fetchSingle));
-        results.forEach(r => { cache[r.id] = r.name; });
-      }
-      try { localStorage.setItem(cacheKey, JSON.stringify(cache)); } catch {}
-    }
-    return cache;
   };
 
   const handleSelectStop = (stopItem) => {
@@ -1248,6 +1226,7 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
+        {/* 💡 主畫面實時天氣警告顯示區 (完美無 CORS 限制) */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -1282,6 +1261,7 @@ export default function App() {
               </div>
             )}
 
+            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -1403,6 +1383,7 @@ export default function App() {
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
                   </div>
                 </div>
+                {/* 💡 座枱模式警告標籤 */}
                 {validWarnings.length > 0 && (
                   <div className="flex flex-wrap gap-2 max-w-full mt-1">
                     {validWarnings.map((wData, idx) => (
@@ -1473,9 +1454,12 @@ export default function App() {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 
         /* 💡 全新 Leaflet 地圖樣式修復與覆寫 */
-        .leaflet-container { background: #e5e7eb !important; }
-        .dark .leaflet-container { background: #27272a !important; }
-        .leaflet-control-attribution { display: none !important; }
+        .leaflet-container {
+           background: transparent !important;
+        }
+        .leaflet-control-attribution {
+           display: none !important;
+        }
       `}</style>
 
       <header className={`px-4 py-3 flex items-center justify-between border-b shadow-sm z-20 shrink-0 transition-colors ${theme.topBar}`}>
@@ -1946,3 +1930,5 @@ export default function App() {
     </div>
   );
 }
+
+
