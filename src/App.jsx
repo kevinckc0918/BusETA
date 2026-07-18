@@ -99,9 +99,10 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心
+// 🌩️ 天氣警告資料處理中心 (💡 完美對接香港天文台官方高解析度圖片)
 const getWarningData = (code, originalName) => {
   const hkoBase = 'https://www.hko.gov.hk/images/HKOWarningSymbols/';
+  
   switch(code) {
     case 'WRAINA': return { text: '黃色暴雨警告', img: hkoBase + 'warn800_15_wraina.png', style: 'bg-yellow-400 text-yellow-950 border border-yellow-500', iconBg: 'bg-white/80' };
     case 'WRAINR': return { text: '紅色暴雨警告', img: hkoBase + 'warn800_16_wrainr.png', style: 'bg-red-600 text-white border border-red-500', iconBg: 'bg-white' };
@@ -129,7 +130,7 @@ const getWarningData = (code, originalName) => {
   }
 };
 
-// 🛡️ 防破圖天氣警告徽章元件
+// 🛡️ 防破圖天氣警告徽章元件 (💡 徹底移除 crossOrigin 限制)
 const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-6 h-6 object-contain", isSmall = false }) => {
   const [error, setError] = useState(false);
   if (error || !img) return null; 
@@ -138,12 +139,18 @@ const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-6 h
   
   return (
     <div className={`${iconBg} ${padding} shrink-0 flex items-center justify-center shadow-sm`}>
-      <img src={img} alt={text} className={className} referrerPolicy="no-referrer" onError={() => setError(true)} />
+      <img 
+        src={img} 
+        alt={text} 
+        className={className} 
+        referrerPolicy="no-referrer" // 解決防盜鏈
+        onError={() => setError(true)} 
+      />
     </div>
   );
 };
 
-// 🚌 巴士公司智能 Logo 組件
+// 🚌 巴士公司智能 Logo 組件 (💡 讀取 public 資料夾內的本地 PNG)
 const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
   const [imgError, setImgError] = useState(false);
   
@@ -156,7 +163,15 @@ const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
   }
 
   const src = company === 'ctb' ? "/ctb-logo.png" : "/kmb-logo.png";
-  return <img src={src} alt={company === 'ctb' ? 'Citybus' : 'KMB'} className={`shrink-0 drop-shadow-sm ${className}`} onError={() => setImgError(true)} />;
+
+  return (
+    <img 
+      src={src} 
+      alt={company === 'ctb' ? 'Citybus' : 'KMB'} 
+      className={`shrink-0 drop-shadow-sm ${className}`} 
+      onError={() => setImgError(true)} 
+    />
+  );
 };
 
 export default function App() {
@@ -172,7 +187,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('kmb_theme') || 'false'); } catch { return false; }
   });
 
-  // 💡 地圖視窗狀態管理
+  // 💡 地圖視窗狀態管理 (修復白屏關鍵)
   const [mapState, setMapState] = useState({ isOpen: false, loading: false, stop: null, error: null });
 
   // === 🎨 核心主題配色 ===
@@ -209,10 +224,13 @@ export default function App() {
   const [nearbyStopsData, setNearbyStopsData] = useState([]); 
   const [gpsMessage, setGpsMessage] = useState('');
 
+  // 💡 安全的 localStorage 讀取 (修復白屏關鍵)
   const [locations, setLocations] = useState(() => {
     try {
       const saved = localStorage.getItem('kmb_custom_locations');
-      return saved ? JSON.parse(saved) : DEFAULT_LOCATIONS;
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (Array.isArray(parsed)) return parsed;
+      return DEFAULT_LOCATIONS;
     } catch {
       return DEFAULT_LOCATIONS;
     }
@@ -440,7 +458,7 @@ export default function App() {
   }, [fetchNearbyStopsLiveETA]);
 
   const fetchCustomLocationsData = useCallback(async () => {
-    if (locations.length === 0) { setLocationsData([]); setLoading(false); return; }
+    if (!locations || locations.length === 0) { setLocationsData([]); setLoading(false); return; }
     setLoading(true); setError(null);
     try {
       const currentMins = Math.floor(Date.now() / 60000);
@@ -618,6 +636,68 @@ export default function App() {
     }
   };
 
+  const handleCopyBackupCode = () => {
+    const backupJson = JSON.stringify(locations);
+    const textArea = document.createElement("textarea");
+    textArea.value = backupJson;
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.position = "fixed";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) { setBackupSuccess('備份代碼複製成功！'); setTimeout(() => setBackupSuccess(''), 2000); } 
+      else setBackupError('複製失敗，請手動複製文本。');
+    } catch (err) { setBackupError('瀏覽器不支持自動複製。'); }
+    document.body.removeChild(textArea);
+  };
+
+  const handleDownloadBackupFile = () => {
+    try {
+      const backupJson = JSON.stringify(locations, null, 2);
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(backupJson);
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `巴士到站看板設定備份_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      setBackupSuccess('自訂設定檔已成功下載！');
+      setTimeout(() => setBackupSuccess(''), 3000);
+    } catch (e) { setBackupError('檔案下載失敗，請嘗試複製代碼。'); }
+  };
+
+  const handleUploadFile = (e) => {
+    const fileReader = new FileReader();
+    const file = e.target.files[0];
+    if (!file) return;
+    fileReader.onload = (event) => { setImportText(event.target.result); setBackupSuccess('備份載入成功！請點選下方按鈕確認還原。'); setBackupError(''); };
+    fileReader.onerror = () => { setBackupError('檔案讀取失敗'); };
+    fileReader.readAsText(file);
+  };
+
+  const handleConfirmImport = () => {
+    setBackupError(''); setBackupSuccess('');
+    try {
+      if (!importText.trim()) { setBackupError('請先貼上代碼或上傳檔案'); return; }
+      const parsed = JSON.parse(importText.trim());
+      if (!Array.isArray(parsed)) throw new Error('匯入格式必須為巴士站卡片陣列！');
+      const isValid = parsed.every(item => item.id && item.name && Array.isArray(item.routes));
+      if (!isValid) throw new Error('匯入資料遺漏關鍵欄位！');
+      setLocations(parsed);
+      setBackupSuccess('🎉 成功從備份中還原最愛看板配置！');
+      setImportText('');
+      setTimeout(() => { setIsSettingsModalOpen(false); setBackupSuccess(''); fetchCustomLocationsData(); }, 1500);
+    } catch (e) { setBackupError(`匯入驗證失敗: ${e.message || '格式錯誤'}`); }
+  };
+
+  const handleResetToPreload = () => {
+    setLocations(DEFAULT_LOCATIONS); setShowResetConfirm(false); setBackupSuccess('已成功重設為原裝最愛路線範例！');
+    setTimeout(() => { setBackupSuccess(''); fetchCustomLocationsData(); }, 2000);
+  };
+
   const handleOpenSearchModal = () => {
     setIsSettingsModalOpen(false); 
     setShouldReopenSettings(true);
@@ -647,6 +727,11 @@ export default function App() {
     }
   };
 
+  const handleCloseSearchModal = () => {
+    setIsSearchModalOpen(false);
+    if (shouldReopenSettings) { setIsSettingsModalOpen(true); setShouldReopenSettings(false); }
+  };
+
   const handleSelectRoute = (routeItem) => {
     setSelectedRoute(routeItem); 
     if (routeItem.company === 'ctb') {
@@ -673,34 +758,8 @@ export default function App() {
         const d = await res.json();
         const stopList = Array.isArray(d.data) ? d.data : [];
         const stopIds = stopList.map(s => s.stop);
-        
-        let cache = {};
-        const cacheKey = `kmb_stop_names_cache_${selectedRoute.company}`;
-        try { cache = JSON.parse(localStorage.getItem(cacheKey) || '{}'); } catch {}
-        const missingIds = stopIds.filter(id => !cache[id]);
-        if (missingIds.length > 0) {
-          const fetchSingle = async (id) => {
-            try { 
-              const url = selectedRoute.company === 'ctb' 
-                ? `https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/stop/${id}`
-                : `https://data.etabus.gov.hk/v1/transport/kmb/stop/${id}`;
-              const resSingle = await fetch(url); 
-              if (resSingle.ok) { 
-                const dSingle = await resSingle.json(); 
-                return { id, name: dSingle.data?.name_tc || id }; 
-              } 
-            } catch {}
-            return { id, name: id };
-          };
-          const chunkSize = 10;
-          for (let i = 0; i < missingIds.length; i += chunkSize) {
-            const results = await Promise.all(missingIds.slice(i, i + chunkSize).map(fetchSingle));
-            results.forEach(r => { cache[r.id] = r.name; });
-          }
-          try { localStorage.setItem(cacheKey, JSON.stringify(cache)); } catch {}
-        }
-        
-        setRouteStops(stopList.map(s => ({ ...s, name_tc: cache[s.stop] || s.stop })));
+        const nameCache = await fetchStopNamesInBatch(stopIds, selectedRoute.company);
+        setRouteStops(stopList.map(s => ({ ...s, name_tc: nameCache[s.stop] || s.stop })));
       } else {
         setRouteStops([]);
       }
@@ -759,9 +818,35 @@ export default function App() {
     setTimeout(() => fetchCustomLocationsData(), 200);
   };
 
-  // ========================================================
-  // 🚌 核心升級：巴士路線行渲染 (加入點擊開啟地圖邏輯)
-  // ========================================================
+  const fetchStopNamesInBatch = async (stopIds, company = 'kmb') => {
+    let cache = {};
+    const cacheKey = `kmb_stop_names_cache_${company}`;
+    try { cache = JSON.parse(localStorage.getItem(cacheKey) || '{}'); } catch {}
+    const missingIds = stopIds.filter(id => !cache[id]);
+    if (missingIds.length > 0) {
+      const fetchSingle = async (id) => {
+        try { 
+          const url = company === 'ctb' 
+            ? `https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/stop/${id}`
+            : `https://data.etabus.gov.hk/v1/transport/kmb/stop/${id}`;
+          const res = await fetch(url); 
+          if (res.ok) { 
+            const d = await res.json(); 
+            return { id, name: d.data?.name_tc || id }; 
+          } 
+        } catch {}
+        return { id, name: id };
+      };
+      const chunkSize = 10;
+      for (let i = 0; i < missingIds.length; i += chunkSize) {
+        const results = await Promise.all(missingIds.slice(i, i + chunkSize).map(fetchSingle));
+        results.forEach(r => { cache[r.id] = r.name; });
+      }
+      try { localStorage.setItem(cacheKey, JSON.stringify(cache)); } catch {}
+    }
+    return cache;
+  };
+
   const renderRow = (route, rIdx, isNearbySource = false, layoutType = 'LIST') => {
     const isEven = rIdx % 2 === 0;
     const rowBg = isEven ? theme.rowEven : theme.rowOdd;
@@ -791,7 +876,7 @@ export default function App() {
 
     const routeNumColorClass = route.company === 'ctb' ? 'text-blue-700 dark:text-blue-400' : theme.routeNum;
 
-    // 💡 檢查是否具備 stopId 以支援點擊開啟地圖
+    // 💡 點擊開啟地圖效果
     const isClickable = !!route.stopId;
     const clickableClasses = isClickable ? 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 active:scale-[0.99]' : '';
 
@@ -801,6 +886,7 @@ export default function App() {
         onClick={() => { if (isClickable) handleOpenMap(route.stopId, route.stopName, route.company); }}
         className={`flex justify-between items-center ${rowPadding} transition-all border-b border-gray-500/5 ${rowBg} ${clickableClasses}`}
       >
+        
         <div className="flex flex-col items-start justify-center flex-1 min-w-0 pr-3 pointer-events-none">
           <div className="flex items-center gap-2.5">
             <span className={`${routeNumSize} font-black tracking-tighter leading-none text-left block ${routeNumColorClass}`}>
@@ -867,6 +953,7 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
+        {/* 💡 主畫面實時天氣警告顯示區 (完美官方圖示支援) */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -885,7 +972,7 @@ export default function App() {
               <div className={`p-8 rounded-2xl border text-center flex flex-col items-center justify-center gap-3 ${theme.emptyStateBg}`}>
                 <MapPin className="w-8 h-8 text-blue-500 animate-bounce" />
                 <h3 className="text-sm font-bold">探索附近巴士站</h3>
-                <p className="text-gray-400 text-xs max-w-xs leading-relaxed">我們將使用 GPS 定位尋找你周圍最近的巴士站點與實時到站時間。</p>
+                <p className="text-gray-400 text-xs max-w-xs leading-relaxed">我們將使用 GPS 定位尋找你周圍最近的巴士站點與實時到站時間 (目前支援九巴)。</p>
                 <button onClick={() => findNearbyStops()} disabled={gpsLoading} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 shadow-md">
                   <Navigation className={`w-3.5 h-3.5 ${gpsLoading ? 'animate-spin' : ''}`} />
                   {gpsLoading ? '正在定位中...' : '授權並尋找附近站點'}
@@ -901,6 +988,7 @@ export default function App() {
               </div>
             )}
 
+            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -909,13 +997,13 @@ export default function App() {
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-extrabold shadow-sm ${theme.pillBg}`}>{loc.name}</span>
                       <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded">距離 {loc.distance} 米</span>
                     </div>
-                    {/* 💡 給予明確的地圖提示 */}
+                    {/* 💡 點擊看地圖提示 */}
                     <span className="text-[11px] text-gray-500 dark:text-gray-400 font-bold flex items-center gap-1">
                       <MapPin className="w-3 h-3" /> 點擊路線看地圖
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    {/* 💡 將 stopId 傳入 renderRow 以啟用地圖 */}
+                    {/* 傳入 stopId 供地圖使用 */}
                     {loc.routesData.map((route, rIdx) => renderRow({...route, stopId: loc.id, stopName: loc.name}, rIdx, true, 'LIST'))}
                   </div>
                 </div>
@@ -946,17 +1034,20 @@ export default function App() {
                   
                   <div className={`flex justify-between items-center px-5 py-3 sm:py-4 text-base sm:text-lg font-black border-b ${theme.groupHeaderText}`}>
                     <span className="flex-1 text-left">路線</span>
+                    
                     <div className="flex flex-col items-center justify-center shrink-0 mx-2">
                       <span className="bg-[#e3342f] text-white px-6 py-1.5 rounded-full text-sm sm:text-base tracking-widest shadow-sm">
                         {group.groupName}
                       </span>
+                      {/* 💡 點擊看地圖提示 */}
                       <span className="text-[9px] sm:text-[10px] text-gray-400 font-bold mt-1 tracking-wider opacity-70">點擊路線看地圖</span>
                     </div>
+
                     <span className="flex-1 text-right">分鐘</span>
                   </div>
 
                   <div className="flex flex-col">
-                    {/* 💡 Favorites 原本已經包含了 stopId，自動啟用 */}
+                    {/* 收藏已包含 stopId */}
                     {group.routesData.map((route, rIdx) => renderRow(route, rIdx, false, 'LIST'))}
                   </div>
                 </div>
@@ -977,7 +1068,6 @@ export default function App() {
       title = "全部最愛";
     } else if (standMonitorId === 'NEARBY_STOPS') {
       nearbyStopsData.forEach(s => {
-        // 💡 確保 Stand Mode 的 Nearby 也傳入 stopId
         const withStopName = s.routesData.map(r => ({ ...r, stopName: s.name, stopId: s.id }));
         displayRoutes.push(...withStopName);
       });
@@ -1012,6 +1102,7 @@ export default function App() {
                       src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} 
                       alt="Weather" 
                       className="w-16 h-16 drop-shadow-xl" 
+                      referrerPolicy="no-referrer" 
                     />
                   )}
                   <div className="flex flex-col">
@@ -1019,6 +1110,7 @@ export default function App() {
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
                   </div>
                 </div>
+                {/* 💡 座枱模式警告標籤 */}
                 {validWarnings.length > 0 && (
                   <div className="flex flex-wrap gap-2 max-w-full mt-1">
                     {validWarnings.map((wData, idx) => (
@@ -1105,14 +1197,17 @@ export default function App() {
           <h1 className="text-base sm:text-lg md:text-xl font-black tracking-widest text-white truncate">巴士到站看板</h1>
           {(weatherInfo.temp !== '--' || activeTCWarning) && (
             <div className="flex items-center gap-1.5 bg-black/20 dark:bg-black/40 border border-white/10 px-2 py-0.5 rounded-full shadow-inner shrink-0">
+              {/* 💡 頂部颱風標誌 */}
               {activeTCWarning && activeTCWarning.img && (
                 <WarningBadge img={activeTCWarning.img} text={activeTCWarning.text} iconBg={activeTCWarning.iconBg} className="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow-md" isSmall={true} />
               )}
+              {/* 💡 頂部一般天氣圖示 (無防盜鏈問題) */}
               {weatherInfo.icon && (
                 <img 
                   src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} 
                   alt="weather icon" 
                   className="w-4 h-4 sm:w-5 sm:h-5 object-contain"
+                  referrerPolicy="no-referrer" 
                 />
               )}
               {weatherInfo.temp !== '--' && (
@@ -1180,7 +1275,7 @@ export default function App() {
                 </div>
               )}
               {!mapState.loading && !mapState.error && mapState.stop?.lat && (
-                // 💡 使用 OpenStreetMap 官方嵌入框架 (完美繞過 CORS，輕量不佔資源)
+                // 💡 使用 OpenStreetMap 官方嵌入框架 (無 CORS 限制)
                 <iframe
                   title="OpenStreetMap"
                   width="100%"
