@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+// 💡 只保留絕對安全的基礎圖標，防止 VPS 圖標庫版本不一致導致白屏崩潰
 import { 
   Bus, 
   RefreshCw, 
@@ -17,15 +18,6 @@ import {
   ChevronDown,
   Navigation,
   MapPin,
-  Folder,
-  Layers,
-  Upload,
-  Download,
-  Copy,
-  FileText,
-  Sliders,
-  RotateCcw,
-  Pencil,
   Clock
 } from 'lucide-react';
 
@@ -99,7 +91,7 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心 (100% 綁定官方天文台高解析度圖示)
+// 🌩️ 天氣警告資料處理中心 (官方高解析度圖片)
 const getWarningData = (code, originalName) => {
   const hkoBase = 'https://www.hko.gov.hk/images/HKOWarningSymbols/';
   switch(code) {
@@ -167,7 +159,6 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('kmb_theme') || 'false'); } catch { return false; }
   });
 
-  // 💡 地圖與路線視窗狀態管理
   const [mapState, setMapState] = useState({ 
     isOpen: false, 
     loadingMap: false, 
@@ -178,12 +169,10 @@ export default function App() {
     error: null 
   });
   
-  // 💡 地圖內 ETA 讀取狀態
   const [mapStopEtas, setMapStopEtas] = useState([]);
   const [loadingMapEtas, setLoadingMapEtas] = useState(false);
   const [leafletLoaded, setLeafletLoaded] = useState(false);
 
-  // 清理舊版垃圾快取
   useEffect(() => {
     try {
       localStorage.removeItem('kmb_all_stops_cache'); 
@@ -194,7 +183,6 @@ export default function App() {
     } catch(e) {}
   }, []);
 
-  // 動態引入地圖引擎 Leaflet
   useEffect(() => {
     if (window.L) { setLeafletLoaded(true); return; }
     if (!document.getElementById('leaflet-css')) {
@@ -383,7 +371,6 @@ export default function App() {
     return null;
   }, [weatherInfo.warnings]);
 
-  // 💡 極速版快取：下載九巴全港站點 (0 網絡請求)
   const getOrFetchAllKmbStops = async () => {
     try {
       const cached = localStorage.getItem('kmb_all_stops_cache_v8');
@@ -637,7 +624,7 @@ export default function App() {
     }));
   };
 
-  // 💡 極速版 V8 站點座標解析：從總表拿資料
+  // 💡 極速版 V8 站點座標解析：從總表拿資料，徹底避免 Rate Limit
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
     const cacheKey = `kmb_stop_details_cache_v8_${company}`;
@@ -961,7 +948,7 @@ export default function App() {
     }
   }, [mapState.isOpen]);
 
-  // 💡 V9 修復：嚴謹的設定與複製函式
+  // 💡 嚴格處理備份還原文字框，防止 React 渲染崩潰
   const handleCopyBackupCode = () => {
     const backupJson = JSON.stringify(locations);
     const textArea = document.createElement("textarea");
@@ -1009,18 +996,18 @@ export default function App() {
     try {
       if (!importText.trim()) { setBackupError('請先貼上代碼或上傳檔案'); return; }
       const parsed = JSON.parse(importText.trim());
-      if (!Array.isArray(parsed)) throw new Error('匯入格式必須為巴士站陣列！');
+      if (!Array.isArray(parsed)) throw new Error('匯入格式必須為巴士站卡片陣列！');
       const isValid = parsed.every(item => item.id && item.name && Array.isArray(item.routes));
       if (!isValid) throw new Error('匯入資料遺漏關鍵欄位！');
       setLocations(parsed);
-      setBackupSuccess('🎉 成功還原！');
+      setBackupSuccess('🎉 成功從備份中還原最愛看板配置！');
       setImportText('');
       setTimeout(() => { setIsSettingsModalOpen(false); setBackupSuccess(''); fetchCustomLocationsData(); }, 1500);
-    } catch (e) { setBackupError(`驗證失敗: ${e.message || '格式錯誤'}`); }
+    } catch (e) { setBackupError(`匯入驗證失敗: ${e.message || '格式錯誤'}`); }
   };
 
   const handleResetToPreload = () => {
-    setLocations(DEFAULT_LOCATIONS); setShowResetConfirm(false); setBackupSuccess('已成功重設為預設範例！');
+    setLocations(DEFAULT_LOCATIONS); setShowResetConfirm(false); setBackupSuccess('已成功重設為原裝最愛路線範例！');
     setTimeout(() => { setBackupSuccess(''); fetchCustomLocationsData(); }, 2000);
   };
 
@@ -1173,7 +1160,6 @@ export default function App() {
 
     const routeNumColorClass = route.company === 'ctb' ? 'text-blue-700 dark:text-blue-400' : theme.routeNum;
 
-    // 💡 點擊開啟地圖效果
     const isClickable = !!route.stopId;
     const clickableClasses = isClickable ? 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 active:scale-[0.99]' : '';
 
@@ -1250,7 +1236,7 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 [圖一] 主畫面實時天氣警告顯示區 (激瘦官方版排版) */}
+        {/* 💡 主畫面實時天氣警告顯示區 (激瘦官方版排版) */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-1.5 px-3 sm:px-0 mb-3 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -1344,7 +1330,6 @@ export default function App() {
                   </div>
 
                   <div className="flex flex-col">
-                    {/* 收藏已包含 stopId */}
                     {group.routesData.map((route, rIdx) => renderRow(route, rIdx, false, 'LIST'))}
                   </div>
                 </div>
@@ -1701,7 +1686,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ⚙️ Settings Modal (💡 V9 修復：嚴謹的閉合標籤解決切換白屏) */}
+      {/* ⚙️ Settings Modal (💡 V9 修復：嚴謹的閉合標籤與純淨圖標解決切換白屏) */}
       {isSettingsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-fade-in">
           <div className={`w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden border ${theme.modalBg}`}>
@@ -1797,8 +1782,8 @@ export default function App() {
                     <span className="text-xs font-black">📥 匯出最愛備份設定</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">您可以將自訂巴士看板數據導出保存，便於同步至您的 iPad 或其他家人的裝置。</p>
                     <div className="grid grid-cols-2 gap-2">
-                      <button onClick={handleDownloadBackupFile} className="bg-[#e3342f] hover:bg-red-600 text-white py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1"><Download className="w-3.5 h-3.5" />下載備份檔 (.json)</button>
-                      <button onClick={handleCopyBackupCode} className={`py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1 transition-colors ${theme.controlBtn}`}><Copy className="w-3.5 h-3.5" />複製設定代碼</button>
+                      <button onClick={handleDownloadBackupFile} className="bg-[#e3342f] hover:bg-red-600 text-white py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1">📥 下載備份檔 (.json)</button>
+                      <button onClick={handleCopyBackupCode} className={`py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1 transition-colors ${theme.controlBtn}`}>📋 複製設定代碼</button>
                     </div>
                   </div>
                   <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 flex flex-col gap-3">
@@ -1824,7 +1809,7 @@ export default function App() {
               {settingsTab === 'ADVANCED' && (
                 <div className="flex flex-col gap-5">
                   <div className="p-3.5 rounded-xl bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 flex flex-col gap-3">
-                    <span className="text-xs font-black flex items-center gap-1.5"><Sliders className="w-4 h-4 text-blue-500" />🛰️ 附近巴士站搜尋範圍設定</span>
+                    <span className="text-xs font-black flex items-center gap-1.5"><Settings className="w-4 h-4 text-blue-500" />🛰️ 附近巴士站搜尋範圍設定</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">微調 GPS 定位搜尋周圍巴士站點的最大允許半徑，目前半徑為：<strong className="text-blue-500 text-xs ml-1">{nearbyRadius} 米</strong></p>
                     <div className="flex items-center gap-3">
                       <span className="text-[10px] font-bold opacity-50">300米</span>
@@ -1833,7 +1818,7 @@ export default function App() {
                     </div>
                   </div>
                   <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 flex flex-col gap-3">
-                    <span className="text-xs font-black text-red-600 dark:text-red-400 flex items-center gap-1.5"><RotateCcw className="w-4 h-4" />還原原廠預設值</span>
+                    <span className="text-xs font-black text-red-600 dark:text-red-400 flex items-center gap-1.5"><RefreshCw className="w-4 h-4" />還原原廠預設值</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">還原最愛看板設定回範例（預設峻巒總站、形點 II、大欖隧道配置），這將重置所有自訂設定。</p>
                     {!showResetConfirm ? (
                       <button onClick={() => setShowResetConfirm(true)} className="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-bold text-xs transition-colors">重設我的最愛站點</button>
