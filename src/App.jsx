@@ -99,7 +99,7 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心 (💡 全面替換為 PNG 縮圖，徹底繞過防盜鏈限制)
+// 🌩️ 天氣警告資料處理中心
 const getWarningData = (code, originalName) => {
   const wikiBase = 'https://upload.wikimedia.org/wikipedia/commons/thumb/';
   switch(code) {
@@ -127,20 +127,17 @@ const getWarningData = (code, originalName) => {
     case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: wikiBase + '6/61/No._8_Southwest_Gale_or_Storm_Signal.svg/240px-No._8_Southwest_Gale_or_Storm_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
     case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: wikiBase + '7/77/No._9_Increasing_Gale_or_Storm_Signal.svg/240px-No._9_Increasing_Gale_or_Storm_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
     case 'TC10': return { text: '十號颶風信號', img: wikiBase + '9/91/No._10_Hurricane_Signal.svg/240px-No._10_Hurricane_Signal.svg.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    
-    // 其他警告也換成 PNG
     case 'SMS': return { text: '強烈季候風信號', img: wikiBase + '1/18/Strong_Monsoon_Signal.svg/240px-Strong_Monsoon_Signal.svg.png', style: 'bg-slate-800 text-white border border-slate-600', iconBg: 'bg-transparent' };
     case 'WL': return { text: '山泥傾瀉警告', img: wikiBase + '0/00/HK_Landslip_Warning.svg/240px-HK_Landslip_Warning.svg.png', style: 'bg-yellow-600 text-white border border-yellow-700', iconBg: 'bg-white/80' };
     case 'FNTSA': return { text: '新界北部水浸特別報告', img: wikiBase + '0/05/HK_Special_Announcement_on_Flooding_in_the_Northern_New_Territories.svg/240px-HK_Special_Announcement_on_Flooding_in_the_Northern_New_Territories.svg.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white' };
     case 'FROST': return { text: '霜凍警告', img: wikiBase + '0/00/HK_Frost_Warning.svg/240px-HK_Frost_Warning.svg.png', style: 'bg-cyan-500 text-white border border-cyan-600', iconBg: 'bg-transparent' };
-    
     default: 
       if (!originalName || originalName.trim() === '') return null;
       return { text: originalName, style: 'bg-slate-800 text-white border border-slate-700 shadow-md', iconBg: 'bg-transparent' };
   }
 };
 
-// 🚌 巴士公司智能 Logo 組件 (讀取 public 內的 PNG)
+// 🚌 巴士公司智能 Logo 組件 (本地伺服器路徑)
 const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
   const [imgError, setImgError] = useState(false);
   
@@ -152,7 +149,6 @@ const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
     );
   }
 
-  // 💡 確認此處使用的是 .png
   const src = company === 'ctb' ? "/ctb-logo.png" : "/kmb-logo.png";
 
   return (
@@ -903,7 +899,7 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 主畫面實時天氣警告顯示區 */}
+        {/* 💡 主畫面實時天氣警告顯示區 (移除 crossOrigin 限制，確保圖示載入) */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -915,8 +911,8 @@ export default function App() {
                       alt={wData.text} 
                       className="w-6 h-6 object-contain" 
                       referrerPolicy="no-referrer" 
-                      crossOrigin="anonymous" 
-                      onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                      // 💡 已移除 crossOrigin="anonymous" 防止瀏覽器封鎖
+                      onError={(e) => { e.target.style.display = 'none'; }}
                     />
                   </div>
                 )}
@@ -1055,6 +1051,7 @@ export default function App() {
                     <span className="text-[10px] font-bold text-white/70">香港天文台</span>
                   </div>
                 </div>
+                {/* 💡 座枱模式警告標籤 */}
                 {validWarnings.length > 0 && (
                   <div className="flex flex-wrap gap-2 max-w-full mt-1">
                     {validWarnings.map((wData, idx) => (
@@ -1066,8 +1063,8 @@ export default function App() {
                               alt={wData.text} 
                               className="w-4 h-4 object-contain" 
                               referrerPolicy="no-referrer" 
-                              crossOrigin="anonymous" 
-                              onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                              // 💡 已移除 crossOrigin 限制
+                              onError={(e) => { e.target.style.display = 'none'; }}
                             />
                           </div>
                         )}
@@ -1125,10 +1122,13 @@ export default function App() {
   return (
     <div className={`h-screen flex flex-col font-sans transition-colors duration-300 overflow-hidden ${theme.appBg}`}>
       <style>{`
+        /* 防止 iOS 電話連結變色覆蓋 */
         a[x-apple-data-detectors], a[href^="tel"] {
           color: inherit !important;
           text-decoration: none !important;
         }
+        
+        /* 解決 iOS 橫向滑動與隱藏卷軸 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
       `}</style>
@@ -1149,6 +1149,7 @@ export default function App() {
           <h1 className="text-base sm:text-lg md:text-xl font-black tracking-widest text-white truncate">巴士到站看板</h1>
           {(weatherInfo.temp !== '--' || activeTCWarning) && (
             <div className="flex items-center gap-1.5 bg-black/20 dark:bg-black/40 border border-white/10 px-2 py-0.5 rounded-full shadow-inner shrink-0">
+              {/* 💡 颱風標誌放置於溫度前方 */}
               {activeTCWarning && activeTCWarning.img && (
                 <div className={`flex items-center justify-center shrink-0 ${activeTCWarning.iconBg || 'bg-transparent'} rounded-full p-0.5`}>
                   <img 
@@ -1156,7 +1157,8 @@ export default function App() {
                     alt={activeTCWarning.text} 
                     className="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow-md"
                     referrerPolicy="no-referrer" 
-                    crossOrigin="anonymous" 
+                    // 💡 已移除 crossOrigin 限制
+                    onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 </div>
               )}
@@ -1220,16 +1222,16 @@ export default function App() {
                   <Sun className="w-5 h-5 hidden dark:block text-yellow-500" />
                   <Moon className="w-5 h-5 block dark:hidden text-slate-700" />
                 </button>
-                <button onClick={() => { setIsSettingsModalOpen(false); setBackupError(''); setBackupSuccess(''); setImportText(''); }} className="p-1.5 rounded-full hover:bg-gray-500/10 bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">
+                <button onClick={() => { setIsSettingsModalOpen(false); setBackupError(''); setBackupSuccess(''); setImportText(''); setEditingRouteDest(null); }} className="p-1.5 rounded-full hover:bg-gray-500/10 bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
             <div className="flex border-b border-gray-500/10 bg-slate-500/5 shrink-0 text-xs font-black">
-              <button onClick={() => { setSettingsTab('FAVORITES'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'FAVORITES' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>📁 最愛管理</button>
-              <button onClick={() => { setSettingsTab('BACKUP'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'BACKUP' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>💾 備份還原</button>
-              <button onClick={() => { setSettingsTab('ADVANCED'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'ADVANCED' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>⚙️ 進階設定</button>
+              <button onClick={() => { setSettingsTab('FAVORITES'); setBackupError(''); setBackupSuccess(''); setEditingRouteDest(null); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'FAVORITES' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>📁 最愛管理</button>
+              <button onClick={() => { setSettingsTab('BACKUP'); setBackupError(''); setBackupSuccess(''); setEditingRouteDest(null); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'BACKUP' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>💾 備份還原</button>
+              <button onClick={() => { setSettingsTab('ADVANCED'); setBackupError(''); setBackupSuccess(''); setEditingRouteDest(null); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'ADVANCED' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>⚙️ 進階設定</button>
             </div>
 
             <div className="flex-1 p-5 overflow-y-auto bg-slate-50 dark:bg-zinc-950/50">
@@ -1488,5 +1490,3 @@ export default function App() {
     </div>
   );
 }
-
-
