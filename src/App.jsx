@@ -134,7 +134,7 @@ const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-6 h
   const padding = iconBg !== 'bg-transparent' ? (isSmall ? 'p-0.5 rounded' : 'p-1.5 rounded-lg') : '';
   return (
     <div className={`${iconBg} ${padding} shrink-0 flex items-center justify-center shadow-sm`}>
-      <img src={img} alt={text} className={className} onError={() => setError(true)} />
+      <img src={img} alt={text} className={className} referrerPolicy="no-referrer" onError={() => setError(true)} />
     </div>
   );
 };
@@ -178,15 +178,6 @@ export default function App() {
     error: null 
   });
   const [leafletLoaded, setLeafletLoaded] = useState(false);
-
-  // 初始化並清理舊版無座標的垃圾快取
-  useEffect(() => {
-    try {
-      localStorage.removeItem('kmb_all_stops_cache'); 
-      localStorage.removeItem('kmb_stop_names_cache_kmb'); 
-      localStorage.removeItem('kmb_stop_names_cache_ctb'); 
-    } catch(e) {}
-  }, []);
 
   // 動態引入地圖引擎 Leaflet
   useEffect(() => {
@@ -377,10 +368,10 @@ export default function App() {
     return null;
   }, [weatherInfo.warnings]);
 
-  // 💡 V2 升級版：保證儲存有經緯度座標的全港車站清單
+  // 💡 極速版快取：一次性下載九巴全港站點 (如果失敗則退回空陣列)
   const getOrFetchAllKmbStops = async () => {
     try {
-      const cached = localStorage.getItem('kmb_all_stops_cache_v2');
+      const cached = localStorage.getItem('kmb_all_stops_cache_v3');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) return parsed.stops;
@@ -394,7 +385,7 @@ export default function App() {
         const miniStops = (d.data || []).map(s => ({
           id: s.stop, name: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long)
         })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
-        try { localStorage.setItem('kmb_all_stops_cache_v2', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
+        try { localStorage.setItem('kmb_all_stops_cache_v3', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
         return miniStops;
       }
     } catch (e) {}
@@ -631,29 +622,38 @@ export default function App() {
     }));
   };
 
-  // 💡 極速版 V2 站點座標解析 (避免舊快取無效的 BUG)
+  // 💡 極速版 V3 站點座標解析：防禦 Rate Limit
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
-    const cacheKey = `kmb_stop_details_cache_v2_${company}`;
+    const cacheKey = `kmb_stop_details_cache_v3_${company}`;
     
-    // 如果是九巴，直接調用全港座標總表，速度極快無 API 消耗
+    // 如果是九巴，直接讀取全港總表
     if (company === 'kmb') {
         const allKmbStops = await getOrFetchAllKmbStops();
-        allKmbStops.forEach(s => cache[s.id] = s);
-        return cache;
+        allKmbStops.forEach(s => {
+           if (s.lat && s.lng) cache[s.id] = s;
+        });
     }
 
-    try { cache = JSON.parse(localStorage.getItem(cacheKey) || '{}'); } catch {}
+    try { 
+      const localCache = JSON.parse(localStorage.getItem(cacheKey) || '{}'); 
+      cache = { ...localCache, ...cache };
+    } catch {}
+
     const missingIds = stopIds.filter(id => !cache[id] || !cache[id].lat);
     
     if (missingIds.length > 0) {
       const fetchSingle = async (id) => {
         try { 
-          const url = `https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/stop/${id}`;
+          const url = company === 'ctb' 
+            ? `https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/stop/${id}`
+            : `https://data.etabus.gov.hk/v1/transport/kmb/stop/${id}`;
           const res = await fetch(url); 
           if (res.ok) { 
             const d = await res.json(); 
-            return { id, name: d.data?.name_tc || id, lat: parseFloat(d.data?.lat), lng: parseFloat(d.data?.long) }; 
+            if (d.data?.lat) {
+               return { id, name: d.data?.name_tc || id, lat: parseFloat(d.data?.lat), lng: parseFloat(d.data?.long) }; 
+            }
           } 
         } catch {}
         return { id, name: id, lat: null, lng: null };
@@ -662,7 +662,9 @@ export default function App() {
       const chunkSize = 5; 
       for (let i = 0; i < missingIds.length; i += chunkSize) {
         const results = await Promise.all(missingIds.slice(i, i + chunkSize).map(fetchSingle));
-        results.forEach(r => { cache[r.id] = r; });
+        results.forEach(r => { 
+           if (r.lat) cache[r.id] = r; 
+        });
       }
       try { localStorage.setItem(cacheKey, JSON.stringify(cache)); } catch {}
     }
@@ -673,7 +675,6 @@ export default function App() {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const polylineRef = useRef(null);
-  const snappedPolylineRef = useRef(null);
   const markerRef = useRef(null);
   const stopsLayerRef = useRef(null);
   const arrowsLayerRef = useRef(null);
@@ -746,7 +747,7 @@ export default function App() {
     }
   };
 
-  // 💡 地圖繪製邏輯 (加入 InvalidateSize 防止 Modal 白屏)
+  // 💡 高品質直連軌跡繪製 (防白屏、0 延遲)
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current || !mapState.isOpen || mapState.loadingStops) return;
 
@@ -758,13 +759,13 @@ export default function App() {
 
       const map = mapInstanceRef.current;
       
-      // 💡 確保 Modal 打開後，地圖容器有正確高度
+      // 確保地圖容器尺寸正確
       setTimeout(() => { map.invalidateSize(); }, 300);
 
       const polylineColor = mapState.routeInfo?.company === 'ctb' ? '#3b82f6' : '#ef4444'; 
 
       if (mapState.routeStops.length > 0 && !polylineRef.current) {
-         // 過濾掉沒有座標的壞站點 (防護)
+         
          const validStops = mapState.routeStops.filter(s => s.lat && s.lng && !isNaN(s.lat) && !isNaN(s.lng));
          const latlngs = validStops.map(s => [s.lat, s.lng]);
          
@@ -772,117 +773,59 @@ export default function App() {
              stopsLayerRef.current = window.L.layerGroup().addTo(map);
              arrowsLayerRef.current = window.L.layerGroup().addTo(map);
 
+             // 畫沿途小白點
              validStops.forEach(s => {
-                window.L.circleMarker([s.lat, s.lng], { radius: 3, fillColor: '#ffffff', color: polylineColor, weight: 2, fillOpacity: 1 }).addTo(stopsLayerRef.current);
+                window.L.circleMarker([s.lat, s.lng], { radius: 3.5, fillColor: '#ffffff', color: polylineColor, weight: 2, fillOpacity: 1 }).addTo(stopsLayerRef.current);
              });
 
-             const drawArrows = (points, isGeoJson = false) => {
-                arrowsLayerRef.current.clearLayers();
-                let accumulatedDistance = 0;
-                const INTERVAL = 600; // 每隔距離畫箭頭
+             // 💡 畫直連線與箭頭
+             polylineRef.current = window.L.polyline(latlngs, { 
+                color: polylineColor, 
+                weight: 6, 
+                opacity: 0.85, 
+                lineJoin: 'round' 
+             }).addTo(map);
 
-                for(let i=0; i<points.length-1; i++) {
-                   const p1 = points[i];
-                   const p2 = points[i+1];
+             for(let i=0; i<latlngs.length-1; i++) {
+                 const p1 = latlngs[i];
+                 const p2 = latlngs[i+1];
+                 const dist = calculateDistance(p1[0], p1[1], p2[0], p2[1]);
 
-                   const lat1 = isGeoJson ? p1[1] : p1[0];
-                   const lng1 = isGeoJson ? p1[0] : p1[1];
-                   const lat2 = isGeoJson ? p2[1] : p2[0];
-                   const lng2 = isGeoJson ? p2[0] : p2[1];
+                 // 距離夠遠才畫箭頭，避免重疊
+                 if (dist > 150) { 
+                    const midLat = (p1[0] + p2[0]) / 2;
+                    const midLng = (p1[1] + p2[1]) / 2;
+                    const dy = p2[0] - p1[0];
+                    const dx = Math.cos(Math.PI / 180 * p1[0]) * (p2[1] - p1[1]);
+                    const heading = 90 - (Math.atan2(dy, dx) * 180 / Math.PI);
+                    
+                    if (!isNaN(heading)) {
+                        const arrowIcon = window.L.divIcon({
+                            className: 'route-arrow',
+                            html: `<div style="transform: rotate(${heading}deg); width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.5)); z-index: 50;">
+                                      <svg viewBox="0 0 24 24" width="16" height="16" fill="white" stroke="${polylineColor}" stroke-width="2" stroke-linejoin="round">
+                                         <path d="M12 3L20 21L12 17L4 21L12 3Z" />
+                                      </svg>
+                                   </div>`,
+                            iconSize: [16, 16],
+                            iconAnchor: [8, 8]
+                        });
+                        window.L.marker([midLat, midLng], {icon: arrowIcon, interactive: false}).addTo(arrowsLayerRef.current);
+                    }
+                 }
+             }
 
-                   if (!lat1 || !lng1 || !lat2 || !lng2) continue; 
-                   const dist = calculateDistance(lat1, lng1, lat2, lng2);
-
-                   if (!isGeoJson) {
-                      if (dist > 250) { 
-                          const midLat = (lat1 + lat2) / 2;
-                          const midLng = (lng1 + lng2) / 2;
-                          const dy = lat2 - lat1;
-                          const dx = Math.cos(Math.PI / 180 * lat1) * (lng2 - lng1);
-                          const heading = 90 - (Math.atan2(dy, dx) * 180 / Math.PI);
-                          createArrowMarker(midLat, midLng, heading);
-                      }
-                   } else {
-                      accumulatedDistance += dist;
-                      if (accumulatedDistance > INTERVAL) {
-                          accumulatedDistance = 0;
-                          const dy = lat2 - lat1;
-                          const dx = Math.cos(Math.PI / 180 * lat1) * (lng2 - lng1);
-                          const heading = 90 - (Math.atan2(dy, dx) * 180 / Math.PI);
-                          createArrowMarker(lat2, lng2, heading);
-                      }
-                   }
-                }
-             };
-
-             const createArrowMarker = (lat, lng, heading) => {
-                if (isNaN(heading)) return; 
-                const arrowIcon = window.L.divIcon({
-                    className: 'route-arrow',
-                    html: `<div style="transform: rotate(${heading}deg); width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.5)); z-index: 50;">
-                              <svg viewBox="0 0 24 24" width="14" height="14" fill="white" stroke="${polylineColor}" stroke-width="2" stroke-linejoin="round">
-                                 <path d="M12 3L20 21L12 17L4 21L12 3Z" />
-                              </svg>
-                           </div>`,
-                    iconSize: [14, 14],
-                    iconAnchor: [7, 7]
-                });
-                window.L.marker([lat, lng], {icon: arrowIcon, interactive: false}).addTo(arrowsLayerRef.current);
-             };
-
-             // Layer 1: 初步半透明直線 (保證 0 延遲顯示，防止白屏)
-             polylineRef.current = window.L.polyline(latlngs, { color: polylineColor, weight: 5, opacity: 0.4 }).addTo(map);
-             drawArrows(latlngs, false);
-             
+             // 縮放並移除 loading
              if (latlngs.length > 1) {
                  map.fitBounds(polylineRef.current.getBounds(), { padding: [40, 40], maxZoom: 16 });
              } else {
                  map.setView(latlngs[0], 16);
              }
-
-             // Layer 2: 呼叫 OSRM API 繪製真實馬路貼合軌跡
-             if (latlngs.length > 1) {
-                 const fetchSnappedRoute = async () => {
-                   try {
-                      let coords = [];
-                      // 💡 防護 OSRM 限制 (最高允許約 90 個坐標)
-                      if (validStops.length <= 80) {
-                         coords = validStops.map(s => `${s.lng},${s.lat}`);
-                      } else {
-                         // 智能降採樣
-                         coords = validStops.filter((_, i) => i % 2 === 0 || i === validStops.length - 1).map(s => `${s.lng},${s.lat}`);
-                      }
-
-                      const coordsString = coords.join(';');
-                      if (coordsString) {
-                          const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson&continue_straight=true`;
-                          const res = await fetch(osrmUrl);
-                          if (res.ok) {
-                              const data = await res.json();
-                              if (data && data.routes && data.routes[0]) {
-                                 const geojson = data.routes[0].geometry;
-                                 snappedPolylineRef.current = window.L.geoJSON(geojson, {
-                                    style: { color: polylineColor, weight: 5, opacity: 0.85 }
-                                 }).addTo(map);
-                                 
-                                 // 成功後隱藏 Layer 1 直線，並畫出新箭頭
-                                 if (polylineRef.current) map.removeLayer(polylineRef.current);
-                                 drawArrows(geojson.coordinates, true);
-                              }
-                          }
-                      }
-                   } catch (e) {
-                      console.log("OSRM 路徑獲取失敗，維持使用直線軌跡", e);
-                   } finally {
-                      setMapState(prev => ({ ...prev, loadingMap: false }));
-                   }
-                 };
-                 fetchSnappedRoute();
-             } else {
-                 setMapState(prev => ({ ...prev, loadingMap: false }));
-             }
-         } else {
              setMapState(prev => ({ ...prev, loadingMap: false }));
+
+         } else {
+             // 若無效座標
+             setMapState(prev => ({ ...prev, loadingMap: false, error: '無法顯示路線軌跡：缺乏有效座標' }));
          }
       }
     } catch(err) {
@@ -924,7 +867,7 @@ export default function App() {
     } catch (e) {}
   }, [mapState.stop, mapState.routeInfo]);
 
-  // 💡 安全的清理機制 (防白屏)
+  // 💡 安全的清理機制
   useEffect(() => {
     if (!mapState.isOpen) {
        if (mapInstanceRef.current) {
@@ -932,7 +875,6 @@ export default function App() {
           mapInstanceRef.current = null;
        }
        polylineRef.current = null;
-       snappedPolylineRef.current = null;
        stopsLayerRef.current = null;
        arrowsLayerRef.current = null;
        markerRef.current = null;
@@ -1116,7 +1058,8 @@ export default function App() {
     }
 
     setLocations(updatedLocations); 
-    handleCloseSearchModal();
+    setIsSearchModalOpen(false);
+    if (shouldReopenSettings) { setIsSettingsModalOpen(true); setShouldReopenSettings(false); }
     setTimeout(() => fetchCustomLocationsData(), 200);
   };
 
@@ -1226,7 +1169,7 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 主畫面實時天氣警告顯示區 (完美無 CORS 限制) */}
+        {/* 💡 主畫面實時天氣警告顯示區 */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -1454,12 +1397,9 @@ export default function App() {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 
         /* 💡 全新 Leaflet 地圖樣式修復與覆寫 */
-        .leaflet-container {
-           background: transparent !important;
-        }
-        .leaflet-control-attribution {
-           display: none !important;
-        }
+        .leaflet-container { background: #e5e7eb !important; }
+        .dark .leaflet-container { background: #27272a !important; }
+        .leaflet-control-attribution { display: none !important; }
       `}</style>
 
       <header className={`px-4 py-3 flex items-center justify-between border-b shadow-sm z-20 shrink-0 transition-colors ${theme.topBar}`}>
@@ -1528,12 +1468,12 @@ export default function App() {
         </footer>
       )}
 
-      {/* 🗺️ 全新全路線互動地圖與時間軸彈出視窗 Modal (OSRM 引擎) */}
+      {/* 🗺️ 全新全路線互動地圖與時間軸彈出視窗 Modal (100% 直連畫線防呆版) */}
       {mapState.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 sm:p-4 backdrop-blur-md animate-fade-in" onClick={() => setMapState({ ...mapState, isOpen: false })}>
           <div className={`w-full h-full sm:h-[85vh] sm:max-w-md shadow-2xl flex flex-col overflow-hidden sm:rounded-2xl border ${theme.modalBg}`} onClick={(e) => e.stopPropagation()}>
             
-            {/* 官方風格 Header */}
+            {/* 官方風格 Header：根據巴士公司轉換顏色 */}
             <div className={`px-5 py-3.5 flex items-center justify-between shrink-0 shadow-sm z-10 ${mapState.routeInfo?.company === 'ctb' ? 'bg-[#ffcc00] text-yellow-950 border-b border-yellow-500' : 'bg-[#e3342f] text-white border-b border-red-700'}`}>
               <div className="flex flex-col min-w-0 pr-4">
                 <div className="flex items-center gap-2">
@@ -1549,20 +1489,20 @@ export default function App() {
               </button>
             </div>
             
-            {/* 上半部：Leaflet + OSRM 互動地圖 */}
+            {/* 💡 上半部：全新 Leaflet 直連軌跡引擎地圖 */}
             <div className="h-[40%] min-h-[220px] shrink-0 relative bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-700 shadow-inner">
               <div ref={mapContainerRef} className="w-full h-full z-0" />
               
               {mapState.loadingMap && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gray-200/80 dark:bg-zinc-800/80 z-20 backdrop-blur-sm">
                   <RefreshCw className={`w-8 h-8 animate-spin ${mapState.routeInfo?.company === 'ctb' ? 'text-blue-600' : 'text-red-500'}`} />
-                  <span className="text-xs font-bold opacity-70 text-slate-800 dark:text-zinc-200">正在計算道路軌跡...</span>
+                  <span className="text-xs font-bold opacity-70 text-slate-800 dark:text-zinc-200">正在計算路線軌跡...</span>
                 </div>
               )}
               {mapState.error && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-red-500 bg-red-50 dark:bg-red-950/20 z-20">
                   <AlertTriangle className="w-8 h-8" />
-                  <span className="text-xs font-bold">{mapState.error}</span>
+                  <span className="text-xs font-bold px-4 text-center">{mapState.error}</span>
                 </div>
               )}
 
@@ -1580,7 +1520,7 @@ export default function App() {
               )}
             </div>
             
-            {/* 下半部：全路線站點時間軸列表 (Click to Fly) */}
+            {/* 💡 下半部：全路線站點時間軸列表 (Click to Fly) */}
             <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-zinc-950 relative shadow-[inset_0_10px_10px_-10px_rgba(0,0,0,0.05)]" ref={listRef}>
               {mapState.loadingStops ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-800 dark:text-zinc-200">
@@ -1930,5 +1870,3 @@ export default function App() {
     </div>
   );
 }
-
-
