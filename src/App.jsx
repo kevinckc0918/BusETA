@@ -141,7 +141,7 @@ const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
     );
   }
 
-  const src = company === 'ctb' ? "/ctb-logo.svg" : "/kmb-logo.svg";
+  const src = company === 'ctb' ? "/ctb-logo.png" : "/kmb-logo.png";
 
   return (
     <img 
