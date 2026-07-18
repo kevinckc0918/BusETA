@@ -99,7 +99,7 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心 (使用官方高清版 PNG，解決狗牙問題)
+// 🌩️ 天氣警告資料處理中心 (官方高解析度 PNG)
 const getWarningData = (code, originalName) => {
   const hkoBase = 'https://www.hko.gov.hk/images/HKOWarningSymbols/';
   switch(code) {
@@ -129,7 +129,7 @@ const getWarningData = (code, originalName) => {
   }
 };
 
-// 🛡️ 防破圖天氣警告徽章元件 (無 CORS 限制)
+// 🛡️ 防破圖天氣警告徽章元件
 const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-6 h-6 object-contain", isSmall = false }) => {
   const [error, setError] = useState(false);
   if (error || !img) return null; 
@@ -141,7 +141,7 @@ const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-6 h
   );
 };
 
-// 🚌 巴士公司智能 Logo 組件 (本地 VPS 路徑)
+// 🚌 巴士公司智能 Logo 組件
 const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
   const [imgError, setImgError] = useState(false);
   if (imgError) {
@@ -182,18 +182,14 @@ export default function App() {
   });
   const [leafletLoaded, setLeafletLoaded] = useState(false);
 
-  // 💡 動態引入地圖引擎 Leaflet (保證在 React 中完美運作)
   useEffect(() => {
     if (window.L) { setLeafletLoaded(true); return; }
-    
     if (!document.getElementById('leaflet-css')) {
       const link = document.createElement('link');
-      link.id = 'leaflet-css';
-      link.rel = 'stylesheet';
+      link.id = 'leaflet-css'; link.rel = 'stylesheet';
       link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
       document.head.appendChild(link);
     }
-    
     if (!document.getElementById('leaflet-js')) {
       const script = document.createElement('script');
       script.id = 'leaflet-js';
@@ -201,14 +197,12 @@ export default function App() {
       script.onload = () => { window.dispatchEvent(new Event('leafletReady')); };
       document.head.appendChild(script);
     }
-
     const checkL = () => { if (window.L) setLeafletLoaded(true); };
     checkL();
     window.addEventListener('leafletReady', checkL);
     return () => window.removeEventListener('leafletReady', checkL);
   }, []);
 
-  // === 🎨 核心主題配色 ===
   const theme = {
     appBg: isDarkMode ? 'bg-zinc-950 text-white' : 'bg-slate-50 text-slate-900',
     topBar: isDarkMode ? 'bg-red-950 border-red-900/50' : 'bg-[#e3342f] border-red-700',
@@ -627,7 +621,7 @@ export default function App() {
     }));
   };
 
-  // 💡 極速版站名與經緯度快取讀取器 (專為全路線地圖設計)
+  // 💡 極速版快取讀取器
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
     const cacheKey = `kmb_stop_details_cache_${company}`;
@@ -663,11 +657,12 @@ export default function App() {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const polylineRef = useRef(null);
+  const snappedPolylineRef = useRef(null);
   const markerRef = useRef(null);
   const stopsLayerRef = useRef(null);
   const arrowsLayerRef = useRef(null);
 
-  // 💡 處理打開全路線地圖彈窗邏輯
+  // 💡 開啟地圖彈窗 (預防 White Screen 安全鎖)
   const handleOpenMap = async (initialStopId, stopName, company, routeNum, dir, dest, serviceType = '1') => {
     if (!initialStopId || !routeNum) return;
     
@@ -716,7 +711,6 @@ export default function App() {
         setMapState(prev => ({ 
           ...prev, 
           loadingStops: false, 
-          loadingMap: false,
           routeStops: processedStops,
           stop: targetStop,
           error: null
@@ -736,109 +730,185 @@ export default function App() {
     }
   };
 
-  // 💡 第一階段：初始化地圖與繪製全路線軌跡 (Polyline & Arrows)
+  // 💡 地圖繪製邏輯 (加入嚴密 try...catch 預防崩潰)
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current || !mapState.isOpen || mapState.loadingStops) return;
 
-    if (!mapInstanceRef.current) {
-      mapInstanceRef.current = window.L.map(mapContainerRef.current, {
-         zoomControl: false,
-         attributionControl: false
-      });
-      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-         maxZoom: 19
-      }).addTo(mapInstanceRef.current);
-    }
+    try {
+      if (!mapInstanceRef.current) {
+        mapInstanceRef.current = window.L.map(mapContainerRef.current, { zoomControl: false, attributionControl: false });
+        window.L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(mapInstanceRef.current);
+      }
 
-    const map = mapInstanceRef.current;
+      const map = mapInstanceRef.current;
+      const polylineColor = mapState.routeInfo?.company === 'ctb' ? '#3b82f6' : '#ef4444'; 
 
-    if (mapState.routeStops.length > 0 && !polylineRef.current) {
-       const validStops = mapState.routeStops.filter(s => s.lat && s.lng);
-       const latlngs = validStops.map(s => [s.lat, s.lng]);
-       
-       if (latlngs.length > 0) {
-           const polylineColor = mapState.routeInfo?.company === 'ctb' ? '#3b82f6' : '#ef4444'; 
-           
-           polylineRef.current = window.L.polyline(latlngs, { color: polylineColor, weight: 5, opacity: 0.8 }).addTo(map);
+      if (mapState.routeStops.length > 0 && !polylineRef.current) {
+         const validStops = mapState.routeStops.filter(s => s.lat && s.lng);
+         const latlngs = validStops.map(s => [s.lat, s.lng]);
+         
+         if (latlngs.length > 0) {
+             stopsLayerRef.current = window.L.layerGroup().addTo(map);
+             arrowsLayerRef.current = window.L.layerGroup().addTo(map);
 
-           stopsLayerRef.current = window.L.layerGroup().addTo(map);
-           validStops.forEach(s => {
-              window.L.circleMarker([s.lat, s.lng], {
-                 radius: 3, fillColor: '#ffffff', color: polylineColor, weight: 2, fillOpacity: 1
-              }).addTo(stopsLayerRef.current);
-           });
+             validStops.forEach(s => {
+                window.L.circleMarker([s.lat, s.lng], { radius: 3, fillColor: '#ffffff', color: polylineColor, weight: 2, fillOpacity: 1 }).addTo(stopsLayerRef.current);
+             });
 
-           arrowsLayerRef.current = window.L.layerGroup().addTo(map);
-           for(let i=0; i<latlngs.length-1; i++) {
-              const p1 = latlngs[i];
-              const p2 = latlngs[i+1];
-              const distance = calculateDistance(p1[0], p1[1], p2[0], p2[1]);
-              
-              if (distance > 60) { 
-                 const midLat = (p1[0] + p2[0]) / 2;
-                 const midLng = (p1[1] + p2[1]) / 2;
-                 const dy = p2[0] - p1[0];
-                 const dx = Math.cos(Math.PI / 180 * p1[0]) * (p2[1] - p1[1]);
-                 const heading = 90 - (Math.atan2(dy, dx) * 180 / Math.PI);
-                 
-                 const arrowIcon = window.L.divIcon({
+             const drawArrows = (points, isGeoJson = false) => {
+                arrowsLayerRef.current.clearLayers();
+                let accumulatedDistance = 0;
+                const INTERVAL = 600; 
+
+                for(let i=0; i<points.length-1; i++) {
+                   const p1 = points[i];
+                   const p2 = points[i+1];
+
+                   const lat1 = isGeoJson ? p1[1] : p1[0];
+                   const lng1 = isGeoJson ? p1[0] : p1[1];
+                   const lat2 = isGeoJson ? p2[1] : p2[0];
+                   const lng2 = isGeoJson ? p2[0] : p2[1];
+
+                   const dist = calculateDistance(lat1, lng1, lat2, lng2);
+
+                   if (!isGeoJson) {
+                      if (dist > 200) {
+                          const midLat = (lat1 + lat2) / 2;
+                          const midLng = (lng1 + lng2) / 2;
+                          const dy = lat2 - lat1;
+                          const dx = Math.cos(Math.PI / 180 * lat1) * (lng2 - lng1);
+                          const heading = 90 - (Math.atan2(dy, dx) * 180 / Math.PI);
+                          createArrowMarker(midLat, midLng, heading);
+                      }
+                   } else {
+                      accumulatedDistance += dist;
+                      if (accumulatedDistance > INTERVAL) {
+                          accumulatedDistance = 0;
+                          const dy = lat2 - lat1;
+                          const dx = Math.cos(Math.PI / 180 * lat1) * (lng2 - lng1);
+                          const heading = 90 - (Math.atan2(dy, dx) * 180 / Math.PI);
+                          createArrowMarker(lat2, lng2, heading);
+                      }
+                   }
+                }
+             };
+
+             const createArrowMarker = (lat, lng, heading) => {
+                if (isNaN(heading)) return; // 防呆
+                const arrowIcon = window.L.divIcon({
                     className: 'route-arrow',
-                    html: `<div style="transform: rotate(${heading}deg); width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.3));">
+                    html: `<div style="transform: rotate(${heading}deg); width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.5)); z-index: 50;">
                               <svg viewBox="0 0 24 24" width="14" height="14" fill="white" stroke="${polylineColor}" stroke-width="2" stroke-linejoin="round">
                                  <path d="M12 3L20 21L12 17L4 21L12 3Z" />
                               </svg>
                            </div>`,
                     iconSize: [14, 14],
                     iconAnchor: [7, 7]
-                 });
-                 window.L.marker([midLat, midLng], {icon: arrowIcon, interactive: false}).addTo(arrowsLayerRef.current);
-              }
-           }
+                });
+                window.L.marker([lat, lng], {icon: arrowIcon, interactive: false}).addTo(arrowsLayerRef.current);
+             };
 
-           map.fitBounds(polylineRef.current.getBounds(), { padding: [40, 40] });
-       }
+             // Layer 1
+             polylineRef.current = window.L.polyline(latlngs, { color: polylineColor, weight: 5, opacity: 0.4, dashArray: '10, 10' }).addTo(map);
+             drawArrows(latlngs, false);
+             
+             // 💡 預防單一座標點導致 Infinity Bounds 崩潰
+             if (latlngs.length > 1) {
+                 map.fitBounds(polylineRef.current.getBounds(), { padding: [40, 40], maxZoom: 16 });
+             } else {
+                 map.setView(latlngs[0], 16);
+             }
+
+             // Layer 2: OSRM
+             if (latlngs.length > 1) {
+                 const fetchSnappedRoute = async () => {
+                   try {
+                      let coordsString = "";
+                      // 💡 防護：控制座標數量避免 400 Bad Request
+                      if (validStops.length <= 90) {
+                         coordsString = validStops.map(s => `${s.lng},${s.lat}`).join(';');
+                      } else {
+                         coordsString = validStops.filter((_, i) => i % 2 === 0 || i === validStops.length - 1).map(s => `${s.lng},${s.lat}`).join(';');
+                      }
+
+                      if (coordsString) {
+                          const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson&continue_straight=true`;
+                          const res = await fetch(osrmUrl);
+                          if (res.ok) {
+                              const data = await res.json();
+                              if (data && data.routes && data.routes[0]) {
+                                 const geojson = data.routes[0].geometry;
+                                 snappedPolylineRef.current = window.L.geoJSON(geojson, {
+                                    style: { color: polylineColor, weight: 5, opacity: 0.85 }
+                                 }).addTo(map);
+                                 
+                                 if (polylineRef.current) map.removeLayer(polylineRef.current);
+                                 drawArrows(geojson.coordinates, true);
+                              }
+                          }
+                      }
+                   } catch (e) {
+                      console.log("OSRM Fail (Safe Fallback)", e);
+                   } finally {
+                      setMapState(prev => ({ ...prev, loadingMap: false }));
+                   }
+                 };
+                 fetchSnappedRoute();
+             } else {
+                 setMapState(prev => ({ ...prev, loadingMap: false }));
+             }
+         } else {
+             setMapState(prev => ({ ...prev, loadingMap: false }));
+         }
+      }
+    } catch(err) {
+      console.error("Map Drawing Error:", err);
+      setMapState(prev => ({ ...prev, loadingMap: false }));
     }
   }, [leafletLoaded, mapState.isOpen, mapState.loadingStops, mapState.routeStops, mapState.routeInfo]);
 
-  // 💡 第二階段：根據選取的車站，更新實體巴士大頭針與地圖視角
+  // 💡 當前車站實體大頭針 (Map Pin)
   useEffect(() => {
-    if (!mapInstanceRef.current || !mapState.stop?.lat || !mapState.stop?.lng) return;
-    
-    const map = mapInstanceRef.current;
-    const stop = mapState.stop;
+    try {
+      if (!mapInstanceRef.current || !mapState.stop?.lat || !mapState.stop?.lng) return;
+      
+      const map = mapInstanceRef.current;
+      const stop = mapState.stop;
 
-    if (markerRef.current) { map.removeLayer(markerRef.current); }
+      if (markerRef.current) { map.removeLayer(markerRef.current); }
 
-    const isCTB = mapState.routeInfo?.company === 'ctb';
-    const pinColor = isCTB ? '#eab308' : '#e3342f'; // 城巴黃色針，九巴紅色針
-    const pinShadow = isCTB ? 'rgba(234,179,8,0.4)' : 'rgba(227,52,47,0.4)';
+      const isCTB = mapState.routeInfo?.company === 'ctb';
+      const pinColor = isCTB ? '#eab308' : '#e3342f';
+      const pinShadow = isCTB ? 'rgba(234,179,8,0.4)' : 'rgba(227,52,47,0.4)';
 
-    const customIcon = window.L.divIcon({
-        className: 'custom-bus-pin',
-        html: `<div style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin-top: -44px; margin-left: -22px;">
-                 <svg viewBox="0 0 24 24" fill="${pinColor}" style="position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0px 6px 6px ${pinShadow});">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-                 </svg>
-                 <svg viewBox="0 0 24 24" fill="white" style="position: absolute; width: 22px; height: 22px; margin-bottom: 6px; z-index: 10;">
-                    <path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z" />
-                 </svg>
-               </div>`,
-        iconSize: [44, 44],
-        iconAnchor: [0, 0] 
-    });
+      const customIcon = window.L.divIcon({
+          className: 'custom-bus-pin',
+          html: `<div style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin-top: -44px; margin-left: -22px; z-index: 1000;">
+                   <svg viewBox="0 0 24 24" fill="${pinColor}" style="position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0px 6px 6px ${pinShadow});">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                   </svg>
+                   <svg viewBox="0 0 24 24" fill="white" style="position: absolute; width: 22px; height: 22px; margin-bottom: 6px; z-index: 10;">
+                      <path d="M4 16c0 .88.39 1.67 1 2.22V20c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1.78c.61-.55 1-1.34 1-2.22V6c0-3.5-3.58-4-8-4s-8 .5-8 4v10zm3.5 1c-.83 0-1.5-.67-1.5-1.5S6.67 14 7.5 14s1.5.67 1.5 1.5S8.33 17 7.5 17zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm1.5-6H6V6h12v5z" />
+                   </svg>
+                 </div>`,
+          iconSize: [44, 44],
+          iconAnchor: [0, 0] 
+      });
 
-    markerRef.current = window.L.marker([stop.lat, stop.lng], { icon: customIcon, zIndexOffset: 1000 }).addTo(map);
-    map.flyTo([stop.lat, stop.lng], 16, { animate: true, duration: 0.8 });
+      markerRef.current = window.L.marker([stop.lat, stop.lng], { icon: customIcon, zIndexOffset: 1000 }).addTo(map);
+      map.flyTo([stop.lat, stop.lng], 16, { animate: true, duration: 0.8 });
+    } catch (e) {}
   }, [mapState.stop, mapState.routeInfo]);
 
-  // 清除地圖實例
+  // 💡 安全的清理機制 (防白屏最重要的一環)
   useEffect(() => {
     if (!mapState.isOpen) {
        if (mapInstanceRef.current) {
-          mapInstanceRef.current.remove();
+          try { mapInstanceRef.current.remove(); } catch(e) {}
           mapInstanceRef.current = null;
        }
        polylineRef.current = null;
+       snappedPolylineRef.current = null;
        stopsLayerRef.current = null;
        arrowsLayerRef.current = null;
        markerRef.current = null;
@@ -1132,7 +1202,7 @@ export default function App() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 主畫面實時天氣警告顯示區 (完美無 CORS 限制) */}
+        {/* 💡 主畫面實時天氣警告顯示區 */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -1167,6 +1237,7 @@ export default function App() {
               </div>
             )}
 
+            {/* 定位成功後載入周邊站點 */}
             {userCoords && nearbyStopsData.length > 0 ? (
               nearbyStopsData.map((loc, idx) => (
                 <div key={idx} className={`rounded-xl overflow-hidden shadow-sm border ${theme.groupCardBg}`}>
@@ -1181,6 +1252,7 @@ export default function App() {
                     </span>
                   </div>
                   <div className="flex flex-col">
+                    {/* 傳入 stopId 供地圖使用 */}
                     {loc.routesData.map((route, rIdx) => renderRow({...route, stopId: loc.id, stopName: loc.name}, rIdx, true, 'LIST'))}
                   </div>
                 </div>
@@ -1224,6 +1296,7 @@ export default function App() {
                   </div>
 
                   <div className="flex flex-col">
+                    {/* 收藏已包含 stopId */}
                     {group.routesData.map((route, rIdx) => renderRow(route, rIdx, false, 'LIST'))}
                   </div>
                 </div>
@@ -1431,12 +1504,12 @@ export default function App() {
         </footer>
       )}
 
-      {/* 🗺️ 全新全路線互動地圖與時間軸彈出視窗 Modal */}
+      {/* 🗺️ 全新全路線互動地圖與時間軸彈出視窗 Modal (OSRM 引擎) */}
       {mapState.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 sm:p-4 backdrop-blur-md animate-fade-in" onClick={() => setMapState({ ...mapState, isOpen: false })}>
           <div className={`w-full h-full sm:h-[85vh] sm:max-w-md shadow-2xl flex flex-col overflow-hidden sm:rounded-2xl border ${theme.modalBg}`} onClick={(e) => e.stopPropagation()}>
             
-            {/* 💡 官方風格 Header：根據巴士公司轉換顏色 */}
+            {/* 官方風格 Header：根據巴士公司轉換顏色 */}
             <div className={`px-5 py-3.5 flex items-center justify-between shrink-0 shadow-sm z-10 ${mapState.routeInfo?.company === 'ctb' ? 'bg-[#ffcc00] text-yellow-950 border-b border-yellow-500' : 'bg-[#e3342f] text-white border-b border-red-700'}`}>
               <div className="flex flex-col min-w-0 pr-4">
                 <div className="flex items-center gap-2">
@@ -1452,14 +1525,14 @@ export default function App() {
               </button>
             </div>
             
-            {/* 💡 上半部：全新 Leaflet 互動地圖 */}
+            {/* 上半部：Leaflet + OSRM 互動地圖 */}
             <div className="h-[40%] min-h-[220px] shrink-0 relative bg-gray-200 dark:bg-zinc-800 border-b border-gray-300 dark:border-zinc-700 shadow-inner">
               <div ref={mapContainerRef} className="w-full h-full z-0" />
               
               {mapState.loadingMap && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gray-200/80 dark:bg-zinc-800/80 z-20 backdrop-blur-sm">
                   <RefreshCw className={`w-8 h-8 animate-spin ${mapState.routeInfo?.company === 'ctb' ? 'text-blue-600' : 'text-red-500'}`} />
-                  <span className="text-xs font-bold opacity-70 text-slate-800 dark:text-zinc-200">正在載入地圖...</span>
+                  <span className="text-xs font-bold opacity-70 text-slate-800 dark:text-zinc-200">正在計算道路軌跡...</span>
                 </div>
               )}
               {mapState.error && (
@@ -1483,7 +1556,7 @@ export default function App() {
               )}
             </div>
             
-            {/* 💡 下半部：全路線站點時間軸列表 (Click to Fly) */}
+            {/* 下半部：全路線站點時間軸列表 (Click to Fly) */}
             <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-zinc-950 relative shadow-[inset_0_10px_10px_-10px_rgba(0,0,0,0.05)]" ref={listRef}>
               {mapState.loadingStops ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-800 dark:text-zinc-200">
@@ -1503,7 +1576,6 @@ export default function App() {
                         id={`modal-stop-${stop.id}`} 
                         onClick={() => {
                           setMapState(prev => ({ ...prev, stop: stop }));
-                          document.getElementById(`modal-stop-${stop.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }}
                         className={`flex items-stretch px-4 sm:px-6 cursor-pointer transition-colors duration-300 ${isCurrent ? (isCTB ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-red-50 dark:bg-red-950/20') : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
                       >
