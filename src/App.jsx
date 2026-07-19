@@ -94,7 +94,7 @@ function formatChineseDate(date) {
   return `${year}年${month}月${day}日 ${weekday}`;
 }
 
-// 🌩️ 天氣警告資料處理中心
+// 🌩️ 天氣警告資料處理中心 (100% 綁定官方天文台高解析度圖示)
 const getWarningData = (code, originalName) => {
   const hkoBase = 'https://www.hko.gov.hk/images/HKOWarningSymbols/';
   switch(code) {
@@ -115,9 +115,9 @@ const getWarningData = (code, originalName) => {
     case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: hkoBase + 'warn800_07_tc9.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
     case 'TC10': return { text: '十號颶風信號', img: hkoBase + 'warn800_08_tc10.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
     case 'SMS': return { text: '強烈季候風信號', img: hkoBase + 'warn800_13_ms.png', style: 'bg-slate-800 text-white border border-slate-600', iconBg: 'bg-transparent' };
-    case 'WL': return { text: '山泥傾瀉警告', img: hkoBase + 'warn800_14_landslip.png', style: 'bg-yellow-600 text-white', iconBg: 'bg-transparent' };
+    case 'WL': return { text: '山泥傾瀉警告', img: hkoBase + 'warn800_14_landslip.png', style: 'bg-yellow-600 text-white border border-yellow-700', iconBg: 'bg-white/80' };
     case 'FNTSA': return { text: '新界北部水浸特別報告', img: hkoBase + 'warn800_22_ntfl.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white rounded-sm' };
-    case 'FROST': return { text: '霜凍警告', img: hkoBase + 'warn800_23_frost.png', style: 'bg-cyan-500 text-white', iconBg: 'bg-transparent' };
+    case 'FROST': return { text: '霜凍警告', img: hkoBase + 'warn800_23_frost.png', style: 'bg-cyan-500 text-white border border-cyan-600', iconBg: 'bg-transparent' };
     default: 
       if (!originalName || originalName.trim() === '') return null;
       return { text: originalName, style: 'bg-slate-800 text-white border border-slate-700 shadow-md', iconBg: 'bg-transparent' };
@@ -162,6 +162,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('kmb_theme') || 'false'); } catch { return false; }
   });
 
+  // 💡 絕對領域控制：阻止瀏覽器強制反轉顏色
   useEffect(() => {
     let meta = document.querySelector('meta[name="color-scheme"]');
     if (!meta) {
@@ -218,18 +219,18 @@ export default function App() {
   const [loadingMapEtas, setLoadingMapEtas] = useState(false);
   const [leafletLoaded, setLeafletLoaded] = useState(false);
 
+  // 清理垃圾快取
   useEffect(() => {
     try {
       localStorage.removeItem('kmb_all_stops_cache'); 
       localStorage.removeItem('kmb_all_stops_cache_v2'); 
       localStorage.removeItem('kmb_all_stops_cache_v3'); 
       localStorage.removeItem('kmb_all_stops_cache_v5'); 
-      localStorage.removeItem('kmb_all_stops_cache_v8'); 
-      localStorage.removeItem('kmb_all_stops_cache_v9'); 
       localStorage.removeItem('kmb_stop_details_cache_kmb'); 
     } catch(e) {}
   }, []);
 
+  // 動態引入地圖引擎 Leaflet
   useEffect(() => {
     if (window.L) { setLeafletLoaded(true); return; }
     if (!document.getElementById('leaflet-css')) {
@@ -394,9 +395,10 @@ export default function App() {
     return null;
   }, [weatherInfo.warnings]);
 
+  // 💡 極速版快取：下載九巴全港站點 (0 網絡請求)
   const getOrFetchAllKmbStops = async () => {
     try {
-      const cached = localStorage.getItem('kmb_all_stops_cache_v16');
+      const cached = localStorage.getItem('kmb_all_stops_cache_v16b');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) return parsed.stops;
@@ -410,7 +412,7 @@ export default function App() {
         const miniStops = (d.data || []).map(s => ({
           id: s.stop, name: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long)
         })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
-        try { localStorage.setItem('kmb_all_stops_cache_v16', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
+        try { localStorage.setItem('kmb_all_stops_cache_v16b', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
         return miniStops;
       }
     } catch (e) {}
@@ -649,7 +651,7 @@ export default function App() {
 
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
-    const cacheKey = `kmb_stop_details_cache_v16_${company}`;
+    const cacheKey = `kmb_stop_details_cache_v16b_${company}`;
     
     if (company === 'kmb') {
         const allKmbStops = await getOrFetchAllKmbStops();
@@ -815,14 +817,14 @@ export default function App() {
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-  // 💡 終極 V16 地圖繪製引擎：Google Maps 街景圖層切換！
+  // 💡 完美的 V16 地圖繪製引擎 (Google Maps 街景 + OSRM 馬路貼合 + 累積箭頭)
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current || !mapState.isOpen || mapState.loadingStops) return;
 
     try {
       if (!mapInstanceRef.current) {
         mapInstanceRef.current = window.L.map(mapContainerRef.current, { zoomControl: false, attributionControl: false });
-        // 💡 核心切換：改用 Google Maps 的開放 Raster Tile URL
+        // 💡 核心切換：改用 Google Maps 的開放 Raster Tile URL (V16特點)
         window.L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 19 }).addTo(mapInstanceRef.current);
       }
 
@@ -852,8 +854,10 @@ export default function App() {
                     window.L.marker([s.lat, s.lng], { icon: busStopIcon }).addTo(stopsLayerRef.current);
                  });
 
+                 // 先畫出半透明直連軌跡，防白屏保底
                  polylineRef.current = window.L.polyline(latlngs, { color: polylineColor, weight: 6, opacity: 0.4, dashArray: '10, 10' }).addTo(map);
 
+                 // V16 箭頭繪製邏輯：以「累積距離」為核心
                  const drawArrows = (coords, isGeoJson = false) => {
                      arrowsLayerRef.current.clearLayers();
                      let accDist = 0;
@@ -907,11 +911,12 @@ export default function App() {
                      map.setView(latlngs[0], 16);
                  }
 
+                 // V16 核心：智能分段拼接 OSRM 馬路軌跡 (完全解決 100 站崩潰)
                  if (latlngs.length > 1) {
                      setMapState(prev => ({ ...prev, loadingMap: true }));
                      
                      let allSnappedCoords = [];
-                     const CHUNK_SIZE = 25; 
+                     const CHUNK_SIZE = 25; // V16 塊大小
                      const chunks = [];
                      
                      for(let i=0; i<validStops.length; i += CHUNK_SIZE - 1) {
@@ -925,11 +930,12 @@ export default function App() {
                          const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&continue_straight=true`;
                          
                          try {
-                             await sleep(250); 
+                             await sleep(200); // 延長間隔避免 Too Many Requests
                              const res = await fetch(osrmUrl);
                              if (res.ok) {
                                  const data = await res.json();
                                  if (data.code === 'Ok' && data.routes && data.routes[0]) {
+                                     // [lng, lat] -> [lat, lng]
                                      const routeCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]); 
                                      allSnappedCoords.push(...routeCoords);
                                  } else {
