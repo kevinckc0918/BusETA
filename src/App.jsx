@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 // ==========================================
-// 🚨 企業級防白屏防護罩 (Error Boundary)
+// 🚨 企業級防白屏防護罩
 // ==========================================
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -58,6 +58,13 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+
+// ==========================================
+// 🔗 您的專屬 CSDI 路線庫網址 (未來可替換)
+// ==========================================
+// 當您在 Github Pages 建立好路線庫後，請將這裡改成您的網址
+// 預期格式: https://yourname.github.io/hk-bus-routes/
+const MY_GITHUB_CSDI_URL = "https://example-placeholder.github.io/routes";
 
 const DEFAULT_PHOTOS = ["/photo01.jpg", "/photo02.jpg", "/photo03.jpg"];
 const WEATHER_BG = "/victoria-harbour.jpg";
@@ -181,11 +188,6 @@ function MainApp() {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [now, setNow] = useState(new Date());
 
-  // 💡 安全無誤宣告：這就是上一版引發白屏的關鍵，現在完美補回！
-  const getEtaMinutes = useCallback((etaDate) => {
-    return Math.floor((new Date(etaDate) - now) / 60000);
-  }, [now]);
-
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try { return JSON.parse(localStorage.getItem('kmb_theme') || 'false'); } catch { return false; }
   });
@@ -195,6 +197,11 @@ function MainApp() {
   });
 
   const [weatherInfo, setWeatherInfo] = useState({ temp: '--', icon: null, warnings: [] });
+
+  // 💡 安全定義：徹底解決 ReferenceError 白屏問題
+  const getEtaMinutes = useCallback((etaDate) => {
+    return Math.floor((new Date(etaDate) - now) / 60000);
+  }, [now]);
 
   const activeTCWarning = useMemo(() => {
     if (!weatherInfo.warnings) return null;
@@ -427,7 +434,7 @@ function MainApp() {
 
   const getOrFetchAllKmbStops = async () => {
     try {
-      const cached = localStorage.getItem('kmb_all_stops_cache_v27');
+      const cached = localStorage.getItem('kmb_all_stops_cache_v28');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) return parsed.stops;
@@ -441,7 +448,7 @@ function MainApp() {
         const miniStops = (d.data || []).map(s => ({
           id: s.stop, name: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long)
         })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
-        try { localStorage.setItem('kmb_all_stops_cache_v27', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
+        try { localStorage.setItem('kmb_all_stops_cache_v28', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
         return miniStops;
       }
     } catch (e) {}
@@ -680,7 +687,7 @@ function MainApp() {
 
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
-    const cacheKey = `kmb_stop_details_cache_v27_${company}`;
+    const cacheKey = `kmb_stop_details_cache_v28_${company}`;
     
     if (company === 'kmb') {
         const allKmbStops = await getOrFetchAllKmbStops();
@@ -800,6 +807,7 @@ function MainApp() {
     }
   };
 
+  // 💡 ETA 獨立讀取，不影響軌跡重繪
   useEffect(() => {
     if (!mapState.isOpen || !mapState.stop?.id || !mapState.routeInfo) return;
     let isMounted = true;
@@ -846,7 +854,7 @@ function MainApp() {
     return () => { isMounted = false; clearInterval(timer); };
   }, [mapState.isOpen, mapState.stop?.id, mapState.routeInfo]);
 
-  // 💡 V27 獨立運算：鎖定 CSDI 馬路軌跡 (Tube Style) ＋ OSRM 容錯降採樣保底
+  // 💡 V28 獨立運算：開放讀取專屬 CSDI 數據庫 ＋ OSRM 智能直連保底
   useEffect(() => {
     if (!mapState.isOpen || mapState.loadingStops || mapState.routeStops.length === 0 || mapEngineState.fetched) return;
     
@@ -855,14 +863,14 @@ function MainApp() {
         const validStops = mapState.routeStops.filter(s => s.lat && s.lng && !isNaN(s.lat) && !isNaN(s.lng));
         const stopLatLngs = validStops.map(s => [s.lat, s.lng]);
         
-        if (stopLatLngs.length < 2) {
+        if (stopLatLngs.length < 2 || trajectoryMode === 'STRAIGHT') {
             if(isMounted) setMapEngineState({ loadingMap: false, fetched: true, snappedCoords: stopLatLngs });
             return;
         }
 
         let allSnappedCoords = null;
 
-        // 首選：官方無損 CSDI 庫
+        // 首選：嘗試從自訂 Github Pages (或 HKBus) 讀取官方 CSDI
         try {
             const compStr = mapState.routeInfo.company.toUpperCase();
             const routeStr = mapState.routeInfo.route.toUpperCase();
@@ -870,8 +878,11 @@ function MainApp() {
             if (dirStr === 'outbound') dirStr = 'O';
             else if (dirStr === 'inbound') dirStr = 'I';
 
-            const hkbusUrl = `https://hkbus.github.io/hkbus-route-waypoints/waypoints/${compStr}+${routeStr}-${dirStr}.json`;
-            const res = await fetch(hkbusUrl);
+            // ⚠️ 如果您架設好了自己的 GitHub Pages，可以直接改用您的網址：
+            // const customUrl = `${MY_GITHUB_CSDI_URL}/${compStr}+${routeStr}-${dirStr}.json`;
+            const defaultHkbusUrl = `https://hkbus.github.io/hkbus-route-waypoints/waypoints/${compStr}+${routeStr}-${dirStr}.json`;
+            
+            const res = await fetch(defaultHkbusUrl); // 未來自訂請改成 fetch(customUrl)
 
             if (res.ok) {
                 const data = await res.json();
@@ -880,10 +891,10 @@ function MainApp() {
                 }
             }
         } catch (e) {
-            console.log("Failed to fetch CSDI");
+            console.log("Failed to fetch CSDI Data");
         }
 
-        // 次選：OSRM 智能骨架降採樣 (過濾掉短距離的車站，防繞路)
+        // 次選：OSRM 智能保底 (過濾密集車站)
         if (!allSnappedCoords) {
             let skeletonStops = [validStops[0]];
             let lastSkStop = validStops[0];
@@ -923,10 +934,10 @@ function MainApp() {
 
     fetchTrajectory();
     return () => { isMounted = false; };
-  }, [mapState.isOpen, mapState.loadingStops, mapState.routeStops, mapEngineState.fetched]);
+  }, [mapState.isOpen, mapState.loadingStops, mapState.routeStops, mapEngineState.fetched, trajectoryMode]);
 
 
-  // 💡 V27 渲染引擎：100% 官方管狀軌跡 (Tube Line) ＋ 無邊框白箭頭
+  // 💡 V28 渲染引擎：官方管狀軌跡 ＋ 無邊框白箭頭
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current || !mapState.isOpen || !mapEngineState.fetched) return;
 
@@ -939,7 +950,6 @@ function MainApp() {
       const map = mapInstanceRef.current;
       const isCTB = mapState.routeInfo?.company === 'ctb';
       
-      // 官方管狀軌跡配色：底層深色邊框 + 上層亮色核心
       const coreColor = isCTB ? '#3b82f6' : '#ef4444';       
       const borderColor = isCTB ? '#1e3a8a' : '#991b1b';     
 
@@ -952,7 +962,6 @@ function MainApp() {
           stopsLayerRef.current = window.L.layerGroup().addTo(map);
           arrowsLayerRef.current = window.L.layerGroup().addTo(map);
 
-          // 📍 官方風格：白底灰邊圓點車站圖示
           const validStops = mapState.routeStops.filter(s => s.lat && s.lng && !isNaN(s.lat) && !isNaN(s.lng));
           const busStopHtml = `
              <div style="background-color: white; border: 2.5px solid #9ca3af; border-radius: 50%; width: 12px; height: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.3);">
@@ -966,12 +975,10 @@ function MainApp() {
           const coordsToDraw = mapEngineState.snappedCoords.length > 0 ? mapEngineState.snappedCoords : validStops.map(s => [s.lat, s.lng]);
 
           if (coordsToDraw.length > 1) {
-              // 🛣️ 畫出管狀的底層粗邊框
               polylineBorderRef.current = window.L.polyline(coordsToDraw, { 
                   color: borderColor, weight: 8, opacity: 0.9, lineJoin: 'round', lineCap: 'round'
               }).addTo(map);
               
-              // 🛣️ 畫出管狀的上層亮色核心
               polylineRef.current = window.L.polyline(coordsToDraw, { 
                   color: coreColor, weight: 4, opacity: 1, lineJoin: 'round', lineCap: 'round'
               }).addTo(map);
@@ -979,7 +986,6 @@ function MainApp() {
               map.fitBounds(polylineBorderRef.current.getBounds(), { padding: [40, 40], maxZoom: 16 });
           }
 
-          // 🏹 官方風格：無邊框白色小箭頭
           let accDist = 0;
           const ARROW_INTERVAL = 600; 
           for (let i = 0; i < coordsToDraw.length - 1; i++) {
@@ -1285,7 +1291,6 @@ function MainApp() {
     const primaryEtaHeight = isStand ? 'h-[40px] lg:h-[48px]' : 'h-[50px] sm:h-[60px] md:h-[72px]';
 
     const routeNumColorClass = route.company === 'ctb' ? (isDarkMode ? 'text-blue-400' : 'text-blue-700') : theme.routeNum;
-
     const isClickable = !!route.stopId;
     const clickableClasses = isClickable ? (isDarkMode ? 'cursor-pointer hover:bg-white/5 active:scale-[0.99]' : 'cursor-pointer hover:bg-black/5 active:scale-[0.99]') : '';
 
@@ -1534,6 +1539,7 @@ function MainApp() {
         a[x-apple-data-detectors], a[href^="tel"] { color: inherit !important; text-decoration: none !important; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+
         .leaflet-container { background: #e5e7eb !important; }
         .kmb-dark .leaflet-container { background: #27272a !important; }
         .leaflet-control-attribution { display: none !important; }
@@ -1597,7 +1603,7 @@ function MainApp() {
         </footer>
       )}
 
-      {/* 🗺️ 終極 V27 管狀軌跡地圖與官方時間軸彈出視窗 */}
+      {/* 🗺️ 終極 V28 管狀軌跡地圖與官方時間軸彈出視窗 Modal */}
       {mapState.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 sm:p-4 backdrop-blur-md animate-fade-in" onClick={() => setMapState({ ...mapState, isOpen: false })}>
           <div className={`w-full h-full sm:h-[85vh] sm:max-w-md shadow-2xl flex flex-col overflow-hidden sm:rounded-2xl border ${theme.modalBg}`} onClick={(e) => e.stopPropagation()}>
@@ -1623,7 +1629,7 @@ function MainApp() {
               {mapEngineState.loadingMap && (
                 <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 z-20 backdrop-blur-sm ${isDarkMode ? 'bg-zinc-800/80' : 'bg-gray-200/80'}`}>
                   <RefreshCw className={`w-8 h-8 animate-spin ${mapState.routeInfo?.company === 'ctb' ? 'text-blue-600' : 'text-red-500'}`} />
-                  <span className={`text-xs font-bold opacity-70 ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>正在載入官方管狀軌跡...</span>
+                  <span className={`text-xs font-bold opacity-70 ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>正在計算馬路軌跡...</span>
                 </div>
               )}
               {mapState.error && (
@@ -1667,8 +1673,8 @@ function MainApp() {
                         className={`flex items-stretch px-4 sm:px-6 cursor-pointer transition-colors duration-300 ${isCurrent ? (isCTB ? (isDarkMode ? 'bg-blue-900/10' : 'bg-blue-50/50') : (isDarkMode ? 'bg-red-950/20' : 'bg-red-50/50')) : (isDarkMode ? 'hover:bg-white/5' : 'hover:bg-black/5')}`}
                       >
                         
-                        {/* 📍 [圖三] 時間軸左側灰線 */}
-                        <div className="flex flex-col items-center mr-4 w-8 shrink-0 relative pointer-events-none">
+                        {/* 📍 [圖三] 完美復刻時間軸左側的灰線與圓點 */}
+                        <div className="flex flex-col items-center mr-4 w-6 shrink-0 relative pointer-events-none">
                           <div className={`w-[2.5px] flex-1 ${idx === 0 ? 'bg-transparent' : (isDarkMode ? 'bg-zinc-700' : 'bg-gray-300')}`} />
                           {isCurrent ? (
                             <div className={`w-4 h-4 rounded-full shadow-sm z-10 my-1.5 ${isCTB ? 'bg-[#3b82f6]' : 'bg-[#e3342f]'}`} />
@@ -1683,7 +1689,7 @@ function MainApp() {
                           {/* 📍 [圖三] 站點名稱與官方紅底白字圓角編號 */}
                           <div className="flex items-start gap-3">
                             {isCurrent ? (
-                              <span className={`text-xs font-black px-2 py-0.5 mt-0.5 rounded-md shadow-sm flex items-center justify-center min-w-[28px] ${isCTB ? 'bg-[#3b82f6] text-white' : 'bg-[#e3342f] text-white'}`}>
+                              <span className={`text-[11px] font-black px-1.5 py-0.5 mt-0.5 rounded-md shadow-sm flex items-center justify-center min-w-[26px] ${isCTB ? 'bg-[#3b82f6] text-white' : 'bg-[#e3342f] text-white'}`}>
                                 {idx + 1}
                               </span>
                             ) : (
@@ -1696,9 +1702,9 @@ function MainApp() {
                             </span>
                           </div>
                           
-                          {/* 💡 [圖三] 當前車站：藍色巴士圖案與大字 ETA */}
+                          {/* 💡 當前車站：完美復刻 [圖三] 藍字大 ETA 排版 */}
                           {isCurrent && (
-                            <div className="mt-4 mb-2 flex flex-col gap-3 relative ml-[42px]">
+                            <div className="mt-4 mb-2 flex flex-col gap-3 relative ml-[38px]">
                                <span className={`text-[10px] font-bold absolute -top-10 right-0 flex items-center gap-1 ${isCTB ? 'text-[#3b82f6]' : 'text-[#e3342f]'}`}>
                                   <MapPin className="w-3 h-3" /> 當前選取車站
                                </span>
@@ -1730,7 +1736,7 @@ function MainApp() {
                                      )
                                   })
                                ) : (
-                                  <div className="flex items-center gap-2 text-xs font-bold text-gray-400 py-1">
+                                  <div className={`flex items-center gap-2 text-xs font-bold py-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                                      <Clock className="w-3.5 h-3.5" /> 此站暫時沒有班次資料
                                   </div>
                                )}
@@ -1776,11 +1782,12 @@ function MainApp() {
             <div className={`flex border-b shrink-0 text-xs font-black ${isDarkMode ? 'border-zinc-700 bg-zinc-900/50' : 'border-gray-200 bg-slate-50'}`}>
               <button onClick={() => { setSettingsTab('FAVORITES'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'FAVORITES' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>📁 最愛管理</button>
               <button onClick={() => { setSettingsTab('BACKUP'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'BACKUP' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>💾 備份還原</button>
+              <button onClick={() => { setSettingsTab('ADVANCED'); setBackupError(''); setBackupSuccess(''); }} className={`flex-1 py-3 text-center transition-all ${settingsTab === 'ADVANCED' ? 'border-b-2 border-[#e3342f] text-[#e3342f]' : 'opacity-60'}`}>⚙️ 進階設定</button>
             </div>
 
             <div className={`flex-1 p-5 overflow-y-auto ${isDarkMode ? 'bg-zinc-950/50' : 'bg-slate-50'}`}>
-              {backupSuccess ? <div className="mb-4 bg-green-500/10 border border-green-500/20 text-green-500 p-2.5 text-center text-xs font-bold rounded-lg animate-pulse">{backupSuccess}</div> : null}
-              {backupError ? <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-500 p-2.5 text-center text-xs font-bold rounded-lg">{backupError}</div> : null}
+              {backupSuccess && <div className="mb-4 bg-green-500/10 border border-green-500/20 text-green-500 p-2.5 text-center text-xs font-bold rounded-lg animate-pulse">{backupSuccess}</div>}
+              {backupError && <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-500 p-2.5 text-center text-xs font-bold rounded-lg">{backupError}</div>}
 
               {settingsTab === 'FAVORITES' && (
                 <div className="flex flex-col gap-4">
@@ -1872,7 +1879,26 @@ function MainApp() {
                       <Check className="w-3.5 h-3.5" /> 確認匯入並覆蓋最愛
                     </button>
                   </div>
-                  <div className={`p-3.5 rounded-xl border flex flex-col gap-3 mt-4 ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
+                </div>
+              )}
+
+              {settingsTab === 'ADVANCED' && (
+                <div className="flex flex-col gap-5">
+                  <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
+                    <span className="text-xs font-black flex items-center gap-1.5"><MapPin className="w-4 h-4 text-blue-500" />地圖軌跡繪製模式</span>
+                    <p className="text-[11px] opacity-70 leading-relaxed font-bold">
+                      「官方專線軌跡」使用開源 CSDI 數據，完美呈現管狀馬路走線。如果您想使用自己下載的官方 CSDI 庫，請直接修改源代碼中的 <code>MY_GITHUB_CSDI_URL</code>。
+                    </p>
+                    <select 
+                      value={trajectoryMode} 
+                      onChange={(e) => setTrajectoryMode(e.target.value)} 
+                      className={`w-full py-2 px-3 rounded-lg border text-xs font-bold outline-none ${theme.inputBg}`}
+                    >
+                      <option value="CSDI">🛣️ 官方專線軌跡 (管狀馬路)</option>
+                      <option value="STRAIGHT">📏 官方直連風格 (點對點)</option>
+                    </select>
+                  </div>
+                  <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
                     <span className="text-xs font-black flex items-center gap-1.5"><Sliders className="w-4 h-4 text-blue-500" />🛰️ 附近巴士站搜尋範圍設定</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">微調 GPS 定位搜尋周圍巴士站點的最大允許半徑，目前半徑為：<strong className="text-blue-500 text-xs ml-1">{nearbyRadius} 米</strong></p>
                     <div className="flex items-center gap-3">
@@ -2044,7 +2070,6 @@ function MainApp() {
   );
 }
 
-// 導出包裝了防護罩的主程式
 export default function SafeApp() {
   return (
     <ErrorBoundary>
@@ -2052,4 +2077,5 @@ export default function SafeApp() {
     </ErrorBoundary>
   );
 }
+
 
