@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 // ==========================================
-// 🚨 企業級防白屏防護罩
+// 🚨 企業級防白屏防護罩 (Error Boundary)
 // ==========================================
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -62,8 +62,6 @@ class ErrorBoundary extends React.Component {
 // ==========================================
 // 🔗 您的專屬 CSDI 路線庫網址 (未來可替換)
 // ==========================================
-// 當您在 Github Pages 建立好路線庫後，請將這裡改成您的網址
-// 預期格式: https://yourname.github.io/hk-bus-routes/
 const MY_GITHUB_CSDI_URL = "https://example-placeholder.github.io/routes";
 
 const DEFAULT_PHOTOS = ["/photo01.jpg", "/photo02.jpg", "/photo03.jpg"];
@@ -151,7 +149,7 @@ const getWarningData = (code, originalName) => {
   }
 };
 
-const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-4 h-4 object-contain", isSmall = false }) => {
+const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-4 h-4 object-contain" }) => {
   const [error, setError] = useState(false);
   if (error || !img) return null; 
   return (
@@ -188,6 +186,10 @@ function MainApp() {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [now, setNow] = useState(new Date());
 
+  const getEtaMinutes = useCallback((etaDate) => {
+    return Math.floor((new Date(etaDate) - now) / 60000);
+  }, [now]);
+
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try { return JSON.parse(localStorage.getItem('kmb_theme') || 'false'); } catch { return false; }
   });
@@ -197,11 +199,6 @@ function MainApp() {
   });
 
   const [weatherInfo, setWeatherInfo] = useState({ temp: '--', icon: null, warnings: [] });
-
-  // 💡 安全定義：徹底解決 ReferenceError 白屏問題
-  const getEtaMinutes = useCallback((etaDate) => {
-    return Math.floor((new Date(etaDate) - now) / 60000);
-  }, [now]);
 
   const activeTCWarning = useMemo(() => {
     if (!weatherInfo.warnings) return null;
@@ -216,25 +213,7 @@ function MainApp() {
       .filter(wData => wData !== null); 
   }, [weatherInfo.warnings]);
 
-  // 絕對領域控制：阻止瀏覽器強制反轉顏色
-  useEffect(() => {
-    let meta = document.querySelector('meta[name="color-scheme"]');
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.name = "color-scheme";
-      document.head.appendChild(meta);
-    }
-    meta.content = "light dark"; 
-    
-    if (isDarkMode) {
-      document.documentElement.style.backgroundColor = '#09090b'; 
-      document.documentElement.classList.add('kmb-dark');
-    } else {
-      document.documentElement.style.backgroundColor = '#f8fafc'; 
-      document.documentElement.classList.remove('kmb-dark');
-    }
-  }, [isDarkMode]);
-
+  // 💡 安全無誤的 Theme 宣告 (解決 V28 白屏的關鍵修復！)
   const theme = {
     appBg: isDarkMode ? 'bg-zinc-950 text-white' : 'bg-slate-50 text-slate-900',
     topBar: isDarkMode ? 'bg-red-950 border-red-900/50' : 'bg-[#e3342f] border-red-700',
@@ -258,6 +237,24 @@ function MainApp() {
     inputBg: isDarkMode ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-slate-100 border-slate-200 text-slate-800',
     controlBtn: isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200' : 'bg-slate-200 hover:bg-slate-300 text-slate-800',
   };
+
+  useEffect(() => {
+    let meta = document.querySelector('meta[name="color-scheme"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = "color-scheme";
+      document.head.appendChild(meta);
+    }
+    meta.content = "light dark"; 
+    
+    if (isDarkMode) {
+      document.documentElement.style.backgroundColor = '#09090b'; 
+      document.documentElement.classList.add('kmb-dark');
+    } else {
+      document.documentElement.style.backgroundColor = '#f8fafc'; 
+      document.documentElement.classList.remove('kmb-dark');
+    }
+  }, [isDarkMode]);
 
   const [mapState, setMapState] = useState({ 
     isOpen: false, 
@@ -807,7 +804,6 @@ function MainApp() {
     }
   };
 
-  // 💡 ETA 獨立讀取，不影響軌跡重繪
   useEffect(() => {
     if (!mapState.isOpen || !mapState.stop?.id || !mapState.routeInfo) return;
     let isMounted = true;
@@ -815,7 +811,7 @@ function MainApp() {
     const fetchMapStopETA = async () => {
        setLoadingMapEtas(true);
        try {
-          const { company, route, dir } = mapState.routeInfo;
+          const { company, route, dir, serviceType } = mapState.routeInfo;
           let url = company === 'ctb' 
              ? `https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/eta/CTB/${mapState.stop.id}/${route}`
              : `https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${mapState.stop.id}`;
@@ -826,7 +822,8 @@ function MainApp() {
 
           const currentMins = Math.floor(Date.now() / 60000);
           if (d && Array.isArray(d.data)) {
-             let validEtas = d.data.filter(e => e.route === route && e.dir === dir && e.eta);
+             // 💡 精準配對：同時比對路線、方向與服務類型 (特別班次)
+             let validEtas = d.data.filter(e => e.route === route && e.dir === dir && e.eta && (company === 'kmb' ? String(e.service_type) === String(serviceType) : true));
              validEtas.sort((a,b) => new Date(a.eta) - new Date(b.eta));
              const uniqueEtas = [];
              const seenMinutes = new Set();
@@ -870,7 +867,7 @@ function MainApp() {
 
         let allSnappedCoords = null;
 
-        // 首選：嘗試從自訂 Github Pages (或 HKBus) 讀取官方 CSDI
+        // 嘗試讀取專屬 CSDI
         try {
             const compStr = mapState.routeInfo.company.toUpperCase();
             const routeStr = mapState.routeInfo.route.toUpperCase();
@@ -878,11 +875,8 @@ function MainApp() {
             if (dirStr === 'outbound') dirStr = 'O';
             else if (dirStr === 'inbound') dirStr = 'I';
 
-            // ⚠️ 如果您架設好了自己的 GitHub Pages，可以直接改用您的網址：
-            // const customUrl = `${MY_GITHUB_CSDI_URL}/${compStr}+${routeStr}-${dirStr}.json`;
             const defaultHkbusUrl = `https://hkbus.github.io/hkbus-route-waypoints/waypoints/${compStr}+${routeStr}-${dirStr}.json`;
-            
-            const res = await fetch(defaultHkbusUrl); // 未來自訂請改成 fetch(customUrl)
+            const res = await fetch(defaultHkbusUrl); 
 
             if (res.ok) {
                 const data = await res.json();
@@ -1239,7 +1233,7 @@ function MainApp() {
     if (existingIndex > -1) {
       updatedLocations = (locations || []).map((loc, idx) => {
         if (idx === existingIndex) {
-          const isRouteDuplicate = (loc.routes || []).some(r => r.route === newRouteConfig.route && r.dir === newRouteConfig.dir && r.company === newRouteConfig.company);
+          const isRouteDuplicate = (loc.routes || []).some(r => r.route === newRouteConfig.route && r.dir === newRouteConfig.dir && r.company === newRouteConfig.company && String(r.serviceType) === String(newRouteConfig.serviceType));
           return {
             ...loc,
             name: customStopName.trim() || loc.name,
@@ -1270,8 +1264,8 @@ function MainApp() {
     const primaryRmk = route.etas[0] ? route.etas[0].rmk : null;
     const secondaryRmk = route.etas[1] ? route.etas[1].rmk : null;
     
-    const primaryMins = route.etas[0] ? getEtaMinutes(route.etas[0].time) : null;
-    const secondaryMins = route.etas[1] ? getEtaMinutes(route.etas[1].time) : null;
+    const primaryMins = route.etas[0] ? getEtaMinutes(route.etas[0].time, now) : null;
+    const secondaryMins = route.etas[1] ? getEtaMinutes(route.etas[1].time, now) : null;
     const isMissed = primaryMins !== null && primaryMins < 0;
     const isImminent = primaryMins === 0;
 
@@ -1539,7 +1533,6 @@ function MainApp() {
         a[x-apple-data-detectors], a[href^="tel"] { color: inherit !important; text-decoration: none !important; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-
         .leaflet-container { background: #e5e7eb !important; }
         .kmb-dark .leaflet-container { background: #27272a !important; }
         .leaflet-control-attribution { display: none !important; }
@@ -1603,7 +1596,7 @@ function MainApp() {
         </footer>
       )}
 
-      {/* 🗺️ 終極 V28 管狀軌跡地圖與官方時間軸彈出視窗 Modal */}
+      {/* 🗺️ 終極 V28 官方管狀軌跡地圖與時間軸彈出視窗 Modal */}
       {mapState.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 sm:p-4 backdrop-blur-md animate-fade-in" onClick={() => setMapState({ ...mapState, isOpen: false })}>
           <div className={`w-full h-full sm:h-[85vh] sm:max-w-md shadow-2xl flex flex-col overflow-hidden sm:rounded-2xl border ${theme.modalBg}`} onClick={(e) => e.stopPropagation()}>
@@ -1673,11 +1666,11 @@ function MainApp() {
                         className={`flex items-stretch px-4 sm:px-6 cursor-pointer transition-colors duration-300 ${isCurrent ? (isCTB ? (isDarkMode ? 'bg-blue-900/10' : 'bg-blue-50/50') : (isDarkMode ? 'bg-red-950/20' : 'bg-red-50/50')) : (isDarkMode ? 'hover:bg-white/5' : 'hover:bg-black/5')}`}
                       >
                         
-                        {/* 📍 [圖三] 完美復刻時間軸左側的灰線與圓點 */}
+                        {/* 📍 [圖三] 完美復刻時間軸左側灰線與圓點 */}
                         <div className="flex flex-col items-center mr-4 w-6 shrink-0 relative pointer-events-none">
                           <div className={`w-[2.5px] flex-1 ${idx === 0 ? 'bg-transparent' : (isDarkMode ? 'bg-zinc-700' : 'bg-gray-300')}`} />
                           {isCurrent ? (
-                            <div className={`w-4 h-4 rounded-full shadow-sm z-10 my-1.5 ${isCTB ? 'bg-[#3b82f6]' : 'bg-[#e3342f]'}`} />
+                            <div className={`w-3.5 h-3.5 rounded-full shadow-sm z-10 my-1.5 ${isCTB ? 'bg-[#3b82f6]' : 'bg-[#e3342f]'}`} />
                           ) : (
                             <div className={`w-3.5 h-3.5 rounded-full z-10 my-1.5 ${isDarkMode ? 'bg-zinc-600' : 'bg-gray-400'}`} />
                           )}
@@ -1689,11 +1682,11 @@ function MainApp() {
                           {/* 📍 [圖三] 站點名稱與官方紅底白字圓角編號 */}
                           <div className="flex items-start gap-3">
                             {isCurrent ? (
-                              <span className={`text-[11px] font-black px-1.5 py-0.5 mt-0.5 rounded-md shadow-sm flex items-center justify-center min-w-[26px] ${isCTB ? 'bg-[#3b82f6] text-white' : 'bg-[#e3342f] text-white'}`}>
+                              <span className={`text-[12px] font-black px-2 py-0.5 mt-0.5 rounded shadow-sm flex items-center justify-center min-w-[28px] ${isCTB ? 'bg-[#3b82f6] text-white' : 'bg-[#e3342f] text-white'}`}>
                                 {idx + 1}
                               </span>
                             ) : (
-                              <span className={`text-[12px] font-black mt-1 w-6 text-right ${isDarkMode ? 'text-zinc-500' : 'text-gray-500'}`}>
+                              <span className={`text-[12px] font-black mt-1 w-[28px] text-center ${isDarkMode ? 'text-zinc-500' : 'text-gray-500'}`}>
                                 {idx + 1}.
                               </span>
                             )}
@@ -1702,9 +1695,9 @@ function MainApp() {
                             </span>
                           </div>
                           
-                          {/* 💡 當前車站：完美復刻 [圖三] 藍字大 ETA 排版 */}
+                          {/* 💡 當前車站：完美復刻 [圖三] 藍色粗體大字 ETA */}
                           {isCurrent && (
-                            <div className="mt-4 mb-2 flex flex-col gap-3 relative ml-[38px]">
+                            <div className="mt-4 mb-2 flex flex-col gap-3 relative ml-[40px]">
                                <span className={`text-[10px] font-bold absolute -top-10 right-0 flex items-center gap-1 ${isCTB ? 'text-[#3b82f6]' : 'text-[#e3342f]'}`}>
                                   <MapPin className="w-3 h-3" /> 當前選取車站
                                </span>
@@ -1715,8 +1708,8 @@ function MainApp() {
                                   </div>
                                ) : mapStopEtas.length > 0 ? (
                                   mapStopEtas.map((eta, eIdx) => {
-                                     const mins = Math.floor((new Date(eta.eta) - now) / 60000);
-                                     const isMissed = mins < 0;
+                                     const mins = getEtaMinutes(eta.eta, now);
+                                     const isMissed = mins !== null && mins < 0;
                                      const isImminent = mins === 0;
                                      const rmk = eta.rmk_tc && eta.rmk_tc !== "原定班次" ? eta.rmk_tc : "";
                                      
@@ -1724,14 +1717,14 @@ function MainApp() {
                                        <div key={eIdx} className="flex items-center gap-4">
                                           <Bus className={`w-4 h-4 ${isMissed ? 'text-gray-300' : 'text-[#3b82f6]'}`} />
                                           <div className="flex items-baseline gap-2 w-24">
-                                            <span className={`text-right font-black text-2xl leading-none w-10 ${isMissed ? 'text-gray-400' : 'text-[#3b82f6]'}`}>
+                                            <span className={`text-right font-black text-3xl leading-none w-12 ${isMissed ? 'text-gray-400' : 'text-[#3b82f6]'}`}>
                                                {isMissed ? '-' : isImminent ? '即將' : mins}
                                             </span>
-                                            <span className="text-sm font-bold text-gray-500">
+                                            <span className="text-[13px] font-bold text-gray-500">
                                                {isMissed ? '已開出' : isImminent ? '到站' : '分鐘'}
                                             </span>
                                           </div>
-                                          {rmk && <span className={`text-xs font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{rmk}</span>}
+                                          {rmk && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded truncate ${isDarkMode ? 'bg-zinc-800 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>{rmk}</span>}
                                        </div>
                                      )
                                   })
@@ -1887,17 +1880,18 @@ function MainApp() {
                   <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
                     <span className="text-xs font-black flex items-center gap-1.5"><MapPin className="w-4 h-4 text-blue-500" />地圖軌跡繪製模式</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">
-                      「官方專線軌跡」使用開源 CSDI 數據，完美呈現管狀馬路走線。如果您想使用自己下載的官方 CSDI 庫，請直接修改源代碼中的 <code>MY_GITHUB_CSDI_URL</code>。
+                      「官方專線軌跡」會優先使用 CSDI 數據，若無資料則啟動 OSRM 智能防繞路引擎。「官方直連」則直接以直線相連。
                     </p>
                     <select 
                       value={trajectoryMode} 
                       onChange={(e) => setTrajectoryMode(e.target.value)} 
                       className={`w-full py-2 px-3 rounded-lg border text-xs font-bold outline-none ${theme.inputBg}`}
                     >
-                      <option value="CSDI">🛣️ 官方專線軌跡 (管狀馬路)</option>
+                      <option value="OSRM">🛣️ 官方專線軌跡 (管狀馬路)</option>
                       <option value="STRAIGHT">📏 官方直連風格 (點對點)</option>
                     </select>
                   </div>
+
                   <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
                     <span className="text-xs font-black flex items-center gap-1.5"><Sliders className="w-4 h-4 text-blue-500" />🛰️ 附近巴士站搜尋範圍設定</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">微調 GPS 定位搜尋周圍巴士站點的最大允許半徑，目前半徑為：<strong className="text-blue-500 text-xs ml-1">{nearbyRadius} 米</strong></p>
@@ -1907,6 +1901,7 @@ function MainApp() {
                       <span className="text-[10px] font-bold opacity-50">2000米</span>
                     </div>
                   </div>
+
                   <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-red-950/20 border-red-900/30' : 'bg-red-50 border-red-100'}`}>
                     <span className={`text-xs font-black flex items-center gap-1.5 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
                       <RotateCcw className="w-4 h-4" /> 還原原廠預設值
@@ -1929,7 +1924,7 @@ function MainApp() {
         </div>
       )}
 
-      {/* 🔍 步驟式搜尋精靈 */}
+      {/* 🔍 步驟式搜尋精靈 (💡 支援特別班次顯示！) */}
       {isSearchModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
           <div className={`w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border ${theme.modalBg}`}>
@@ -1983,18 +1978,25 @@ function MainApp() {
                 <div className="flex flex-col gap-4">
                   <div className={`p-3.5 rounded-xl border text-center flex flex-col items-center gap-1.5 ${selectedRoute.company === 'ctb' ? (isDarkMode ? 'bg-blue-900/20 border-blue-900/30' : 'bg-blue-50 border-blue-100') : (isDarkMode ? 'bg-red-950/20 border-red-900/30' : 'bg-red-50 border-red-100')}`}>
                     <span className={`text-3xl font-black block ${selectedRoute.company === 'ctb' ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : 'text-red-500'}`}>{selectedRoute.route}</span>
-                    <span className="text-xs font-bold opacity-70">請選擇方向：</span>
+                    <span className="text-xs font-bold opacity-70">請選擇方向與班次：</span>
                   </div>
                   <div className="flex flex-col gap-3">
-                    {routeDirections.map((dir, idx) => (
-                      <button key={idx} onClick={() => handleSelectDirection(dir)} className={`p-4 rounded-xl border text-left flex items-center justify-between transition-all hover:scale-[1.01] ${theme.controlBtn}`}>
-                        <div className="flex flex-col gap-0.5 min-w-0 pr-2">
-                          <span className="text-xs font-bold opacity-50">方向 {dir.bound === 'I' ? '回程' : '去程'}</span>
-                          <span className="font-extrabold text-sm truncate">往 {dir.dest_tc} (經 {dir.orig_tc})</span>
-                        </div>
-                        <ChevronRight className="w-5 h-5 opacity-60 shrink-0" />
-                      </button>
-                    ))}
+                    {/* 💡 V28 支援特別班次清晰顯示 */}
+                    {routeDirections.map((dir, idx) => {
+                      const isSpecial = dir.service_type !== '1';
+                      return (
+                        <button key={idx} onClick={() => handleSelectDirection(dir)} className={`p-4 rounded-xl border text-left flex items-center justify-between transition-all hover:scale-[1.01] ${theme.controlBtn}`}>
+                          <div className="flex flex-col gap-1 min-w-0 pr-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold opacity-50">方向 {dir.bound === 'I' ? '回程' : '去程'}</span>
+                              {isSpecial && <span className="bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded text-[10px] font-black shadow-sm">特別班次 ({dir.service_type})</span>}
+                            </div>
+                            <span className="font-extrabold text-sm truncate">往 {dir.dest_tc} (經 {dir.orig_tc})</span>
+                          </div>
+                          <ChevronRight className="w-5 h-5 opacity-60 shrink-0" />
+                        </button>
+                      );
+                    })}
                   </div>
                   <button onClick={() => setSearchStep(1)} className="mt-2 text-xs font-bold text-center underline opacity-60">返回上一步</button>
                 </div>
@@ -2077,5 +2079,4 @@ export default function SafeApp() {
     </ErrorBoundary>
   );
 }
-
 
