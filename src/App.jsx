@@ -1,13 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+mport React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Bus, 
   RefreshCw, 
   Moon, 
   Sun, 
   MonitorSmartphone, 
-  CloudSun,
-  Image as ImageIcon, // 💡 完美修復：加回座枱模式相簿按鈕的圖標
-  AlertTriangle,      // 💡 完美修復：加回地圖報錯用的圖標
+  CloudSun, 
   Plus, 
   Trash2, 
   X, 
@@ -21,7 +19,9 @@ import {
   Download,
   Copy,
   Sliders,
-  RotateCcw
+  RotateCcw,
+  Image as ImageIcon,
+  AlertTriangle
 } from 'lucide-react';
 
 // ==========================================
@@ -62,9 +62,109 @@ class ErrorBoundary extends React.Component {
 }
 
 // ==========================================
-// 🔗 您的專屬 CSDI 路線庫網址 (未來可替換)
+// 💡 全域安全函數區
 // ==========================================
-const MY_GITHUB_CSDI_URL = "https://example-placeholder.github.io/routes";
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371e3; 
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c); 
+};
+
+const formatChineseDate = (date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  const weekday = weekdays[date.getDay()];
+  return `${year}年${month}月${day}日 ${weekday}`;
+};
+
+const getEtaMinutes = (etaDate, nowObj) => {
+  if (!etaDate || !nowObj) return null;
+  return Math.floor((new Date(etaDate) - nowObj) / 60000);
+};
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// 💡 天氣警告圖示改用內置 SVG，避免天文台圖片路徑改動或 hotlink 限制導致載入失敗
+const makeWarningIcon = ({ label, bg = '#ffffff', fg = '#111827', accent = '#dc2626' }) => {
+  const safeLabel = String(label || '!').slice(0, 4);
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+      <rect width="96" height="96" rx="18" fill="${bg}"/>
+      <rect x="5" y="5" width="86" height="86" rx="14" fill="none" stroke="${accent}" stroke-width="6"/>
+      <text x="48" y="58" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="800" fill="${fg}">${safeLabel}</text>
+    </svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+};
+
+const WARNING_ICONS = {
+  WRAINA: makeWarningIcon({ label: '黃雨', bg: '#facc15', fg: '#111827', accent: '#ffffff' }),
+  WRAINR: makeWarningIcon({ label: '紅雨', bg: '#dc2626', fg: '#ffffff', accent: '#ffffff' }),
+  WRAINB: makeWarningIcon({ label: '黑雨', bg: '#111111', fg: '#ffffff', accent: '#ffffff' }),
+  WTS: makeWarningIcon({ label: '雷暴', bg: '#facc15', fg: '#111827', accent: '#ffffff' }),
+  WHOT: makeWarningIcon({ label: '酷熱', bg: '#ef4444', fg: '#ffffff', accent: '#ffffff' }),
+  WCOLD: makeWarningIcon({ label: '寒冷', bg: '#2563eb', fg: '#ffffff', accent: '#ffffff' }),
+  WFIREY: makeWarningIcon({ label: '火警', bg: '#facc15', fg: '#7c2d12', accent: '#ffffff' }),
+  WFIRER: makeWarningIcon({ label: '火警', bg: '#dc2626', fg: '#ffffff', accent: '#ffffff' }),
+  TC1: makeWarningIcon({ label: 'T1', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC3: makeWarningIcon({ label: 'T3', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC8NE: makeWarningIcon({ label: '8NE', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC8NW: makeWarningIcon({ label: '8NW', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC8SE: makeWarningIcon({ label: '8SE', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC8SW: makeWarningIcon({ label: '8SW', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC9: makeWarningIcon({ label: 'T9', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC10: makeWarningIcon({ label: 'T10', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  WMSGNL: makeWarningIcon({ label: '季風', bg: '#ffffff', fg: '#111827', accent: '#0ea5e9' }),
+  WL: makeWarningIcon({ label: '山泥', bg: '#ca8a04', fg: '#ffffff', accent: '#ffffff' }),
+  WFNTSA: makeWarningIcon({ label: '水浸', bg: '#ffffff', fg: '#1d4ed8', accent: '#1d4ed8' }),
+  WFROST: makeWarningIcon({ label: '霜凍', bg: '#ffffff', fg: '#2563eb', accent: '#93c5fd' }),
+  WTMW: makeWarningIcon({ label: '海嘯', bg: '#ffffff', fg: '#1d4ed8', accent: '#1d4ed8' })
+};
+
+const getWarningData = (rawCode, originalName) => {
+  // 同時兼容舊版自訂代碼及天文台 Open Data API 正式代碼
+  const aliasMap = { SMS: 'WMSGNL', FNTSA: 'WFNTSA', FROST: 'WFROST' };
+  const code = aliasMap[rawCode] || rawCode;
+
+  const warningMap = {
+    WRAINA: { text: '黃色暴雨警告信號', style: 'bg-[#eab308] text-white shadow-sm' },
+    WRAINR: { text: '紅色暴雨警告信號', style: 'bg-[#cf4747] text-white shadow-sm' },
+    WRAINB: { text: '黑色暴雨警告信號', style: 'bg-black text-white shadow-sm border border-gray-600' },
+    WTS: { text: '雷暴警告', style: 'bg-[#eab308] text-white shadow-sm' },
+    WHOT: { text: '酷熱天氣警告', style: 'bg-[#cf4747] text-white shadow-sm' },
+    WCOLD: { text: '寒冷天氣警告', style: 'bg-[#3b82f6] text-white shadow-sm' },
+    WFIREY: { text: '黃色火災危險警告', style: 'bg-[#eab308] text-white shadow-sm' },
+    WFIRER: { text: '紅色火災危險警告', style: 'bg-[#cf4747] text-white shadow-sm' },
+    TC1: { text: '一號戒備信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC3: { text: '三號強風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC8NE: { text: '八號東北烈風或暴風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC8NW: { text: '八號西北烈風或暴風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC8SE: { text: '八號東南烈風或暴風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC8SW: { text: '八號西南烈風或暴風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC9: { text: '九號烈風或暴風風力增強信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC10: { text: '十號颶風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    WMSGNL: { text: '強烈季候風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    WL: { text: '山泥傾瀉警告', style: 'bg-yellow-600 text-white shadow-sm border border-yellow-700' },
+    WFNTSA: { text: '新界北部水浸特別報告', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    WFROST: { text: '霜凍警告', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    WTMW: { text: '海嘯警告', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' }
+  };
+
+  const warning = warningMap[code];
+  if (warning) return { ...warning, img: WARNING_ICONS[code] };
+  if (!originalName || originalName.trim() === '') return null;
+  return {
+    text: originalName,
+    img: makeWarningIcon({ label: '警告', bg: '#334155', fg: '#ffffff', accent: '#ffffff' }),
+    style: 'bg-slate-800 text-white shadow-md'
+  };
+};
 
 const DEFAULT_PHOTOS = ["/photo01.jpg", "/photo02.jpg", "/photo03.jpg"];
 const WEATHER_BG = "/victoria-harbour.jpg";
@@ -99,57 +199,6 @@ const DEFAULT_LOCATIONS = [
     routes: [{ company: "kmb", route: "68F", dir: "I", dest: "峻巒", serviceType: "1", customDest: "峻巒" }]
   }
 ];
-
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371e3; 
-  const φ1 = lat1 * Math.PI / 180;
-  const φ2 = lat2 * Math.PI / 180;
-  const Δφ = (lat2 - lat1) * Math.PI / 180;
-  const Δλ = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return Math.round(R * c); 
-}
-
-function formatChineseDate(date) {
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-  const weekday = weekdays[date.getDay()];
-  return `${year}年${month}月${day}日 ${weekday}`;
-}
-
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-const getWarningData = (code, originalName) => {
-  const hkoBase = 'https://www.hko.gov.hk/images/HKOWarningSymbols/';
-  switch(code) {
-    case 'WRAINA': return { text: '黃色暴雨警告', img: hkoBase + 'warn800_15_wraina.png', style: 'bg-[#eab308] text-[#713f12]', iconBg: 'bg-transparent' };
-    case 'WRAINR': return { text: '紅色暴雨警告', img: hkoBase + 'warn800_16_wrainr.png', style: 'bg-[#dc2626] text-white', iconBg: 'bg-transparent' };
-    case 'WRAINB': return { text: '黑色暴雨警告', img: hkoBase + 'warn800_17_wrainb.png', style: 'bg-black text-white border border-gray-600', iconBg: 'bg-white rounded-sm' };
-    case 'WTS': return { text: '雷暴警告', img: hkoBase + 'warn800_12_ts.png', style: 'bg-[#eab308] text-yellow-950', iconBg: 'bg-transparent' };
-    case 'WHOT': return { text: '酷熱天氣警告', img: hkoBase + 'warn800_18_vhot.png', style: 'bg-red-500 text-white', iconBg: 'bg-transparent' };
-    case 'WCOLD': return { text: '寒冷天氣警告', img: hkoBase + 'warn800_19_cold.png', style: 'bg-[#3b82f6] text-white', iconBg: 'bg-transparent' };
-    case 'WFIREY': return { text: '黃色火災危險警告', img: hkoBase + 'warn800_20_firey.png', style: 'bg-yellow-500 text-yellow-950', iconBg: 'bg-transparent' };
-    case 'WFIRER': return { text: '紅色火災危險警告', img: hkoBase + 'warn800_21_firer.png', style: 'bg-red-500 text-white', iconBg: 'bg-transparent' };
-    case 'TC1': return { text: '一號戒備信號', img: hkoBase + 'warn800_01_tc1.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC3': return { text: '三號強風信號', img: hkoBase + 'warn800_02_tc3.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: hkoBase + 'warn800_04_tc8ne.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: hkoBase + 'warn800_03_tc8nw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: hkoBase + 'warn800_06_tc8se.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: hkoBase + 'warn800_05_tc8sw.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: hkoBase + 'warn800_07_tc9.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'TC10': return { text: '十號颶風信號', img: hkoBase + 'warn800_08_tc10.png', style: 'bg-white text-black border border-gray-200', iconBg: 'bg-transparent' };
-    case 'SMS': return { text: '強烈季候風信號', img: hkoBase + 'warn800_13_ms.png', style: 'bg-slate-800 text-white border border-slate-600', iconBg: 'bg-transparent' };
-    case 'WL': return { text: '山泥傾瀉警告', img: hkoBase + 'warn800_14_landslip.png', style: 'bg-yellow-600 text-white border border-yellow-700', iconBg: 'bg-white/80' };
-    case 'FNTSA': return { text: '新界北部水浸特別報告', img: hkoBase + 'warn800_22_ntfl.png', style: 'bg-blue-600 text-white border border-blue-700', iconBg: 'bg-white rounded-sm' };
-    case 'FROST': return { text: '霜凍警告', img: hkoBase + 'warn800_23_frost.png', style: 'bg-cyan-500 text-white border border-cyan-600', iconBg: 'bg-transparent' };
-    default: 
-      if (!originalName || originalName.trim() === '') return null;
-      return { text: originalName, style: 'bg-slate-800 text-white border border-slate-700 shadow-md', iconBg: 'bg-transparent' };
-  }
-};
 
 const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-4 h-4 object-contain" }) => {
   const [error, setError] = useState(false);
@@ -188,11 +237,6 @@ function MainApp() {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [now, setNow] = useState(new Date());
 
-  const getEtaMinutes = useCallback((etaDate, nowObj) => {
-    if (!etaDate || !nowObj) return null;
-    return Math.floor((new Date(etaDate) - nowObj) / 60000);
-  }, []);
-
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try { return JSON.parse(localStorage.getItem('kmb_theme') || 'false'); } catch { return false; }
   });
@@ -216,7 +260,6 @@ function MainApp() {
       .filter(wData => wData !== null); 
   }, [weatherInfo.warnings]);
 
-  // 絕對領域控制：阻止瀏覽器強制反轉顏色
   useEffect(() => {
     let meta = document.querySelector('meta[name="color-scheme"]');
     if (!meta) {
@@ -448,7 +491,7 @@ function MainApp() {
 
   const getOrFetchAllKmbStops = async () => {
     try {
-      const cached = localStorage.getItem('kmb_all_stops_cache_v33');
+      const cached = localStorage.getItem('kmb_all_stops_cache_v38');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) return parsed.stops;
@@ -462,7 +505,7 @@ function MainApp() {
         const miniStops = (d.data || []).map(s => ({
           id: s.stop, name: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long)
         })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
-        try { localStorage.setItem('kmb_all_stops_cache_v33', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
+        try { localStorage.setItem('kmb_all_stops_cache_v38', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
         return miniStops;
       }
     } catch (e) {}
@@ -514,11 +557,13 @@ function MainApp() {
         const routesDataList = Object.values(routeGroups).map(group => {
           group.etas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
           const uniqueEtas = [];
-          const seenMinutes = new Set();
+          const seenKeys = new Set();
           group.etas.forEach(e => {
             const minuteKey = Math.floor(new Date(e.eta).getTime() / 60000);
-            if (!seenMinutes.has(minuteKey) && (minuteKey - currentMins) >= -1) {
-              seenMinutes.add(minuteKey);
+            const rmkKey = e.rmk_tc || '';
+            const key = `${minuteKey}-${rmkKey}`; 
+            if (!seenKeys.has(key) && (minuteKey - currentMins) >= -1) {
+              seenKeys.add(key);
               uniqueEtas.push(e);
             }
           });
@@ -585,11 +630,13 @@ function MainApp() {
           if (validEtas.length > 0) {
             validEtas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
             const uniqueEtas = [];
-            const seenMinutes = new Set();
+            const seenKeys = new Set();
             validEtas.forEach(e => {
               const minuteKey = Math.floor(new Date(e.eta).getTime() / 60000);
-              if (!seenMinutes.has(minuteKey) && (minuteKey - currentMins) >= -1) {
-                seenMinutes.add(minuteKey);
+              const rmkKey = e.rmk_tc || '';
+              const key = `${minuteKey}-${rmkKey}`; 
+              if (!seenKeys.has(key) && (minuteKey - currentMins) >= -1) {
+                seenKeys.add(key);
                 uniqueEtas.push(e);
               }
             });
@@ -681,7 +728,7 @@ function MainApp() {
 
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
-    const cacheKey = `kmb_stop_details_cache_v33_${company}`;
+    const cacheKey = `kmb_stop_details_cache_v38_${company}`;
     
     if (company === 'kmb') {
         const allKmbStops = await getOrFetchAllKmbStops();
@@ -802,7 +849,6 @@ function MainApp() {
     }
   };
 
-  // 💡 ETA 獨立讀取，不影響軌跡重繪
   useEffect(() => {
     if (!mapState.isOpen || !mapState.stop?.id || !mapState.routeInfo) return;
     let isMounted = true;
@@ -824,12 +870,14 @@ function MainApp() {
              let validEtas = d.data.filter(e => e.route === route && e.dir === dir && e.eta);
              validEtas.sort((a,b) => new Date(a.eta) - new Date(b.eta));
              const uniqueEtas = [];
-             const seenMinutes = new Set();
+             const seenKeys = new Set();
              
              validEtas.forEach(e => {
                 const m = Math.floor(new Date(e.eta).getTime() / 60000);
-                if (!seenMinutes.has(m) && (m - currentMins) >= -1) {
-                   seenMinutes.add(m);
+                const rmkKey = e.rmk_tc || '';
+                const key = `${m}-${rmkKey}`; 
+                if (!seenKeys.has(key) && (m - currentMins) >= -1) {
+                   seenKeys.add(key);
                    uniqueEtas.push(e);
                 }
              });
@@ -849,7 +897,6 @@ function MainApp() {
     return () => { isMounted = false; clearInterval(timer); };
   }, [mapState.isOpen, mapState.stop?.id, mapState.routeInfo]);
 
-  // 💡 獨立運算：開放讀取專屬 CSDI 數據庫 ＋ OSRM 智能直連保底
   useEffect(() => {
     if (!mapState.isOpen || mapState.loadingStops || mapState.routeStops.length === 0 || mapEngineState.fetched) return;
     
@@ -885,7 +932,6 @@ function MainApp() {
             console.log("Failed to fetch CSDI Data");
         }
 
-        // 次選：OSRM 智能保底
         if (!allSnappedCoords) {
             let skeletonStops = [validStops[0]];
             let lastSkStop = validStops[0];
@@ -899,7 +945,8 @@ function MainApp() {
             skeletonStops.push(validStops[validStops.length - 1]);
 
             const coordsStr = skeletonStops.map(s => `${s.lng},${s.lat}`).join(';');
-            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&continue_straight=true`;
+            const radiusesStr = skeletonStops.map(() => '150').join(';');
+            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&continue_straight=true&radiuses=${radiusesStr}`;
 
             try {
                 const res = await fetch(osrmUrl);
@@ -927,7 +974,6 @@ function MainApp() {
     return () => { isMounted = false; };
   }, [mapState.isOpen, mapState.loadingStops, mapState.routeStops, mapEngineState.fetched, trajectoryMode]);
 
-  // 💡 渲染引擎：官方管狀軌跡 ＋ 無邊框白箭頭
   useEffect(() => {
     if (!leafletLoaded || !mapContainerRef.current || !mapState.isOpen || !mapEngineState.fetched) return;
 
@@ -1366,13 +1412,16 @@ function MainApp() {
             往 {route.dest}
           </span>
         </div>
-        <div className="flex flex-col items-end justify-center shrink-0 min-w-[80px] pointer-events-none">
+        
+        <div className="flex flex-col items-end justify-center shrink-0 min-w-[100px] pointer-events-none">
           <div className={`flex items-center justify-end gap-2 sm:gap-3 ${primaryEtaHeight}`}>
-            {primaryRmk && primaryMins !== null && (
-              <span className={`text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded shadow-sm leading-none whitespace-nowrap ${isDarkMode ? 'bg-red-500/20 text-red-400 border border-red-500/20' : 'bg-[#e3342f]/10 text-[#e3342f] border border-[#e3342f]/20'}`}>
-                {primaryRmk}
-              </span>
-            )}
+            <div className="flex flex-col items-end">
+               {primaryRmk && primaryMins !== null && (
+                 <span className={`text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded shadow-sm leading-tight max-w-[140px] sm:max-w-[200px] text-right line-clamp-2 break-words ${primaryRmk.includes('特別') ? 'text-[#e3342f] border border-[#e3342f]/30' : (isDarkMode ? 'bg-red-500/20 text-red-400 border border-red-500/20' : 'bg-[#e3342f]/10 text-[#e3342f] border border-[#e3342f]/20')}`}>
+                   {primaryRmk}
+                 </span>
+               )}
+            </div>
             {primaryMins === null ? (
               <span className={`${primaryNumSize} font-black leading-none whitespace-nowrap ${theme.etaMissed}`}>-</span>
             ) : isMissed ? (
@@ -1383,14 +1432,17 @@ function MainApp() {
               <span style={{ color: etaColorStyle }} className={`${primaryNumSize} font-black tracking-tighter leading-none whitespace-nowrap`}>{primaryMins}</span>
             )}
           </div>
+          
           <div className="flex items-center justify-end gap-2 sm:gap-3 mt-1.5 sm:mt-2">
-            {secondaryRmk && secondaryMins !== null && secondaryMins >= 0 && (
-              <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm leading-none whitespace-nowrap ${isDarkMode ? 'bg-gray-400/20 text-gray-400 border border-gray-500/20' : 'bg-gray-500/10 text-gray-500 border border-gray-500/20'}`}>
-                {secondaryRmk}
-              </span>
-            )}
+            <div className="flex flex-col items-end">
+               {secondaryRmk && secondaryMins !== null && secondaryMins >= 0 && (
+                 <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm leading-tight max-w-[120px] text-right line-clamp-2 break-words ${secondaryRmk.includes('特別') ? 'text-red-400' : (isDarkMode ? 'bg-gray-400/20 text-gray-400 border border-gray-500/20' : 'bg-gray-500/10 text-gray-500 border border-gray-500/20')}`}>
+                   {secondaryRmk}
+                 </span>
+               )}
+            </div>
             {secondaryMins !== null && secondaryMins >= 0 ? (
-              <span className={`${secondarySize} font-extrabold ${theme.etaSecondary} leading-none whitespace-nowrap`}>
+              <span className={`${secondarySize} font-extrabold whitespace-nowrap ${theme.etaSecondary} leading-none`}>
                 {secondaryMins}
               </span>
             ) : (
@@ -1408,12 +1460,13 @@ function MainApp() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
+        {/* 💡 V38: 完美復刻圖三，圓角白底框 App Icon Style 警告橫幅 */}
         {validWarnings.length > 0 && (
-          <div className="flex flex-col gap-1.5 px-3 sm:px-0 mb-3 mt-2">
+          <div className="flex flex-col gap-2.5 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
-              <div key={idx} className={`flex items-center justify-center gap-2 w-full py-1.5 px-3 rounded text-sm font-extrabold shadow-sm ${wData.style}`}>
-                <WarningBadge img={wData.img} text={wData.text} iconBg={wData.iconBg} className="w-4 h-4 object-contain drop-shadow-sm" />
-                <span className="drop-shadow-sm tracking-wide">{wData.text}</span>
+              <div key={idx} className={`flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl text-base font-black tracking-widest ${wData.style}`}>
+                {wData.img && <img src={wData.img} alt={wData.text} className="w-8 h-8 object-contain rounded-md bg-white p-[2px] shrink-0" referrerPolicy="no-referrer" />}
+                <span>{wData.text}</span>
               </div>
             ))}
           </div>
@@ -1533,7 +1586,7 @@ function MainApp() {
               <div className="relative z-10 flex flex-col items-start gap-2 text-white">
                 <div className="flex items-center gap-3">
                   {weatherInfo.icon && (
-                    <img src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} alt="Weather" className="w-16 h-16 drop-shadow-xl" referrerPolicy="no-referrer" />
+                    <img src={`https://www.hko.gov.hk/images/wxicon/pic${weatherInfo.icon}.png`} alt="Weather" className="w-16 h-16 drop-shadow-xl" referrerPolicy="no-referrer" />
                   )}
                   <div className="flex flex-col">
                     <span className="text-4xl md:text-5xl font-black">{weatherInfo.temp}°C</span>
@@ -1541,11 +1594,12 @@ function MainApp() {
                   </div>
                 </div>
                 {validWarnings.length > 0 && (
-                  <div className="flex flex-col gap-1.5 w-full max-w-sm mt-1">
+                  <div className="flex flex-col gap-1.5 w-full max-w-sm mt-3">
                     {validWarnings.map((wData, idx) => (
-                      <div key={idx} className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold shadow-lg animate-pulse ${wData.style}`}>
-                        <WarningBadge img={wData.img} text={wData.text} iconBg={wData.iconBg} className="w-4 h-4 object-contain" isSmall={true} />
-                        <span className="drop-shadow-sm tracking-wide">{wData.text}</span>
+                      <div key={idx} className="flex items-center gap-3 px-3.5 py-2 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg text-sm font-bold text-white animate-pulse">
+                        {/* 座枱模式亦套用 App Icon 圓角白底風格 */}
+                        {wData.img && <img src={wData.img} alt={wData.text} className="w-6 h-6 object-contain rounded-[4px] bg-white p-[1px]" referrerPolicy="no-referrer" />}
+                        <span className="tracking-wide drop-shadow-md">{wData.text}</span>
                       </div>
                     ))}
                   </div>
@@ -1624,39 +1678,49 @@ function MainApp() {
         }
       `}</style>
 
-      <header className={`px-4 py-3 flex items-center justify-between border-b shadow-sm z-20 shrink-0 transition-colors ${theme.topBar}`}>
-        <div className="flex gap-2 w-[90px]">
-          <button onClick={() => setIsStandMode(!isStandMode)} className={`p-1.5 rounded-full ${isStandMode ? 'bg-white text-red-600 shadow-md' : 'text-white/80 hover:text-white'}`}>
-            <MonitorSmartphone className="w-6 h-6" />
+      <header className={`px-3 py-3 flex items-center justify-between border-b shadow-sm z-20 shrink-0 transition-colors ${theme.topBar}`}>
+        <div className="flex items-center gap-2 min-w-0">
+          <button onClick={() => setIsStandMode(!isStandMode)} className={`p-1.5 rounded-md ${isStandMode ? 'bg-white text-red-600 shadow-md' : 'text-white hover:bg-white/10 border border-transparent'}`}>
+            <MonitorSmartphone className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />
           </button>
-          {isStandMode && (
-            <button onClick={() => setLeftPanelMode(leftPanelMode === 'WEATHER' ? 'PHOTO' : 'WEATHER')} className="ml-1 p-1.5 rounded-full bg-white/20 text-white border border-white/20 flex items-center gap-1 px-3">
-              {leftPanelMode === 'WEATHER' ? <><ImageIcon className="w-5 h-5" /><span className="text-xs font-bold hidden sm:inline">轉相簿</span></> : <><CloudSun className="w-5 h-5" /><span className="text-xs font-bold hidden sm:inline">轉天氣</span></>}
-            </button>
-          )}
+          {/* 💡 V38: 固定為實時巴士報站 */}
+          <h1 className="text-lg sm:text-xl font-black tracking-widest text-white truncate drop-shadow-sm pr-2">
+            實時巴士報站
+          </h1>
         </div>
-        <div className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 min-w-0">
-          <h1 className="text-base sm:text-lg md:text-xl font-black tracking-widest text-white truncate">巴士到站看板</h1>
-          {(weatherInfo.temp !== '--' || activeTCWarning) && (
-            <div className="flex items-center gap-1.5 bg-black/20 border border-white/10 px-2 py-0.5 rounded-full shadow-inner shrink-0">
-              {activeTCWarning && activeTCWarning.img && (
-                <WarningBadge img={activeTCWarning.img} text={activeTCWarning.text} iconBg={activeTCWarning.iconBg} className="w-4 h-4 sm:w-5 sm:h-5 object-contain drop-shadow-md" isSmall={true} />
+        
+        <div className="flex items-center gap-1.5 shrink-0">
+          {(weatherInfo.temp !== '--' || validWarnings.length > 0) && (
+            <div className="flex items-center gap-1.5 bg-black/20 border border-black/10 px-2 py-1 rounded-full shadow-inner">
+              {validWarnings.length > 0 && (
+                <div className="flex items-center gap-1 pl-1">
+                  {validWarnings.map((wData, idx) => wData.img && (
+                    <img key={idx} src={wData.img} alt={wData.text} title={wData.text} className="w-5 h-5 sm:w-6 sm:h-6 object-contain rounded-[3px] bg-white p-[1px]" referrerPolicy="no-referrer" />
+                  ))}
+                </div>
               )}
-              {weatherInfo.icon && (
-                <img src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} alt="weather icon" className="w-4 h-4 sm:w-5 sm:h-5 object-contain" referrerPolicy="no-referrer" />
-              )}
-              {weatherInfo.temp !== '--' && (
-                <span className="text-xs sm:text-sm font-bold text-white ios-num-fix tracking-wide">{weatherInfo.temp}°C</span>
-              )}
+              {validWarnings.length > 0 && weatherInfo.icon && <div className="w-[1px] h-4 bg-white/30 mx-0.5"></div>}
+              <div className="flex items-center gap-1 pr-1">
+                {weatherInfo.icon && (
+                  <img 
+                    src={`https://www.hko.gov.hk/images/wxicon/pic${weatherInfo.icon}.png`} 
+                    alt="weather icon" 
+                    className="w-5 h-5 sm:w-6 sm:h-6 object-contain drop-shadow-md"
+                    referrerPolicy="no-referrer" 
+                  />
+                )}
+                {weatherInfo.temp !== '--' && (
+                  <span className="text-sm font-bold text-white ios-num-fix drop-shadow-sm tracking-wider">{weatherInfo.temp}°C</span>
+                )}
+              </div>
             </div>
           )}
-        </div>
-        <div className="flex items-center justify-end gap-2 w-[90px]">
-          <button onClick={() => { if (activeTab === 'NEARBY' && userCoords) fetchNearbyStopsLiveETA(); else fetchCustomLocationsData(); fetchWeather(); }} className="p-1.5 text-white/85 hover:text-white rounded-full">
-            <RefreshCw className={`w-6 h-6 ${loading || gpsLoading ? 'animate-spin' : ''}`} />
+
+          <button onClick={() => { if (activeTab === 'NEARBY' && userCoords) fetchNearbyStopsLiveETA(); else fetchCustomLocationsData(); fetchWeather(); }} className="p-1.5 text-white/90 hover:text-white rounded-full hover:bg-white/10 transition-colors ml-1">
+            <RefreshCw className={`w-5 h-5 ${loading || gpsLoading ? 'animate-spin' : ''}`} strokeWidth={2.5} />
           </button>
-          <button onClick={() => setIsSettingsModalOpen(true)} className="p-1.5 text-white/85 hover:text-white rounded-full hover:bg-white/10 transition-colors">
-            <Settings className="w-6 h-6" />
+          <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1.5 text-white/90 hover:text-white rounded-full hover:bg-white/10 transition-colors">
+            {isDarkMode ? <Moon className="w-5 h-5" strokeWidth={2.5} /> : <Sun className="w-5 h-5" strokeWidth={2.5} />}
           </button>
         </div>
       </header>
@@ -1681,7 +1745,7 @@ function MainApp() {
         </footer>
       )}
 
-      {/* 🗺️ 終極 V33 管狀軌跡地圖與官方時間軸彈出視窗 Modal */}
+      {/* 🗺️ 地圖與時間軸 Modal */}
       {mapState.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 sm:p-4 backdrop-blur-md animate-fade-in" onClick={() => setMapState({ ...mapState, isOpen: false })}>
           <div className={`w-full h-full sm:h-[85vh] sm:max-w-md shadow-2xl flex flex-col overflow-hidden sm:rounded-2xl border ${theme.modalBg}`} onClick={(e) => e.stopPropagation()}>
@@ -1811,17 +1875,24 @@ function MainApp() {
                                      const rmk = eta.rmk_tc && eta.rmk_tc !== "原定班次" ? eta.rmk_tc : "";
                                      
                                      return (
-                                       <div key={eIdx} className="flex items-center gap-3 sm:gap-4">
-                                          <Bus className={`w-4 h-4 shrink-0 ${isMissed ? 'text-gray-300' : 'text-[#3b82f6]'}`} />
-                                          <div className="flex items-baseline gap-1.5">
-                                            <span className={`font-black leading-none whitespace-nowrap ${isImminent ? 'text-2xl tracking-wide' : 'text-3xl text-right min-w-[32px]'} ${isMissed ? 'text-gray-400' : 'text-[#3b82f6]'}`}>
-                                               {isMissed ? '-' : isImminent ? '即將' : mins}
-                                            </span>
-                                            <span className={`text-[13px] font-bold whitespace-nowrap shrink-0 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
-                                               {isMissed ? '已開出' : isImminent ? '到站' : '分鐘'}
+                                       <div key={eIdx} className="flex items-start gap-3 sm:gap-4 w-full py-1">
+                                          <div className="flex items-center gap-1.5 mt-0.5 shrink-0 w-[80px]">
+                                              <Bus className={`w-3.5 h-3.5 ${isMissed ? 'text-gray-300' : 'text-[#3b82f6]'}`} />
+                                              <div className="flex items-baseline gap-1.5">
+                                                <span className={`text-right font-black leading-none whitespace-nowrap ${isImminent ? 'text-xl tracking-wide' : 'text-[26px] min-w-[24px]'} ${isMissed ? 'text-gray-400' : 'text-[#3b82f6]'}`}>
+                                                   {isMissed ? '-' : isImminent ? '即將' : mins}
+                                                </span>
+                                                <span className={`text-[11px] font-bold whitespace-nowrap ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+                                                   {isMissed ? '' : isImminent ? '' : '分鐘'}
+                                                </span>
+                                              </div>
+                                          </div>
+                                          
+                                          <div className="flex-1 min-w-0 pr-2 pt-1.5">
+                                            <span className={`text-[12px] font-bold leading-tight block break-words ${rmk && rmk.includes('特別') ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`}>
+                                              {rmk || "九巴"}
                                             </span>
                                           </div>
-                                          {rmk && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded truncate ${isDarkMode ? 'bg-zinc-800 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>{rmk}</span>}
                                        </div>
                                      )
                                   })
@@ -1977,7 +2048,7 @@ function MainApp() {
                   <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
                     <span className="text-xs font-black flex items-center gap-1.5"><MapPin className="w-4 h-4 text-blue-500" />地圖軌跡繪製模式</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">
-                      「官方專線軌跡」使用政府 CSDI 數據，完美呈現管狀馬路走線。如果您想使用自己下載的官方 CSDI 庫，請直接修改源代碼中的 <code>MY_GITHUB_CSDI_URL</code>。
+                      「官方專線軌跡」會優先使用 CSDI 數據，若無資料則啟動 OSRM 智能防繞路引擎。「官方直連」則直接以直線相連。
                     </p>
                     <select 
                       value={trajectoryMode} 
@@ -2174,4 +2245,3 @@ export default function SafeApp() {
     </ErrorBoundary>
   );
 }
-
