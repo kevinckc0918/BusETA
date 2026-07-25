@@ -1684,6 +1684,19 @@ function MainApp() {
           <button onClick={() => { if (activeTab === 'NEARBY' && userCoords) fetchNearbyStopsLiveETA(); else fetchCustomLocationsData(); fetchWeather(); }} className="p-1.5 text-white/90 hover:text-white rounded-full hover:bg-white/10 transition-colors ml-1">
             <RefreshCw className={`w-5 h-5 ${loading || gpsLoading ? 'animate-spin' : ''}`} strokeWidth={2.5} />
           </button>
+          <button
+            onClick={() => {
+              setSettingsTab('FAVORITES');
+              setBackupError('');
+              setBackupSuccess('');
+              setIsSettingsModalOpen(true);
+            }}
+            className="p-1.5 text-white/90 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+            title="看板設定中心"
+            aria-label="開啟看板設定中心"
+          >
+            <Settings className="w-5 h-5" strokeWidth={2.5} />
+          </button>
           <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-1.5 text-white/90 hover:text-white rounded-full hover:bg-white/10 transition-colors">
             {isDarkMode ? <Moon className="w-5 h-5" strokeWidth={2.5} /> : <Sun className="w-5 h-5" strokeWidth={2.5} />}
           </button>
