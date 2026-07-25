@@ -91,34 +91,79 @@ const getEtaMinutes = (etaDate, nowObj) => {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// 💡 V38: 完美使用穩定版圖標庫，並在渲染時加入圓角白底框設計
-const getWarningData = (code, originalName) => {
-  const hkoBase = 'https://www.hko.gov.hk/images/HKOWarningSymbols/';
-  switch(code) {
-    case 'WRAINA': return { text: '黃色暴雨警告信號', img: hkoBase + 'warn800_15_wraina.png', style: 'bg-[#eab308] text-white shadow-sm' };
-    case 'WRAINR': return { text: '紅色暴雨警告信號', img: hkoBase + 'warn800_16_wrainr.png', style: 'bg-[#cf4747] text-white shadow-sm' };
-    case 'WRAINB': return { text: '黑色暴雨警告信號', img: hkoBase + 'warn800_17_wrainb.png', style: 'bg-black text-white shadow-sm border border-gray-600' };
-    case 'WTS': return { text: '雷暴警告', img: hkoBase + 'warn800_12_ts.png', style: 'bg-[#eab308] text-white shadow-sm' };
-    case 'WHOT': return { text: '酷熱天氣警告', img: hkoBase + 'warn800_18_vhot.png', style: 'bg-[#cf4747] text-white shadow-sm' }; 
-    case 'WCOLD': return { text: '寒冷天氣警告', img: hkoBase + 'warn800_19_cold.png', style: 'bg-[#3b82f6] text-white shadow-sm' };
-    case 'WFIREY': return { text: '黃色火災危險警告', img: hkoBase + 'warn800_20_firey.png', style: 'bg-[#eab308] text-white shadow-sm' };
-    case 'WFIRER': return { text: '紅色火災危險警告', img: hkoBase + 'warn800_21_firer.png', style: 'bg-[#cf4747] text-white shadow-sm' };
-    case 'TC1': return { text: '一號戒備信號', img: hkoBase + 'warn800_01_tc1.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC3': return { text: '三號強風信號', img: hkoBase + 'warn800_02_tc3.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: hkoBase + 'warn800_04_tc8ne.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: hkoBase + 'warn800_03_tc8nw.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: hkoBase + 'warn800_06_tc8se.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: hkoBase + 'warn800_05_tc8sw.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: hkoBase + 'warn800_07_tc9.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC10': return { text: '十號颶風信號', img: hkoBase + 'warn800_08_tc10.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'SMS': return { text: '強烈季候風信號', img: hkoBase + 'warn800_13_ms.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'WL': return { text: '山泥傾瀉警告', img: hkoBase + 'warn800_14_landslip.png', style: 'bg-yellow-600 text-white shadow-sm border border-yellow-700' };
-    case 'FNTSA': return { text: '新界北部水浸特別報告', img: hkoBase + 'warn800_22_ntfl.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'FROST': return { text: '霜凍警告', img: hkoBase + 'warn800_23_frost.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    default: 
-      if (!originalName || originalName.trim() === '') return null;
-      return { text: originalName, img: null, style: 'bg-slate-800 text-white shadow-md' };
-  }
+// 💡 天氣警告圖示改用內置 SVG，避免天文台圖片路徑改動或 hotlink 限制導致載入失敗
+const makeWarningIcon = ({ label, bg = '#ffffff', fg = '#111827', accent = '#dc2626' }) => {
+  const safeLabel = String(label || '!').slice(0, 4);
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+      <rect width="96" height="96" rx="18" fill="${bg}"/>
+      <rect x="5" y="5" width="86" height="86" rx="14" fill="none" stroke="${accent}" stroke-width="6"/>
+      <text x="48" y="58" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="800" fill="${fg}">${safeLabel}</text>
+    </svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+};
+
+const WARNING_ICONS = {
+  WRAINA: makeWarningIcon({ label: '黃雨', bg: '#facc15', fg: '#111827', accent: '#ffffff' }),
+  WRAINR: makeWarningIcon({ label: '紅雨', bg: '#dc2626', fg: '#ffffff', accent: '#ffffff' }),
+  WRAINB: makeWarningIcon({ label: '黑雨', bg: '#111111', fg: '#ffffff', accent: '#ffffff' }),
+  WTS: makeWarningIcon({ label: '雷暴', bg: '#facc15', fg: '#111827', accent: '#ffffff' }),
+  WHOT: makeWarningIcon({ label: '酷熱', bg: '#ef4444', fg: '#ffffff', accent: '#ffffff' }),
+  WCOLD: makeWarningIcon({ label: '寒冷', bg: '#2563eb', fg: '#ffffff', accent: '#ffffff' }),
+  WFIREY: makeWarningIcon({ label: '火警', bg: '#facc15', fg: '#7c2d12', accent: '#ffffff' }),
+  WFIRER: makeWarningIcon({ label: '火警', bg: '#dc2626', fg: '#ffffff', accent: '#ffffff' }),
+  TC1: makeWarningIcon({ label: 'T1', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC3: makeWarningIcon({ label: 'T3', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC8NE: makeWarningIcon({ label: '8NE', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC8NW: makeWarningIcon({ label: '8NW', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC8SE: makeWarningIcon({ label: '8SE', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC8SW: makeWarningIcon({ label: '8SW', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC9: makeWarningIcon({ label: 'T9', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  TC10: makeWarningIcon({ label: 'T10', bg: '#ffffff', fg: '#111827', accent: '#ef4444' }),
+  WMSGNL: makeWarningIcon({ label: '季風', bg: '#ffffff', fg: '#111827', accent: '#0ea5e9' }),
+  WL: makeWarningIcon({ label: '山泥', bg: '#ca8a04', fg: '#ffffff', accent: '#ffffff' }),
+  WFNTSA: makeWarningIcon({ label: '水浸', bg: '#ffffff', fg: '#1d4ed8', accent: '#1d4ed8' }),
+  WFROST: makeWarningIcon({ label: '霜凍', bg: '#ffffff', fg: '#2563eb', accent: '#93c5fd' }),
+  WTMW: makeWarningIcon({ label: '海嘯', bg: '#ffffff', fg: '#1d4ed8', accent: '#1d4ed8' })
+};
+
+const getWarningData = (rawCode, originalName) => {
+  // 同時兼容舊版自訂代碼及天文台 Open Data API 正式代碼
+  const aliasMap = { SMS: 'WMSGNL', FNTSA: 'WFNTSA', FROST: 'WFROST' };
+  const code = aliasMap[rawCode] || rawCode;
+
+  const warningMap = {
+    WRAINA: { text: '黃色暴雨警告信號', style: 'bg-[#eab308] text-white shadow-sm' },
+    WRAINR: { text: '紅色暴雨警告信號', style: 'bg-[#cf4747] text-white shadow-sm' },
+    WRAINB: { text: '黑色暴雨警告信號', style: 'bg-black text-white shadow-sm border border-gray-600' },
+    WTS: { text: '雷暴警告', style: 'bg-[#eab308] text-white shadow-sm' },
+    WHOT: { text: '酷熱天氣警告', style: 'bg-[#cf4747] text-white shadow-sm' },
+    WCOLD: { text: '寒冷天氣警告', style: 'bg-[#3b82f6] text-white shadow-sm' },
+    WFIREY: { text: '黃色火災危險警告', style: 'bg-[#eab308] text-white shadow-sm' },
+    WFIRER: { text: '紅色火災危險警告', style: 'bg-[#cf4747] text-white shadow-sm' },
+    TC1: { text: '一號戒備信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC3: { text: '三號強風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC8NE: { text: '八號東北烈風或暴風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC8NW: { text: '八號西北烈風或暴風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC8SE: { text: '八號東南烈風或暴風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC8SW: { text: '八號西南烈風或暴風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC9: { text: '九號烈風或暴風風力增強信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC10: { text: '十號颶風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    WMSGNL: { text: '強烈季候風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    WL: { text: '山泥傾瀉警告', style: 'bg-yellow-600 text-white shadow-sm border border-yellow-700' },
+    WFNTSA: { text: '新界北部水浸特別報告', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    WFROST: { text: '霜凍警告', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    WTMW: { text: '海嘯警告', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' }
+  };
+
+  const warning = warningMap[code];
+  if (warning) return { ...warning, img: WARNING_ICONS[code] };
+  if (!originalName || originalName.trim() === '') return null;
+  return {
+    text: originalName,
+    img: makeWarningIcon({ label: '警告', bg: '#334155', fg: '#ffffff', accent: '#ffffff' }),
+    style: 'bg-slate-800 text-white shadow-md'
+  };
 };
 
 const DEFAULT_PHOTOS = ["/photo01.jpg", "/photo02.jpg", "/photo03.jpg"];
