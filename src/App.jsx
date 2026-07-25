@@ -91,32 +91,41 @@ const getEtaMinutes = (etaDate, nowObj) => {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// 💡 HKO Icon Pack v2：統一使用香港天文台 HKOWarningSymbols 高清 PNG
-// 包括熱帶氣旋、暴雨、雷暴、酷熱、寒冷、火災危險及其他警告圖示
+// 💡 HKO Icon Pack v4：所有 HKO 圖示只使用 public/ 內的本地檔案
+// 實體位置：public/icons/hko/...
+// JSX 網址：/icons/hko/...（Vite/React 不應包含 /public）
+const HKO_WARNING_BASE = '/icons/hko/warnings/';
+const HKO_WEATHER_BASE = '/icons/hko/weather/';
+
+const makeHkoWarningIcon = (fileName) => ({
+  img: `${HKO_WARNING_BASE}${fileName}`,
+});
+
+const getWeatherIconPath = (icon) => `${HKO_WEATHER_BASE}pic${icon}.png`;
+
 const getWarningData = (code, originalName) => {
-  const hkoBase = 'https://www.hko.gov.hk/images/HKOWarningSymbols/';
   switch(code) {
-    case 'WRAINA': return { text: '黃色暴雨警告信號', img: hkoBase + 'warn800_15_wraina.png', style: 'bg-[#eab308] text-white shadow-sm' };
-    case 'WRAINR': return { text: '紅色暴雨警告信號', img: hkoBase + 'warn800_16_wrainr.png', style: 'bg-[#cf4747] text-white shadow-sm' };
-    case 'WRAINB': return { text: '黑色暴雨警告信號', img: hkoBase + 'warn800_17_wrainb.png', style: 'bg-black text-white shadow-sm border border-gray-600' };
-    case 'WTS': return { text: '雷暴警告', img: hkoBase + 'warn800_12_ts.png', style: 'bg-[#eab308] text-white shadow-sm' };
-    case 'WHOT': return { text: '酷熱天氣警告', img: hkoBase + 'warn800_18_vhot.png', style: 'bg-[#cf4747] text-white shadow-sm' }; 
-    case 'WCOLD': return { text: '寒冷天氣警告', img: hkoBase + 'warn800_19_cold.png', style: 'bg-[#3b82f6] text-white shadow-sm' };
-    case 'WFIREY': return { text: '黃色火災危險警告', img: hkoBase + 'warn800_20_firey.png', style: 'bg-[#eab308] text-white shadow-sm' };
-    case 'WFIRER': return { text: '紅色火災危險警告', img: hkoBase + 'warn800_21_firer.png', style: 'bg-[#cf4747] text-white shadow-sm' };
-    case 'TC1': return { text: '一號戒備信號', img: hkoBase + 'warn800_01_tc1.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC3': return { text: '三號強風信號', img: hkoBase + 'warn800_03_tc3.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: hkoBase + 'warn800_04_tc8ne.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: hkoBase + 'warn800_08_tc8nw.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: hkoBase + 'warn800_05_tc8se.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: hkoBase + 'warn800_06_tc8sw.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: hkoBase + 'warn800_07_tc09.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC10': return { text: '十號颶風信號', img: hkoBase + 'warn800_09_tc10.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'SMS': return { text: '強烈季候風信號', img: hkoBase + 'warn800_13_ms.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'WL': return { text: '山泥傾瀉警告', img: hkoBase + 'warn800_14_landslip.png', style: 'bg-yellow-600 text-white shadow-sm border border-yellow-700' };
-    case 'FNTSA': return { text: '新界北部水浸特別報告', img: hkoBase + 'warn800_22_ntfl.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'FROST': return { text: '霜凍警告', img: hkoBase + 'warn800_23_frost.png', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    default: 
+    case 'WRAINA': return { text: '黃色暴雨警告信號', ...makeHkoWarningIcon('raina.gif'), style: 'bg-[#eab308] text-white shadow-sm' };
+    case 'WRAINR': return { text: '紅色暴雨警告信號', ...makeHkoWarningIcon('rainr.gif'), style: 'bg-[#cf4747] text-white shadow-sm' };
+    case 'WRAINB': return { text: '黑色暴雨警告信號', ...makeHkoWarningIcon('rainb.gif'), style: 'bg-black text-white shadow-sm border border-gray-600' };
+    case 'WTS': return { text: '雷暴警告', ...makeHkoWarningIcon('ts.gif'), style: 'bg-[#eab308] text-white shadow-sm' };
+    case 'WHOT': return { text: '酷熱天氣警告', ...makeHkoWarningIcon('vhot.gif'), style: 'bg-[#cf4747] text-white shadow-sm' };
+    case 'WCOLD': return { text: '寒冷天氣警告', ...makeHkoWarningIcon('cold.gif'), style: 'bg-[#3b82f6] text-white shadow-sm' };
+    case 'WFIREY': return { text: '黃色火災危險警告', ...makeHkoWarningIcon('firey.gif'), style: 'bg-[#eab308] text-white shadow-sm' };
+    case 'WFIRER': return { text: '紅色火災危險警告', ...makeHkoWarningIcon('firer.gif'), style: 'bg-[#cf4747] text-white shadow-sm' };
+    case 'TC1': return { text: '一號戒備信號', ...makeHkoWarningIcon('tc1.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC3': return { text: '三號強風信號', ...makeHkoWarningIcon('tc3.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC8NE': return { text: '八號東北烈風或暴風信號', ...makeHkoWarningIcon('tc8ne.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC8NW': return { text: '八號西北烈風或暴風信號', ...makeHkoWarningIcon('tc8nw.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC8SE': return { text: '八號東南烈風或暴風信號', ...makeHkoWarningIcon('tc8se.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC8SW': return { text: '八號西南烈風或暴風信號', ...makeHkoWarningIcon('tc8sw.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC9': return { text: '九號烈風或暴風風力增強信號', ...makeHkoWarningIcon('tc9.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC10': return { text: '十號颶風信號', ...makeHkoWarningIcon('tc10.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'SMS': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'WL': return { text: '山泥傾瀉警告', ...makeHkoWarningIcon('landslip.gif'), style: 'bg-yellow-600 text-white shadow-sm border border-yellow-700' };
+    case 'FNTSA': return { text: '新界北部水浸特別報告', ...makeHkoWarningIcon('ntfl.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'FROST': return { text: '霜凍警告', ...makeHkoWarningIcon('frost.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    default:
       if (!originalName || originalName.trim() === '') return null;
       return { text: originalName, img: null, style: 'bg-slate-800 text-white shadow-md' };
   }
@@ -161,7 +170,7 @@ const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-4 h
   if (error || !img) return null; 
   return (
     <div className={`${iconBg} shrink-0 flex items-center justify-center p-0.5`}>
-      <img src={img} alt={text} className={className} referrerPolicy="no-referrer" onError={() => setError(true)} />
+      <img src={img} alt={text} className={className} onError={() => setError(true)} />
     </div>
   );
 };
@@ -1421,7 +1430,7 @@ function MainApp() {
           <div className="flex flex-col gap-2.5 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
               <div key={idx} className={`flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl text-base font-black tracking-widest ${wData.style}`}>
-                {wData.img && <img src={wData.img} alt={wData.text} className="w-8 h-8 object-contain rounded-md bg-white p-[2px] shrink-0" referrerPolicy="no-referrer" />}
+                {wData.img && <img src={wData.img} onError={(event) => { event.currentTarget.style.display = 'none'; }} alt={wData.text} className="w-8 h-8 object-contain rounded-md bg-white p-[2px] shrink-0" />}
                 <span>{wData.text}</span>
               </div>
             ))}
@@ -1542,7 +1551,7 @@ function MainApp() {
               <div className="relative z-10 flex flex-col items-start gap-2 text-white">
                 <div className="flex items-center gap-3">
                   {weatherInfo.icon && (
-                    <img src={`https://www.hko.gov.hk/images/wxicon/pic${weatherInfo.icon}.png`} alt="Weather" className="w-16 h-16 drop-shadow-xl" referrerPolicy="no-referrer" />
+                    <img src={getWeatherIconPath(weatherInfo.icon)} onError={(event) => { event.currentTarget.style.display = 'none'; }} alt="Weather" className="w-16 h-16 drop-shadow-xl" />
                   )}
                   <div className="flex flex-col">
                     <span className="text-4xl md:text-5xl font-black">{weatherInfo.temp}°C</span>
@@ -1554,7 +1563,7 @@ function MainApp() {
                     {validWarnings.map((wData, idx) => (
                       <div key={idx} className="flex items-center gap-3 px-3.5 py-2 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg text-sm font-bold text-white animate-pulse">
                         {/* 座枱模式亦套用 App Icon 圓角白底風格 */}
-                        {wData.img && <img src={wData.img} alt={wData.text} className="w-6 h-6 object-contain rounded-[4px] bg-white p-[1px]" referrerPolicy="no-referrer" />}
+                        {wData.img && <img src={wData.img} onError={(event) => { event.currentTarget.style.display = 'none'; }} alt={wData.text} className="w-6 h-6 object-contain rounded-[4px] bg-white p-[1px]" />}
                         <span className="tracking-wide drop-shadow-md">{wData.text}</span>
                       </div>
                     ))}
@@ -1651,7 +1660,7 @@ function MainApp() {
               {validWarnings.length > 0 && (
                 <div className="flex items-center gap-1 pl-1">
                   {validWarnings.map((wData, idx) => wData.img && (
-                    <img key={idx} src={wData.img} alt={wData.text} title={wData.text} className="w-5 h-5 sm:w-6 sm:h-6 object-contain rounded-[3px] bg-white p-[1px]" referrerPolicy="no-referrer" />
+                    <img key={idx} src={wData.img} onError={(event) => { event.currentTarget.style.display = 'none'; }} alt={wData.text} title={wData.text} className="w-5 h-5 sm:w-6 sm:h-6 object-contain rounded-[3px] bg-white p-[1px]" />
                   ))}
                 </div>
               )}
@@ -1659,10 +1668,10 @@ function MainApp() {
               <div className="flex items-center gap-1 pr-1">
                 {weatherInfo.icon && (
                   <img 
-                    src={`https://www.hko.gov.hk/images/wxicon/pic${weatherInfo.icon}.png`} 
+                    src={getWeatherIconPath(weatherInfo.icon)} onError={(event) => { event.currentTarget.style.display = 'none'; }} 
                     alt="weather icon" 
                     className="w-5 h-5 sm:w-6 sm:h-6 object-contain drop-shadow-md"
-                    referrerPolicy="no-referrer" 
+                    
                   />
                 )}
                 {weatherInfo.temp !== '--' && (
@@ -2201,3 +2210,5 @@ export default function SafeApp() {
     </ErrorBoundary>
   );
 }
+
+
