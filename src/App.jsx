@@ -91,17 +91,12 @@ const getEtaMinutes = (etaDate, nowObj) => {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// 💡 HKO Icon Pack v4：所有 HKO 圖示只使用 public/ 內的本地檔案
-// 實體位置：public/icons/hko/...
-// JSX 網址：/icons/hko/...（Vite/React 不應包含 /public）
+// 💡 警告圖示使用本地化以防破圖，天氣圖示則對接天文台的純白線條版
 const HKO_WARNING_BASE = '/icons/hko/warnings/';
-const HKO_WEATHER_BASE = '/icons/hko/weather/';
 
 const makeHkoWarningIcon = (fileName) => ({
   img: `${HKO_WARNING_BASE}${fileName}`,
 });
-
-const getWeatherIconPath = (icon) => `${HKO_WEATHER_BASE}pic${icon}.png`;
 
 const getWarningData = (code, originalName) => {
   switch(code) {
@@ -133,6 +128,9 @@ const getWarningData = (code, originalName) => {
 
 const DEFAULT_PHOTOS = ["/photo01.jpg", "/photo02.jpg", "/photo03.jpg"];
 const WEATHER_BG = "/victoria-harbour.jpg";
+
+// 🔗 您的專屬 CSDI 路線庫網址
+const MY_GITHUB_CSDI_URL = "https://example-placeholder.github.io/routes";
 
 const DEFAULT_LOCATIONS = [
   {
@@ -225,6 +223,12 @@ function MainApp() {
       .filter(wData => wData !== null); 
   }, [weatherInfo.warnings]);
 
+  // 💡 強制修改網頁標題
+  useEffect(() => {
+    document.title = "實時巴士報站";
+  }, []);
+
+  // 絕對領域控制：阻止瀏覽器強制反轉顏色
   useEffect(() => {
     let meta = document.querySelector('meta[name="color-scheme"]');
     if (!meta) {
@@ -456,7 +460,7 @@ function MainApp() {
 
   const getOrFetchAllKmbStops = async () => {
     try {
-      const cached = localStorage.getItem('kmb_all_stops_cache_v38');
+      const cached = localStorage.getItem('kmb_all_stops_cache_v41');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) return parsed.stops;
@@ -470,7 +474,7 @@ function MainApp() {
         const miniStops = (d.data || []).map(s => ({
           id: s.stop, name: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long)
         })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
-        try { localStorage.setItem('kmb_all_stops_cache_v38', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
+        try { localStorage.setItem('kmb_all_stops_cache_v41', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
         return miniStops;
       }
     } catch (e) {}
@@ -515,8 +519,11 @@ function MainApp() {
         const routeGroups = {};
         rawEtas.forEach(eta => {
           if (!eta.eta || !eta.route) return;
-          const key = `${eta.route}-${eta.dir}-${eta.dest_tc}`;
-          if (!routeGroups[key]) routeGroups[key] = { company: 'kmb', route: eta.route, dest: eta.dest_tc.includes('荃灣西') ? '荃灣西站' : eta.dest_tc, dir: eta.dir, serviceType: '1', etas: [] };
+          const sType = String(eta.service_type || '1');
+          const key = `${eta.route}-${eta.dir}-${sType}-${eta.dest_tc}`;
+          if (!routeGroups[key]) {
+            routeGroups[key] = { company: 'kmb', route: eta.route, dest: eta.dest_tc.includes('荃灣西') ? '荃灣西站' : eta.dest_tc, dir: eta.dir, serviceType: sType, etas: [] };
+          }
           routeGroups[key].etas.push(eta);
         });
         const routesDataList = Object.values(routeGroups).map(group => {
@@ -589,7 +596,8 @@ function MainApp() {
           const validEtas = allEtas.filter(eta => 
             eta.route === routeObj.route && 
             eta.eta && 
-            (routeObj.dir ? eta.dir === routeObj.dir : true)
+            (routeObj.dir ? eta.dir === routeObj.dir : true) &&
+            (String(eta.service_type || '1') === String(routeObj.serviceType || '1'))
           );
           
           if (validEtas.length > 0) {
@@ -662,25 +670,31 @@ function MainApp() {
     setLocationsData(prev => prev.filter(loc => loc.id !== locId));
   };
 
-  const handleDeleteRouteInLocation = (locId, routeNum, e) => {
+  const handleDeleteRouteInLocation = (locId, routeNum, dir, serviceType, e) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     setLocations((locations || []).map(loc => {
-      if (loc.id === locId) return { ...loc, routes: (loc.routes || []).filter(r => r.route !== routeNum) };
+      if (loc.id === locId) return { 
+        ...loc, 
+        routes: (loc.routes || []).filter(r => !(r.route === routeNum && r.dir === dir && String(r.serviceType || '1') === String(serviceType || '1'))) 
+      };
       return loc;
     }).filter(loc => loc.routes && loc.routes.length > 0));
     setLocationsData(prev => prev.map(loc => {
-      if (loc.id === locId) return { ...loc, routesData: (loc.routesData || []).filter(r => r.route !== routeNum) };
+      if (loc.id === locId) return { 
+        ...loc, 
+        routesData: (loc.routesData || []).filter(r => !(r.route === routeNum && r.dir === dir && String(r.serviceType || '1') === String(serviceType || '1'))) 
+      };
       return loc;
     }).filter(loc => loc.routesData && loc.routesData.length > 0));
   };
 
-  const handleUpdateCustomDest = (locId, routeNum, dir, newDest) => {
+  const handleUpdateCustomDest = (locId, routeNum, dir, serviceType, newDest) => {
     setLocations((prev || []).map(loc => {
       if (loc.id === locId) {
         return {
           ...loc,
           routes: (loc.routes || []).map(r => {
-            if (r.route === routeNum && r.dir === dir) {
+            if (r.route === routeNum && r.dir === dir && String(r.serviceType || '1') === String(serviceType || '1')) {
               return { ...r, customDest: newDest };
             }
             return r;
@@ -693,7 +707,7 @@ function MainApp() {
 
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
-    const cacheKey = `kmb_stop_details_cache_v38_${company}`;
+    const cacheKey = `kmb_stop_details_cache_v41_${company}`;
     
     if (company === 'kmb') {
         const allKmbStops = await getOrFetchAllKmbStops();
@@ -821,7 +835,7 @@ function MainApp() {
     const fetchMapStopETA = async () => {
        setLoadingMapEtas(true);
        try {
-          const { company, route, dir } = mapState.routeInfo;
+          const { company, route, dir, serviceType } = mapState.routeInfo;
           let url = company === 'ctb' 
              ? `https://rt.data.gov.hk/v1.1/transport/citybus-nwfb/eta/CTB/${mapState.stop.id}/${route}`
              : `https://data.etabus.gov.hk/v1/transport/kmb/stop-eta/${mapState.stop.id}`;
@@ -832,7 +846,7 @@ function MainApp() {
 
           const currentMins = Math.floor(Date.now() / 60000);
           if (d && Array.isArray(d.data)) {
-             let validEtas = d.data.filter(e => e.route === route && e.dir === dir && e.eta);
+             let validEtas = d.data.filter(e => e.route === route && e.dir === dir && e.eta && String(e.service_type || '1') === String(serviceType || '1'));
              validEtas.sort((a,b) => new Date(a.eta) - new Date(b.eta));
              const uniqueEtas = [];
              const seenKeys = new Set();
@@ -1360,6 +1374,8 @@ function MainApp() {
     const isClickable = !!route.stopId;
     const clickableClasses = isClickable ? (isDarkMode ? 'cursor-pointer hover:bg-white/5 active:scale-[0.99]' : 'cursor-pointer hover:bg-black/5 active:scale-[0.99]') : '';
 
+    const isSpecial = String(route.serviceType || '1') !== '1';
+
     return (
       <div 
         key={rIdx} 
@@ -1372,6 +1388,7 @@ function MainApp() {
               {route.route}
             </span>
             <CompanyBadge company={route.company} className="h-4 sm:h-5 lg:h-6 object-contain drop-shadow-sm rounded-sm shrink-0" />
+            {isSpecial && <span className="bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded text-[10px] font-black shadow-sm shrink-0 mt-1">特別</span>}
           </div>
           <span className={`${destSize} font-extrabold mt-1 sm:mt-1.5 ${theme.routeDest} block truncate w-full text-left`}>
             往 {route.dest}
@@ -1382,7 +1399,7 @@ function MainApp() {
           <div className={`flex items-center justify-end gap-2 sm:gap-3 ${primaryEtaHeight}`}>
             <div className="flex flex-col items-end">
                {primaryRmk && primaryMins !== null && (
-                 <span className={`text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded shadow-sm leading-tight max-w-[140px] sm:max-w-[200px] text-right line-clamp-2 break-words ${primaryRmk.includes('特別') ? 'text-[#e3342f] border border-[#e3342f]/30' : (isDarkMode ? 'bg-red-500/20 text-red-400 border border-red-500/20' : 'bg-[#e3342f]/10 text-[#e3342f] border border-[#e3342f]/20')}`}>
+                 <span className={`text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded shadow-sm leading-tight max-w-[140px] sm:max-w-[200px] text-right line-clamp-2 break-words ${isSpecial ? 'text-[#e3342f] border border-[#e3342f]/30' : (isDarkMode ? 'bg-red-500/20 text-red-400 border border-red-500/20' : 'bg-[#e3342f]/10 text-[#e3342f] border border-[#e3342f]/20')}`}>
                    {primaryRmk}
                  </span>
                )}
@@ -1401,7 +1418,7 @@ function MainApp() {
           <div className="flex items-center justify-end gap-2 sm:gap-3 mt-1.5 sm:mt-2">
             <div className="flex flex-col items-end">
                {secondaryRmk && secondaryMins !== null && secondaryMins >= 0 && (
-                 <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm leading-tight max-w-[120px] text-right line-clamp-2 break-words ${secondaryRmk.includes('特別') ? 'text-red-400' : (isDarkMode ? 'bg-gray-400/20 text-gray-400 border border-gray-500/20' : 'bg-gray-500/10 text-gray-500 border border-gray-500/20')}`}>
+                 <span className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm leading-tight max-w-[120px] text-right line-clamp-2 break-words ${isSpecial ? 'text-red-400' : (isDarkMode ? 'bg-gray-400/20 text-gray-400 border border-gray-500/20' : 'bg-gray-500/10 text-gray-500 border border-gray-500/20')}`}>
                    {secondaryRmk}
                  </span>
                )}
@@ -1425,12 +1442,11 @@ function MainApp() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 V38: 完美復刻圖三，圓角白底框 App Icon Style 警告橫幅 */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2.5 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
               <div key={idx} className={`flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl text-base font-black tracking-widest ${wData.style}`}>
-                {wData.img && <img src={wData.img} onError={(event) => { event.currentTarget.style.display = 'none'; }} alt={wData.text} className="w-8 h-8 object-contain rounded-md bg-white p-[2px] shrink-0" />}
+                {wData.img && <img src={wData.img} alt={wData.text} className="w-8 h-8 object-contain rounded-md bg-white p-[2px] shrink-0" referrerPolicy="no-referrer" />}
                 <span>{wData.text}</span>
               </div>
             ))}
@@ -1550,8 +1566,9 @@ function MainApp() {
               </div>
               <div className="relative z-10 flex flex-col items-start gap-2 text-white">
                 <div className="flex items-center gap-3">
+                  {/* 💡 V41: 座枱模式天氣對接官方純白線條版 */}
                   {weatherInfo.icon && (
-                    <img src={getWeatherIconPath(weatherInfo.icon)} onError={(event) => { event.currentTarget.style.display = 'none'; }} alt="Weather" className="w-16 h-16 drop-shadow-xl" />
+                    <img src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} alt="Weather" className="w-16 h-16 drop-shadow-xl" referrerPolicy="no-referrer" />
                   )}
                   <div className="flex flex-col">
                     <span className="text-4xl md:text-5xl font-black">{weatherInfo.temp}°C</span>
@@ -1562,8 +1579,7 @@ function MainApp() {
                   <div className="flex flex-col gap-1.5 w-full max-w-sm mt-3">
                     {validWarnings.map((wData, idx) => (
                       <div key={idx} className="flex items-center gap-3 px-3.5 py-2 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg text-sm font-bold text-white animate-pulse">
-                        {/* 座枱模式亦套用 App Icon 圓角白底風格 */}
-                        {wData.img && <img src={wData.img} onError={(event) => { event.currentTarget.style.display = 'none'; }} alt={wData.text} className="w-6 h-6 object-contain rounded-[4px] bg-white p-[1px]" />}
+                        {wData.img && <img src={wData.img} alt={wData.text} className="w-6 h-6 object-contain rounded-[4px] bg-white p-[1px]" referrerPolicy="no-referrer" />}
                         <span className="tracking-wide drop-shadow-md">{wData.text}</span>
                       </div>
                     ))}
@@ -1648,7 +1664,6 @@ function MainApp() {
           <button onClick={() => setIsStandMode(!isStandMode)} className={`p-1.5 rounded-md ${isStandMode ? 'bg-white text-red-600 shadow-md' : 'text-white hover:bg-white/10 border border-transparent'}`}>
             <MonitorSmartphone className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.5} />
           </button>
-          {/* 💡 V38: 固定為實時巴士報站 */}
           <h1 className="text-lg sm:text-xl font-black tracking-widest text-white truncate drop-shadow-sm pr-2">
             實時巴士報站
           </h1>
@@ -1660,18 +1675,19 @@ function MainApp() {
               {validWarnings.length > 0 && (
                 <div className="flex items-center gap-1 pl-1">
                   {validWarnings.map((wData, idx) => wData.img && (
-                    <img key={idx} src={wData.img} onError={(event) => { event.currentTarget.style.display = 'none'; }} alt={wData.text} title={wData.text} className="w-5 h-5 sm:w-6 sm:h-6 object-contain rounded-[3px] bg-white p-[1px]" />
+                    <img key={idx} src={wData.img} alt={wData.text} title={wData.text} className="w-5 h-5 sm:w-6 sm:h-6 object-contain rounded-[3px] bg-white p-[1px]" referrerPolicy="no-referrer" />
                   ))}
                 </div>
               )}
               {validWarnings.length > 0 && weatherInfo.icon && <div className="w-[1px] h-4 bg-white/30 mx-0.5"></div>}
               <div className="flex items-center gap-1 pr-1">
+                {/* 💡 V41: 狀態列天氣圖示對接官方純白線條版 */}
                 {weatherInfo.icon && (
                   <img 
-                    src={getWeatherIconPath(weatherInfo.icon)} onError={(event) => { event.currentTarget.style.display = 'none'; }} 
+                    src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} 
                     alt="weather icon" 
                     className="w-5 h-5 sm:w-6 sm:h-6 object-contain drop-shadow-md"
-                    
+                    referrerPolicy="no-referrer" 
                   />
                 )}
                 {weatherInfo.temp !== '--' && (
@@ -1733,6 +1749,9 @@ function MainApp() {
                 <div className="flex items-center gap-2">
                   <CompanyBadge company={mapState.routeInfo?.company} className="h-4 sm:h-5 brightness-0 invert opacity-90" />
                   <span className="text-2xl sm:text-3xl font-black tracking-tight leading-none drop-shadow-sm">{mapState.routeInfo?.route}</span>
+                  {String(mapState.routeInfo?.serviceType || '1') !== '1' && (
+                    <span className="bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded text-[10px] font-black shadow-sm shrink-0">特別班次</span>
+                  )}
                 </div>
                 <span className="text-xs sm:text-sm font-bold opacity-95 mt-1 truncate">
                   往 <span className="font-extrabold">{mapState.routeInfo?.dest}</span>
@@ -1749,7 +1768,7 @@ function MainApp() {
               {mapEngineState.loadingMap && (
                 <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 z-20 backdrop-blur-sm ${isDarkMode ? 'bg-zinc-800/80' : 'bg-gray-200/80'}`}>
                   <RefreshCw className={`w-8 h-8 animate-spin ${mapState.routeInfo?.company === 'ctb' ? 'text-blue-600' : 'text-red-500'}`} />
-                  <span className={`text-xs font-bold opacity-70 ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>正在計算軌跡 ({trajectoryMode === 'CSDI' ? '官方專線' : '官方直連'})...</span>
+                  <span className={`text-xs font-bold opacity-70 ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>正在計算軌跡...</span>
                 </div>
               )}
               {mapState.error && (
@@ -1759,7 +1778,6 @@ function MainApp() {
                 </div>
               )}
 
-              {/* 💡 內建主動 GPS 防呆按鈕 */}
               {!mapEngineState.loadingMap && !mapState.error && (
                 <div className="absolute bottom-3 right-3 z-[1000] flex flex-col items-end gap-2">
                   {mapGpsState === 'error' && (
@@ -1799,6 +1817,7 @@ function MainApp() {
                     const isCurrent = stop.id === mapState.stop?.id;
                     const isLast = idx === mapState.routeStops.length - 1;
                     const isCTB = mapState.routeInfo?.company === 'ctb';
+                    const isSpecialRoute = String(mapState.routeInfo?.serviceType || '1') !== '1';
                     
                     return (
                       <div 
@@ -1867,8 +1886,8 @@ function MainApp() {
                                           </div>
                                           
                                           <div className="flex-1 min-w-0 pr-2 pt-1.5">
-                                            <span className={`text-[12px] font-bold leading-tight block break-words ${rmk && rmk.includes('特別') ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`}>
-                                              {rmk || "九巴"}
+                                            <span className={`text-[12px] font-bold leading-tight block break-words ${isSpecialRoute ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`}>
+                                              {rmk || (isSpecialRoute ? "特別班次" : "九巴")}
                                             </span>
                                           </div>
                                        </div>
@@ -1955,14 +1974,18 @@ function MainApp() {
                           
                           <div className="flex flex-col gap-2">
                             {(loc.routes || []).map((r, rIdx) => (
-                              <div key={`${r.route}-${r.dir}-${rIdx}`} className={`flex items-center gap-2 p-2 rounded-lg border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-800' : 'bg-slate-50 border-gray-100'}`}>
+                              <div key={`${r.route}-${r.dir}-${r.serviceType}-${rIdx}`} className={`flex items-center gap-2 p-2 rounded-lg border ${isDarkMode ? 'bg-zinc-800/50 border-zinc-800' : 'bg-slate-50 border-gray-100'}`}>
                                 <CompanyBadge company={r.company} className="h-3 sm:h-3.5 object-contain opacity-80" />
                                 <span className={`text-sm font-black w-10 text-center ${r.company === 'ctb' ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : 'text-red-500'}`}>{r.route}</span>
                                 
+                                {String(r.serviceType || '1') !== '1' && (
+                                   <span className="bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded text-[9px] font-black shrink-0 whitespace-nowrap shadow-sm">特別</span>
+                                )}
+
                                 <input 
                                   type="text"
                                   value={r.customDest !== undefined ? r.customDest : (r.dest || '')}
-                                  onChange={(e) => handleUpdateCustomDest(loc.id, r.route, r.dir, e.target.value)}
+                                  onChange={(e) => handleUpdateCustomDest(loc.id, r.route, r.dir, r.serviceType, e.target.value)}
                                   onBlur={() => setTimeout(fetchCustomLocationsData, 200)}
                                   placeholder={r.dest || '自訂目的地'}
                                   className={`flex-1 min-w-0 text-xs font-bold bg-transparent border-b border-dashed focus:border-blue-500 outline-none pb-0.5 transition-colors placeholder:text-gray-400 ${isDarkMode ? 'border-zinc-600 text-zinc-300' : 'border-gray-300 text-slate-700'}`}
@@ -1970,7 +1993,7 @@ function MainApp() {
                                 />
 
                                 <button 
-                                  onClick={(e) => handleDeleteRouteInLocation(loc.id, r.route, e)} 
+                                  onClick={(e) => handleDeleteRouteInLocation(loc.id, r.route, r.dir, r.serviceType, e)} 
                                   className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0"
                                   title="移除路線"
                                 >
@@ -2026,7 +2049,7 @@ function MainApp() {
                   <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
                     <span className="text-xs font-black flex items-center gap-1.5"><MapPin className="w-4 h-4 text-blue-500" />地圖軌跡繪製模式</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">
-                      「官方專線軌跡」會優先使用 CSDI 數據，若無資料則啟動 OSRM 智能防繞路引擎。「官方直連」則直接以直線相連。
+                      「官方專線軌跡」使用政府 CSDI 數據，完美呈現管狀馬路走線。如果您想使用自己下載的官方 CSDI 庫，請直接修改源代碼中的 <code>MY_GITHUB_CSDI_URL</code>。
                     </p>
                     <select 
                       value={trajectoryMode} 
@@ -2192,7 +2215,7 @@ function MainApp() {
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-black opacity-70">放置於看板分類分組：</label>
                     <div className="grid grid-cols-2 gap-2">
-                      <select value={customGroupName} onChange={(e) => setCustomGroupName(e.target.value)} className={`py-2 px-3 rounded-lg border font-bold text-sm outline-none ${theme.inputBg}`}>
+                      <select value={customGroupName} onChange={(e) => setCustomGroupName(e.target.value)} className={`w-full py-2 px-3 rounded-lg border font-bold text-sm outline-none ${theme.inputBg}`}>
                         <option value="預設">預設</option>
                         {Array.from(new Set(locations.map(loc => loc.groupName).filter(n => n && n !== '預設'))).map(group => <option key={group} value={group}>{group}</option>)}
                         <option value="NEW">+ 新增分組...</option>
@@ -2223,5 +2246,3 @@ export default function SafeApp() {
     </ErrorBoundary>
   );
 }
-
-
