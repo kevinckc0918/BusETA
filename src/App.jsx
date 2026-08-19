@@ -122,7 +122,7 @@ const getWarningData = (code, originalName) => {
     case 'TC9': return { text: '九號烈風或暴風風力增強信號', ...makeHkoWarningIcon('tc9.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
     case 'TC10': return { text: '十號颶風信號', ...makeHkoWarningIcon('tc10.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
     // 💡 核心修復：正確對接天文台的 WMS 代碼，解決強烈季候風出不來的 Bug
-    case 'WMS': 
+    case 'WMS': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-slate-800 text-white shadow-sm border border-slate-700' };
     case 'SMS': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-slate-800 text-white shadow-sm border border-slate-700' };
     case 'WL': return { text: '山泥傾瀉警告', ...makeHkoWarningIcon('landslip.gif'), style: 'bg-yellow-600 text-white shadow-sm border border-yellow-700' };
     case 'FNTSA': return { text: '新界北部水浸特別報告', ...makeHkoWarningIcon('ntfl.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
