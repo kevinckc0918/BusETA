@@ -62,7 +62,7 @@ class ErrorBoundary extends React.Component {
 }
 
 // ==========================================
-// 💡 全域安全函數區
+// 💡 全域安全函數與路徑設定
 // ==========================================
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371e3; 
@@ -91,36 +91,33 @@ const getEtaMinutes = (etaDate, nowObj) => {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// 💡 警告圖示使用本地化以防破圖，天氣圖示則對接天文台的純白線條版
+// 💡 完美對接您 VPS 本地資料夾的圖標 (不再受外部伺服器影響！)
 const HKO_WARNING_BASE = '/icons/hko/warnings/';
-
-const makeHkoWarningIcon = (fileName) => ({
-  img: `${HKO_WARNING_BASE}${fileName}`,
-});
+const HKO_WEATHER_BASE = '/icons/hko/weather/';
 
 const getWarningData = (code, originalName) => {
   switch(code) {
-    case 'WRAINA': return { text: '黃色暴雨警告信號', ...makeHkoWarningIcon('raina.gif'), style: 'bg-[#eab308] text-white shadow-sm' };
-    case 'WRAINR': return { text: '紅色暴雨警告信號', ...makeHkoWarningIcon('rainr.gif'), style: 'bg-[#cf4747] text-white shadow-sm' };
-    case 'WRAINB': return { text: '黑色暴雨警告信號', ...makeHkoWarningIcon('rainb.gif'), style: 'bg-black text-white shadow-sm border border-gray-600' };
-    case 'WTS': return { text: '雷暴警告', ...makeHkoWarningIcon('ts.gif'), style: 'bg-[#eab308] text-white shadow-sm' };
-    case 'WHOT': return { text: '酷熱天氣警告', ...makeHkoWarningIcon('vhot.gif'), style: 'bg-[#cf4747] text-white shadow-sm' };
-    case 'WCOLD': return { text: '寒冷天氣警告', ...makeHkoWarningIcon('cold.gif'), style: 'bg-[#3b82f6] text-white shadow-sm' };
-    case 'WFIREY': return { text: '黃色火災危險警告', ...makeHkoWarningIcon('firey.gif'), style: 'bg-[#eab308] text-white shadow-sm' };
-    case 'WFIRER': return { text: '紅色火災危險警告', ...makeHkoWarningIcon('firer.gif'), style: 'bg-[#cf4747] text-white shadow-sm' };
-    case 'TC1': return { text: '一號戒備信號', ...makeHkoWarningIcon('tc1.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC3': return { text: '三號強風信號', ...makeHkoWarningIcon('tc3.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC8NE': return { text: '八號東北烈風或暴風信號', ...makeHkoWarningIcon('tc8ne.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC8NW': return { text: '八號西北烈風或暴風信號', ...makeHkoWarningIcon('tc8nw.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC8SE': return { text: '八號東南烈風或暴風信號', ...makeHkoWarningIcon('tc8se.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC8SW': return { text: '八號西南烈風或暴風信號', ...makeHkoWarningIcon('tc8sw.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC9': return { text: '九號烈風或暴風風力增強信號', ...makeHkoWarningIcon('tc9.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'TC10': return { text: '十號颶風信號', ...makeHkoWarningIcon('tc10.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'SMS': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'WL': return { text: '山泥傾瀉警告', ...makeHkoWarningIcon('landslip.gif'), style: 'bg-yellow-600 text-white shadow-sm border border-yellow-700' };
-    case 'FNTSA': return { text: '新界北部水浸特別報告', ...makeHkoWarningIcon('ntfl.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'FROST': return { text: '霜凍警告', ...makeHkoWarningIcon('frost.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    default:
+    case 'WRAINA': return { text: '黃色暴雨警告信號', img: HKO_WARNING_BASE + 'wraina.gif', style: 'bg-[#eab308] text-white shadow-sm' };
+    case 'WRAINR': return { text: '紅色暴雨警告信號', img: HKO_WARNING_BASE + 'wrainr.gif', style: 'bg-[#cf4747] text-white shadow-sm' };
+    case 'WRAINB': return { text: '黑色暴雨警告信號', img: HKO_WARNING_BASE + 'wrainb.gif', style: 'bg-black text-white shadow-sm border border-gray-600' };
+    case 'WTS': return { text: '雷暴警告', img: HKO_WARNING_BASE + 'ts.gif', style: 'bg-[#eab308] text-white shadow-sm' };
+    case 'WHOT': return { text: '酷熱天氣警告', img: HKO_WARNING_BASE + 'vhot.gif', style: 'bg-[#cf4747] text-white shadow-sm' }; 
+    case 'WCOLD': return { text: '寒冷天氣警告', img: HKO_WARNING_BASE + 'cold.gif', style: 'bg-[#3b82f6] text-white shadow-sm' };
+    case 'WFIREY': return { text: '黃色火災危險警告', img: HKO_WARNING_BASE + 'firey.gif', style: 'bg-[#eab308] text-white shadow-sm' };
+    case 'WFIRER': return { text: '紅色火災危險警告', img: HKO_WARNING_BASE + 'firer.gif', style: 'bg-[#cf4747] text-white shadow-sm' };
+    case 'TC1': return { text: '一號戒備信號', img: HKO_WARNING_BASE + 'tc1.gif', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC3': return { text: '三號強風信號', img: HKO_WARNING_BASE + 'tc3.gif', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC8NE': return { text: '八號東北烈風或暴風信號', img: HKO_WARNING_BASE + 'tc8ne.gif', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC8NW': return { text: '八號西北烈風或暴風信號', img: HKO_WARNING_BASE + 'tc8nw.gif', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC8SE': return { text: '八號東南烈風或暴風信號', img: HKO_WARNING_BASE + 'tc8se.gif', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC8SW': return { text: '八號西南烈風或暴風信號', img: HKO_WARNING_BASE + 'tc8sw.gif', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC9': return { text: '九號烈風或暴風風力增強信號', img: HKO_WARNING_BASE + 'tc9.gif', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'TC10': return { text: '十號颶風信號', img: HKO_WARNING_BASE + 'tc10.gif', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'SMS': return { text: '強烈季候風信號', img: HKO_WARNING_BASE + 'sms.gif', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'WL': return { text: '山泥傾瀉警告', img: HKO_WARNING_BASE + 'landslip.gif', style: 'bg-yellow-600 text-white shadow-sm border border-yellow-700' };
+    case 'FNTSA': return { text: '新界北部水浸特別報告', img: HKO_WARNING_BASE + 'ntfl.gif', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    case 'FROST': return { text: '霜凍警告', img: HKO_WARNING_BASE + 'frost.gif', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    default: 
       if (!originalName || originalName.trim() === '') return null;
       return { text: originalName, img: null, style: 'bg-slate-800 text-white shadow-md' };
   }
@@ -128,8 +125,6 @@ const getWarningData = (code, originalName) => {
 
 const DEFAULT_PHOTOS = ["/photo01.jpg", "/photo02.jpg", "/photo03.jpg"];
 const WEATHER_BG = "/victoria-harbour.jpg";
-
-// 🔗 您的專屬 CSDI 路線庫網址
 const MY_GITHUB_CSDI_URL = "https://example-placeholder.github.io/routes";
 
 const DEFAULT_LOCATIONS = [
@@ -163,12 +158,12 @@ const DEFAULT_LOCATIONS = [
   }
 ];
 
+// 💡 移除 onError 防止 VPS 圖示因延遲而被誤判隱藏
 const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-4 h-4 object-contain" }) => {
-  const [error, setError] = useState(false);
-  if (error || !img) return null; 
+  if (!img) return null; 
   return (
     <div className={`${iconBg} shrink-0 flex items-center justify-center p-0.5`}>
-      <img src={img} alt={text} className={className} onError={() => setError(true)} />
+      <img src={img} alt={text} title={text} className={className} />
     </div>
   );
 };
@@ -192,6 +187,7 @@ const CompanyBadge = ({ company, className = "h-4 sm:h-5 object-contain" }) => {
 // 🚌 核心主程式 (Main App)
 // ==========================================
 function MainApp() {
+  // --- 1. 所有 State 宣告區 (絕對安全區) ---
   const [loading, setLoading] = useState(true);
   const [locationsData, setLocationsData] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -210,6 +206,77 @@ function MainApp() {
 
   const [weatherInfo, setWeatherInfo] = useState({ temp: '--', icon: null, warnings: [] });
 
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [userCoords, setUserCoords] = useState(null); 
+  const [nearbyStops, setNearbyStops] = useState([]); 
+  const [nearbyStopsData, setNearbyStopsData] = useState([]); 
+  const [gpsMessage, setGpsMessage] = useState('');
+
+  const [locations, setLocations] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kmb_custom_locations');
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (Array.isArray(parsed)) return parsed;
+      return DEFAULT_LOCATIONS;
+    } catch {
+      return DEFAULT_LOCATIONS;
+    }
+  });
+
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState('FAVORITES'); 
+  const [shouldReopenSettings, setShouldReopenSettings] = useState(false); 
+  const [showResetConfirm, setShowResetConfirm] = useState(false); 
+
+  const [nearbyRadius, setNearbyRadius] = useState(() => {
+    try { return parseInt(localStorage.getItem('kmb_nearby_radius') || '1200'); } catch { return 1200; }
+  });
+
+  const [importText, setImportText] = useState('');
+  const [backupSuccess, setBackupSuccess] = useState('');
+  const [backupError, setBackupError] = useState('');
+
+  const [isStandMode, setIsStandMode] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('kmb_stand_mode') || 'false'); } catch { return false; }
+  });
+
+  const [leftPanelMode, setLeftPanelMode] = useState(() => {
+    try { return localStorage.getItem('kmb_left_mode') || 'WEATHER'; } catch { return 'WEATHER'; }
+  });
+
+  const [standMonitorId, setStandMonitorId] = useState(() => {
+    try { return localStorage.getItem('kmb_stand_monitor_id') || 'ALL_FAVORITES'; } catch { return 'ALL_FAVORITES'; }
+  });
+
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [searchStep, setSearchStep] = useState(1); 
+  const [allRoutesList, setAllRoutesList] = useState([]); 
+  const [loadingRoutes, setLoadingRoutes] = useState(false);
+  const [routeQuery, setRouteQuery] = useState('');
+  const [selectedRoute, setSelectedRoute] = useState(null); 
+  const [routeDirections, setRouteDirections] = useState([]); 
+  const [selectedDirection, setSelectedDirection] = useState(null); 
+  const [loadingStops, setLoadingStops] = useState(false);
+  const [routeStops, setRouteStops] = useState([]); 
+  const [selectedStop, setSelectedStop] = useState(null); 
+
+  const [customStopName, setCustomStopName] = useState('');
+  const [customStopDesc, setCustomStopDesc] = useState('');
+  const [customGroupName, setCustomGroupName] = useState('預設');
+  const [customGroupInput, setCustomGroupInput] = useState('');
+
+  const [mapState, setMapState] = useState({ 
+    isOpen: false, loadingStops: false, stop: null, routeInfo: null, routeStops: [], error: null 
+  });
+  const [mapEngineState, setMapEngineState] = useState({
+    loadingMap: false, fetched: false, snappedCoords: []
+  });
+  const [mapGpsState, setMapGpsState] = useState('idle'); 
+  const [mapStopEtas, setMapStopEtas] = useState([]);
+  const [loadingMapEtas, setLoadingMapEtas] = useState(false);
+  const [leafletLoaded, setLeafletLoaded] = useState(false);
+
+  // --- 2. 所有 useMemo 宣告區 (完美防止 ReferenceError) ---
   const activeTCWarning = useMemo(() => {
     if (!weatherInfo.warnings) return null;
     const tcWarning = weatherInfo.warnings.find(w => w.code && w.code.startsWith('TC'));
@@ -222,30 +289,6 @@ function MainApp() {
       .map(warn => getWarningData(warn.code, warn.name))
       .filter(wData => wData !== null); 
   }, [weatherInfo.warnings]);
-
-  // 💡 強制修改網頁標題
-  useEffect(() => {
-    document.title = "實時巴士報站";
-  }, []);
-
-  // 絕對領域控制：阻止瀏覽器強制反轉顏色
-  useEffect(() => {
-    let meta = document.querySelector('meta[name="color-scheme"]');
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.name = "color-scheme";
-      document.head.appendChild(meta);
-    }
-    meta.content = "light dark"; 
-    
-    if (isDarkMode) {
-      document.documentElement.style.backgroundColor = '#09090b'; 
-      document.documentElement.classList.add('kmb-dark');
-    } else {
-      document.documentElement.style.backgroundColor = '#f8fafc'; 
-      document.documentElement.classList.remove('kmb-dark');
-    }
-  }, [isDarkMode]);
 
   const theme = useMemo(() => ({
     appBg: isDarkMode ? 'bg-zinc-950 text-white' : 'bg-slate-50 text-slate-900',
@@ -271,26 +314,66 @@ function MainApp() {
     controlBtn: isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200' : 'bg-slate-200 hover:bg-slate-300 text-slate-800',
   }), [isDarkMode]);
 
-  const [mapState, setMapState] = useState({ 
-    isOpen: false, 
-    loadingStops: false,
-    stop: null, 
-    routeInfo: null, 
-    routeStops: [], 
-    error: null 
-  });
-  
-  const [mapEngineState, setMapEngineState] = useState({
-    loadingMap: false,
-    fetched: false,
-    snappedCoords: []
-  });
-  
-  const [mapGpsState, setMapGpsState] = useState('idle'); 
+  const availableGroups = useMemo(() => {
+    const groupsSet = new Set((locations || []).map(loc => loc.groupName || '預設'));
+    return ['ALL', 'NEARBY', ...Array.from(groupsSet)]; 
+  }, [locations]);
 
-  const [mapStopEtas, setMapStopEtas] = useState([]);
-  const [loadingMapEtas, setLoadingMapEtas] = useState(false);
-  const [leafletLoaded, setLeafletLoaded] = useState(false);
+  const groupedFavoritesData = useMemo(() => {
+    const groups = {};
+    (locationsData || []).forEach(loc => {
+      const gName = loc.groupName || '預設';
+      if (!groups[gName]) groups[gName] = { groupName: gName, routesData: [] };
+      const routesWithStopMeta = (loc.routesData || []).map(r => ({ ...r, stopName: loc.name, stopId: loc.id }));
+      groups[gName].routesData.push(...routesWithStopMeta);
+    });
+    return Object.values(groups).map(g => {
+      g.routesData.sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }));
+      return g;
+    });
+  }, [locationsData]);
+
+  const filteredRoutesList = useMemo(() => {
+    if (!routeQuery || !Array.isArray(allRoutesList)) return [];
+    const q = routeQuery.toUpperCase().trim();
+    const uniqueRoutes = [];
+    const seen = new Set();
+    allRoutesList
+      .filter(r => r && r.route && r.route.toUpperCase().includes(q))
+      .forEach(r => {
+        const key = `${r.company}-${r.route}`;
+        if (!seen.has(key)) { seen.add(key); uniqueRoutes.push(r); }
+      });
+    return uniqueRoutes.sort((a, b) => {
+      if (a.route === q) return -1;
+      if (b.route === q) return 1;
+      return a.route.localeCompare(b.route, undefined, { numeric: true });
+    }).slice(0, 15); 
+  }, [allRoutesList, routeQuery]);
+
+  // --- 3. 所有 useEffect 宣告區 ---
+  // 💡 強制修改網頁標題
+  useEffect(() => {
+    document.title = "實時巴士報站";
+  }, []);
+
+  useEffect(() => {
+    let meta = document.querySelector('meta[name="color-scheme"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = "color-scheme";
+      document.head.appendChild(meta);
+    }
+    meta.content = "light dark"; 
+    
+    if (isDarkMode) {
+      document.documentElement.style.backgroundColor = '#09090b'; 
+      document.documentElement.classList.add('kmb-dark');
+    } else {
+      document.documentElement.style.backgroundColor = '#f8fafc'; 
+      document.documentElement.classList.remove('kmb-dark');
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     if (window.L) { setLeafletLoaded(true); return; }
@@ -313,69 +396,6 @@ function MainApp() {
     return () => window.removeEventListener('leafletReady', checkL);
   }, []);
 
-  const [gpsLoading, setGpsLoading] = useState(false);
-  const [userCoords, setUserCoords] = useState(null); 
-  const [nearbyStops, setNearbyStops] = useState([]); 
-  const [nearbyStopsData, setNearbyStopsData] = useState([]); 
-  const [gpsMessage, setGpsMessage] = useState('');
-
-  const [locations, setLocations] = useState(() => {
-    try {
-      const saved = localStorage.getItem('kmb_custom_locations');
-      const parsed = saved ? JSON.parse(saved) : null;
-      if (Array.isArray(parsed)) return parsed;
-      return DEFAULT_LOCATIONS;
-    } catch {
-      return DEFAULT_LOCATIONS;
-    }
-  });
-
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState('FAVORITES'); 
-  const [shouldReopenSettings, setShouldReopenSettings] = useState(false); 
-  const [showResetConfirm, setShowResetConfirm] = useState(false); 
-
-  const [nearbyRadius, setNearbyRadius] = useState(() => {
-    try { return parseInt(localStorage.getItem('kmb_nearby_radius') || '1200'); } 
-    catch { return 1200; }
-  });
-
-  const [importText, setImportText] = useState('');
-  const [backupSuccess, setBackupSuccess] = useState('');
-  const [backupError, setBackupError] = useState('');
-
-  const [isStandMode, setIsStandMode] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('kmb_stand_mode') || 'false'); } 
-    catch { return false; }
-  });
-
-  const [leftPanelMode, setLeftPanelMode] = useState(() => {
-    try { return localStorage.getItem('kmb_left_mode') || 'WEATHER'; } 
-    catch { return 'WEATHER'; }
-  });
-
-  const [standMonitorId, setStandMonitorId] = useState(() => {
-    try { return localStorage.getItem('kmb_stand_monitor_id') || 'ALL_FAVORITES'; } 
-    catch { return 'ALL_FAVORITES'; }
-  });
-
-  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [searchStep, setSearchStep] = useState(1); 
-  const [allRoutesList, setAllRoutesList] = useState([]); 
-  const [loadingRoutes, setLoadingRoutes] = useState(false);
-  const [routeQuery, setRouteQuery] = useState('');
-  const [selectedRoute, setSelectedRoute] = useState(null); 
-  const [routeDirections, setRouteDirections] = useState([]); 
-  const [selectedDirection, setSelectedDirection] = useState(null); 
-  const [loadingStops, setLoadingStops] = useState(false);
-  const [routeStops, setRouteStops] = useState([]); 
-  const [selectedStop, setSelectedStop] = useState(null); 
-
-  const [customStopName, setCustomStopName] = useState('');
-  const [customStopDesc, setCustomStopDesc] = useState('');
-  const [customGroupName, setCustomGroupName] = useState('預設');
-  const [customGroupInput, setCustomGroupInput] = useState('');
-
   useEffect(() => {
     const meta = document.createElement('meta');
     meta.name = "format-detection";
@@ -391,25 +411,6 @@ function MainApp() {
   useEffect(() => { try { localStorage.setItem('kmb_nearby_radius', nearbyRadius.toString()); } catch {} }, [nearbyRadius]);
   useEffect(() => { if (standMonitorId) try { localStorage.setItem('kmb_stand_monitor_id', standMonitorId); } catch {} }, [standMonitorId]);
   useEffect(() => { try { localStorage.setItem('kmb_trajectory', trajectoryMode); } catch {} }, [trajectoryMode]);
-
-  const availableGroups = useMemo(() => {
-    const groupsSet = new Set((locations || []).map(loc => loc.groupName || '預設'));
-    return ['ALL', 'NEARBY', ...Array.from(groupsSet)]; 
-  }, [locations]);
-
-  const groupedFavoritesData = useMemo(() => {
-    const groups = {};
-    (locationsData || []).forEach(loc => {
-      const gName = loc.groupName || '預設';
-      if (!groups[gName]) groups[gName] = { groupName: gName, routesData: [] };
-      const routesWithStopMeta = (loc.routesData || []).map(r => ({ ...r, stopName: loc.name, stopId: loc.id }));
-      groups[gName].routesData.push(...routesWithStopMeta);
-    });
-    return Object.values(groups).map(g => {
-      g.routesData.sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }));
-      return g;
-    });
-  }, [locationsData]);
 
   useEffect(() => {
     if (activeTab !== 'ALL' && activeTab !== 'NEARBY' && !availableGroups.includes(activeTab)) setActiveTab('ALL');
@@ -460,7 +461,7 @@ function MainApp() {
 
   const getOrFetchAllKmbStops = async () => {
     try {
-      const cached = localStorage.getItem('kmb_all_stops_cache_v41');
+      const cached = localStorage.getItem('kmb_all_stops_cache_v40');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) return parsed.stops;
@@ -474,7 +475,7 @@ function MainApp() {
         const miniStops = (d.data || []).map(s => ({
           id: s.stop, name: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long)
         })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
-        try { localStorage.setItem('kmb_all_stops_cache_v41', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
+        try { localStorage.setItem('kmb_all_stops_cache_v40', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
         return miniStops;
       }
     } catch (e) {}
@@ -646,24 +647,6 @@ function MainApp() {
     return () => clearInterval(interval);
   }, [fetchCustomLocationsData]);
 
-  const filteredRoutesList = useMemo(() => {
-    if (!routeQuery || !Array.isArray(allRoutesList)) return [];
-    const q = routeQuery.toUpperCase().trim();
-    const uniqueRoutes = [];
-    const seen = new Set();
-    allRoutesList
-      .filter(r => r && r.route && r.route.toUpperCase().includes(q))
-      .forEach(r => {
-        const key = `${r.company}-${r.route}`;
-        if (!seen.has(key)) { seen.add(key); uniqueRoutes.push(r); }
-      });
-    return uniqueRoutes.sort((a, b) => {
-      if (a.route === q) return -1;
-      if (b.route === q) return 1;
-      return a.route.localeCompare(b.route, undefined, { numeric: true });
-    }).slice(0, 15); 
-  }, [allRoutesList, routeQuery]);
-
   const handleDeleteLocation = (locId, e) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     setLocations((locations || []).filter(loc => loc.id !== locId));
@@ -707,7 +690,7 @@ function MainApp() {
 
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
-    const cacheKey = `kmb_stop_details_cache_v41_${company}`;
+    const cacheKey = `kmb_stop_details_cache_v40_${company}`;
     
     if (company === 'kmb') {
         const allKmbStops = await getOrFetchAllKmbStops();
@@ -1442,11 +1425,12 @@ function MainApp() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
+        {/* 💡 V42: 圓角白底框 App Icon Style 警告橫幅 */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2.5 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
               <div key={idx} className={`flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl text-base font-black tracking-widest ${wData.style}`}>
-                {wData.img && <img src={wData.img} alt={wData.text} className="w-8 h-8 object-contain rounded-md bg-white p-[2px] shrink-0" referrerPolicy="no-referrer" />}
+                {wData.img && <img src={wData.img} alt={wData.text} className="w-8 h-8 object-contain rounded-md bg-white p-[2px] shrink-0" />}
                 <span>{wData.text}</span>
               </div>
             ))}
@@ -1566,9 +1550,8 @@ function MainApp() {
               </div>
               <div className="relative z-10 flex flex-col items-start gap-2 text-white">
                 <div className="flex items-center gap-3">
-                  {/* 💡 V41: 座枱模式天氣對接官方純白線條版 */}
                   {weatherInfo.icon && (
-                    <img src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} alt="Weather" className="w-16 h-16 drop-shadow-xl" referrerPolicy="no-referrer" />
+                    <img src={`/icons/hko/weather/pic${weatherInfo.icon}.png`} alt="Weather" className="w-16 h-16 drop-shadow-xl" />
                   )}
                   <div className="flex flex-col">
                     <span className="text-4xl md:text-5xl font-black">{weatherInfo.temp}°C</span>
@@ -1579,7 +1562,7 @@ function MainApp() {
                   <div className="flex flex-col gap-1.5 w-full max-w-sm mt-3">
                     {validWarnings.map((wData, idx) => (
                       <div key={idx} className="flex items-center gap-3 px-3.5 py-2 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg text-sm font-bold text-white animate-pulse">
-                        {wData.img && <img src={wData.img} alt={wData.text} className="w-6 h-6 object-contain rounded-[4px] bg-white p-[1px]" referrerPolicy="no-referrer" />}
+                        {wData.img && <img src={wData.img} alt={wData.text} className="w-6 h-6 object-contain rounded-[4px] bg-white p-[1px]" />}
                         <span className="tracking-wide drop-shadow-md">{wData.text}</span>
                       </div>
                     ))}
@@ -1675,19 +1658,17 @@ function MainApp() {
               {validWarnings.length > 0 && (
                 <div className="flex items-center gap-1 pl-1">
                   {validWarnings.map((wData, idx) => wData.img && (
-                    <img key={idx} src={wData.img} alt={wData.text} title={wData.text} className="w-5 h-5 sm:w-6 sm:h-6 object-contain rounded-[3px] bg-white p-[1px]" referrerPolicy="no-referrer" />
+                    <img key={idx} src={wData.img} alt={wData.text} title={wData.text} className="w-5 h-5 sm:w-6 sm:h-6 object-contain rounded-[3px] bg-white p-[1px]" />
                   ))}
                 </div>
               )}
               {validWarnings.length > 0 && weatherInfo.icon && <div className="w-[1px] h-4 bg-white/30 mx-0.5"></div>}
               <div className="flex items-center gap-1 pr-1">
-                {/* 💡 V41: 狀態列天氣圖示對接官方純白線條版 */}
                 {weatherInfo.icon && (
                   <img 
-                    src={`https://www.hko.gov.hk/images/HKOWxIconOutline/pic${weatherInfo.icon}.png`} 
+                    src={`/icons/hko/weather/pic${weatherInfo.icon}.png`} 
                     alt="weather icon" 
                     className="w-5 h-5 sm:w-6 sm:h-6 object-contain drop-shadow-md"
-                    referrerPolicy="no-referrer" 
                   />
                 )}
                 {weatherInfo.temp !== '--' && (
@@ -1709,7 +1690,6 @@ function MainApp() {
             }}
             className="p-1.5 text-white/90 hover:text-white rounded-full hover:bg-white/10 transition-colors"
             title="看板設定中心"
-            aria-label="開啟看板設定中心"
           >
             <Settings className="w-5 h-5" strokeWidth={2.5} />
           </button>
@@ -1768,7 +1748,7 @@ function MainApp() {
               {mapEngineState.loadingMap && (
                 <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 z-20 backdrop-blur-sm ${isDarkMode ? 'bg-zinc-800/80' : 'bg-gray-200/80'}`}>
                   <RefreshCw className={`w-8 h-8 animate-spin ${mapState.routeInfo?.company === 'ctb' ? 'text-blue-600' : 'text-red-500'}`} />
-                  <span className={`text-xs font-bold opacity-70 ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>正在計算軌跡...</span>
+                  <span className={`text-xs font-bold opacity-70 ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>正在計算軌跡 ({trajectoryMode === 'CSDI' ? '官方專線' : '官方直連'})...</span>
                 </div>
               )}
               {mapState.error && (
@@ -1778,6 +1758,7 @@ function MainApp() {
                 </div>
               )}
 
+              {/* 💡 內建主動 GPS 防呆按鈕 */}
               {!mapEngineState.loadingMap && !mapState.error && (
                 <div className="absolute bottom-3 right-3 z-[1000] flex flex-col items-end gap-2">
                   {mapGpsState === 'error' && (
@@ -2049,7 +2030,7 @@ function MainApp() {
                   <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
                     <span className="text-xs font-black flex items-center gap-1.5"><MapPin className="w-4 h-4 text-blue-500" />地圖軌跡繪製模式</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">
-                      「官方專線軌跡」使用政府 CSDI 數據，完美呈現管狀馬路走線。如果您想使用自己下載的官方 CSDI 庫，請直接修改源代碼中的 <code>MY_GITHUB_CSDI_URL</code>。
+                      「官方專線軌跡」會優先使用 CSDI 數據，若無資料則啟動 OSRM 智能防繞路引擎。「官方直連」則直接以直線相連。
                     </p>
                     <select 
                       value={trajectoryMode} 
