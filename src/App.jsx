@@ -123,8 +123,8 @@ const getWarningData = (code, originalName) => {
     case 'TC10': return { text: '十號颶風信號', ...makeHkoWarningIcon('tc10.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
 
     // 💡 就是這裡！之前漏了 WMSL 這個 API 代碼，導致 img 變成 null 而沒有產生 <img /> 標籤。已修復！
-    case 'WMSL':
-    case 'WMS': 
+    case 'WMSL': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-slate-800 text-white shadow-sm border border-slate-700' };
+    case 'WMS': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-slate-800 text-white shadow-sm border border-slate-700' };
     case 'SMS': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-slate-800 text-white shadow-sm border border-slate-700' };
     
     case 'WL': return { text: '山泥傾瀉警告', ...makeHkoWarningIcon('landslip.gif'), style: 'bg-yellow-600 text-white shadow-sm border border-yellow-700' };
