@@ -92,7 +92,7 @@ const getEtaMinutes = (etaDate, nowObj) => {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ==========================================
-// 💡 V42: 完美還原您的本地圖標庫路徑設計！
+// 💡 HKO 本地化圖標引擎 (已修復 WMS 代碼與移除 onError 隱藏)
 // ==========================================
 const HKO_WARNING_BASE = '/icons/hko/warnings/';
 const HKO_WEATHER_BASE = '/icons/hko/weather/';
@@ -109,7 +109,7 @@ const getWarningData = (code, originalName) => {
     case 'WRAINR': return { text: '紅色暴雨警告信號', ...makeHkoWarningIcon('rainr.gif'), style: 'bg-[#cf4747] text-white shadow-sm' };
     case 'WRAINB': return { text: '黑色暴雨警告信號', ...makeHkoWarningIcon('rainb.gif'), style: 'bg-black text-white shadow-sm border border-gray-600' };
     case 'WTS': return { text: '雷暴警告', ...makeHkoWarningIcon('ts.gif'), style: 'bg-[#eab308] text-white shadow-sm' };
-    case 'WHOT': return { text: '酷熱天氣警告', ...makeHkoWarningIcon('vhot.gif'), style: 'bg-[#cf4747] text-white shadow-sm' }; 
+    case 'WHOT': return { text: '酷熱天氣警告', ...makeHkoWarningIcon('vhot.gif'), style: 'bg-[#cf4747] text-white shadow-sm' };
     case 'WCOLD': return { text: '寒冷天氣警告', ...makeHkoWarningIcon('cold.gif'), style: 'bg-[#3b82f6] text-white shadow-sm' };
     case 'WFIREY': return { text: '黃色火災危險警告', ...makeHkoWarningIcon('firey.gif'), style: 'bg-[#eab308] text-white shadow-sm' };
     case 'WFIRER': return { text: '紅色火災危險警告', ...makeHkoWarningIcon('firer.gif'), style: 'bg-[#cf4747] text-white shadow-sm' };
@@ -121,11 +121,13 @@ const getWarningData = (code, originalName) => {
     case 'TC8SW': return { text: '八號西南烈風或暴風信號', ...makeHkoWarningIcon('tc8sw.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
     case 'TC9': return { text: '九號烈風或暴風風力增強信號', ...makeHkoWarningIcon('tc9.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
     case 'TC10': return { text: '十號颶風信號', ...makeHkoWarningIcon('tc10.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    case 'SMS': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
+    // 💡 核心修復：正確對接天文台的 WMS 代碼，解決強烈季候風出不來的 Bug
+    case 'WMS': 
+    case 'SMS': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-slate-800 text-white shadow-sm border border-slate-700' };
     case 'WL': return { text: '山泥傾瀉警告', ...makeHkoWarningIcon('landslip.gif'), style: 'bg-yellow-600 text-white shadow-sm border border-yellow-700' };
     case 'FNTSA': return { text: '新界北部水浸特別報告', ...makeHkoWarningIcon('ntfl.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
     case 'FROST': return { text: '霜凍警告', ...makeHkoWarningIcon('frost.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    default: 
+    default:
       if (!originalName || originalName.trim() === '') return null;
       return { text: originalName, img: null, style: 'bg-slate-800 text-white shadow-md' };
   }
@@ -172,7 +174,6 @@ const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-4 h
   if (!img) return null; 
   return (
     <div className={`${iconBg} shrink-0 flex items-center justify-center p-0.5`}>
-      {/* 移除了 onError 隱藏機制，確保檔名錯誤時能顯示破圖框方便除錯 */}
       <img src={img} alt={text} title={text} className={className} referrerPolicy="no-referrer" />
     </div>
   );
@@ -228,12 +229,11 @@ function MainApp() {
       .filter(wData => wData !== null); 
   }, [weatherInfo.warnings]);
 
-  // 💡 強制修改網頁標題
+  // 💡 強制修改網頁頁籤標題
   useEffect(() => {
     document.title = "實時巴士報站";
   }, []);
 
-  // 絕對領域控制：阻止瀏覽器強制反轉顏色
   useEffect(() => {
     let meta = document.querySelector('meta[name="color-scheme"]');
     if (!meta) {
@@ -338,6 +338,7 @@ function MainApp() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState('FAVORITES'); 
   const [shouldReopenSettings, setShouldReopenSettings] = useState(false); 
+  const [showResetConfirm, setShowResetConfirm] = useState(false); 
 
   const [nearbyRadius, setNearbyRadius] = useState(() => {
     try { return parseInt(localStorage.getItem('kmb_nearby_radius') || '1200'); } 
@@ -1446,7 +1447,7 @@ function MainApp() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 V42: 完美保留圓角白底框 App Icon Style 警告橫幅，並移除 onError */}
+        {/* 💡 警告橫幅：移除了 onError 防止誤判，同時保持 App Icon 風格排版 */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2.5 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -2095,7 +2096,7 @@ function MainApp() {
         </div>
       )}
 
-      {/* 🔍 步驟式搜尋精靈 */}
+      {/* 🔍 步驟式搜尋精靈 (💡 支援特別班次顯示！) */}
       {isSearchModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fade-in">
           <div className={`w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border ${theme.modalBg}`}>
