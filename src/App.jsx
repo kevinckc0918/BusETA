@@ -92,7 +92,7 @@ const getEtaMinutes = (etaDate, nowObj) => {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ==========================================
-// 💡 HKO 本地化圖標引擎 (已修復 WMS 代碼與移除 onError 隱藏)
+// 💡 本地化圖標引擎 (已補上 WMS 強烈季候風代碼)
 // ==========================================
 const HKO_WARNING_BASE = '/icons/hko/warnings/';
 const HKO_WEATHER_BASE = '/icons/hko/weather/';
@@ -121,10 +121,9 @@ const getWarningData = (code, originalName) => {
     case 'TC8SW': return { text: '八號西南烈風或暴風信號', ...makeHkoWarningIcon('tc8sw.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
     case 'TC9': return { text: '九號烈風或暴風風力增強信號', ...makeHkoWarningIcon('tc9.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
     case 'TC10': return { text: '十號颶風信號', ...makeHkoWarningIcon('tc10.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-
-    // 💡 就是這裡！之前漏了 WMSL 這個 API 代碼，導致 img 變成 null 而沒有產生 <img /> 標籤。已修復！
-    case 'WMSL': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-slate-800 text-white shadow-sm border border-slate-700' };
-    case 'WMS': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-slate-800 text-white shadow-sm border border-slate-700' };
+    
+    // 💡 關鍵修復：加入 WMS 代碼，徹底解決強烈季候風出不來的問題
+    case 'WMS': 
     case 'SMS': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-slate-800 text-white shadow-sm border border-slate-700' };
     
     case 'WL': return { text: '山泥傾瀉警告', ...makeHkoWarningIcon('landslip.gif'), style: 'bg-yellow-600 text-white shadow-sm border border-yellow-700' };
@@ -177,6 +176,7 @@ const WarningBadge = ({ img, text, iconBg = "bg-transparent", className = "w-4 h
   if (!img) return null; 
   return (
     <div className={`${iconBg} shrink-0 flex items-center justify-center p-0.5`}>
+      {/* 移除了 onError，若無圖片則直接顯示破圖框，不再被無聲隱藏 */}
       <img src={img} alt={text} title={text} className={className} referrerPolicy="no-referrer" />
     </div>
   );
@@ -232,7 +232,7 @@ function MainApp() {
       .filter(wData => wData !== null); 
   }, [weatherInfo.warnings]);
 
-  // 💡 強制修改網頁頁籤標題
+  // 💡 強制修改網頁標題為「實時巴士報站」
   useEffect(() => {
     document.title = "實時巴士報站";
   }, []);
@@ -405,6 +405,7 @@ function MainApp() {
     return ['ALL', 'NEARBY', ...Array.from(groupsSet)]; 
   }, [locations]);
 
+  // 💡 透過 serviceType 分群
   const groupedFavoritesData = useMemo(() => {
     const groups = {};
     (locationsData || []).forEach(loc => {
@@ -468,7 +469,7 @@ function MainApp() {
 
   const getOrFetchAllKmbStops = async () => {
     try {
-      const cached = localStorage.getItem('kmb_all_stops_cache_v42');
+      const cached = localStorage.getItem('kmb_all_stops_cache_v44');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) return parsed.stops;
@@ -482,7 +483,7 @@ function MainApp() {
         const miniStops = (d.data || []).map(s => ({
           id: s.stop, name: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long)
         })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
-        try { localStorage.setItem('kmb_all_stops_cache_v42', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
+        try { localStorage.setItem('kmb_all_stops_cache_v44', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
         return miniStops;
       }
     } catch (e) {}
@@ -515,6 +516,7 @@ function MainApp() {
     }
   }, [nearbyRadius]);
 
+  // 💡 ETA 精準包含 service_type 分離
   const fetchNearbyStopsLiveETA = useCallback(async () => {
     if (!nearbyStops || nearbyStops.length === 0) return;
     try {
@@ -715,7 +717,7 @@ function MainApp() {
 
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
-    const cacheKey = `kmb_stop_details_cache_v42_${company}`;
+    const cacheKey = `kmb_stop_details_cache_v44_${company}`;
     
     if (company === 'kmb') {
         const allKmbStops = await getOrFetchAllKmbStops();
@@ -1450,7 +1452,6 @@ function MainApp() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 警告橫幅：移除了 onError 防止誤判，同時保持 App Icon 風格排版 */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2.5 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -1785,7 +1786,6 @@ function MainApp() {
                 </div>
               )}
 
-              {/* 💡 內建主動 GPS 防呆按鈕 */}
               {!mapEngineState.loadingMap && !mapState.error && (
                 <div className="absolute bottom-3 right-3 z-[1000] flex flex-col items-end gap-2">
                   {mapGpsState === 'error' && (
