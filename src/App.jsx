@@ -121,9 +121,12 @@ const getWarningData = (code, originalName) => {
     case 'TC8SW': return { text: '八號西南烈風或暴風信號', ...makeHkoWarningIcon('tc8sw.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
     case 'TC9': return { text: '九號烈風或暴風風力增強信號', ...makeHkoWarningIcon('tc9.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
     case 'TC10': return { text: '十號颶風信號', ...makeHkoWarningIcon('tc10.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
-    // 💡 核心修復：正確對接天文台的 WMS 代碼，解決強烈季候風出不來的 Bug
-    case 'WMS': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-slate-800 text-white shadow-sm border border-slate-700' };
+
+    // 💡 就是這裡！之前漏了 WMSL 這個 API 代碼，導致 img 變成 null 而沒有產生 <img /> 標籤。已修復！
+    case 'WMSL':
+    case 'WMS': 
     case 'SMS': return { text: '強烈季候風信號', ...makeHkoWarningIcon('sms.gif'), style: 'bg-slate-800 text-white shadow-sm border border-slate-700' };
+    
     case 'WL': return { text: '山泥傾瀉警告', ...makeHkoWarningIcon('landslip.gif'), style: 'bg-yellow-600 text-white shadow-sm border border-yellow-700' };
     case 'FNTSA': return { text: '新界北部水浸特別報告', ...makeHkoWarningIcon('ntfl.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
     case 'FROST': return { text: '霜凍警告', ...makeHkoWarningIcon('frost.gif'), style: 'bg-white text-slate-800 shadow-sm border border-gray-200' };
