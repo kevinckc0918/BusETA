@@ -555,17 +555,24 @@ function MainApp() {
         rawEtas.forEach(eta => {
           if (!eta.eta || !eta.route) return;
           const sType = String(eta.service_type || '1');
+          const sq = parseInt(eta.seq) || 0;
           const key = `${eta.route}-${eta.dir}-${sType}-${eta.dest_tc}`;
           if (!routeGroups[key]) {
-            routeGroups[key] = { company: 'kmb', route: eta.route, dest: eta.dest_tc.includes('荃灣西') ? '荃灣西站' : eta.dest_tc, dir: eta.dir, serviceType: sType, etas: [] };
+            routeGroups[key] = { company: 'kmb', route: eta.route, dest: eta.dest_tc.includes('荃灣西') ? '荃灣西站' : eta.dest_tc, dir: eta.dir, serviceType: sType, etasBySeq: {} };
           }
-          routeGroups[key].etas.push(eta);
+          if (!routeGroups[key].etasBySeq[sq]) routeGroups[key].etasBySeq[sq] = [];
+          routeGroups[key].etasBySeq[sq].push(eta);
         });
         const routesDataList = Object.values(routeGroups).map(group => {
-          group.etas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
+          // 💡 智能 Seq 篩選：找出最小的 seq (開出班次)，忽略最後抵達的 seq
+          const seqs = Object.keys(group.etasBySeq).map(Number).sort((a, b) => a - b);
+          const targetSeq = seqs[0];
+          const etasToUse = group.etasBySeq[targetSeq] || [];
+
+          etasToUse.sort((a, b) => new Date(a.eta) - new Date(b.eta));
           const uniqueEtas = [];
           const seenKeys = new Set();
-          group.etas.forEach(e => {
+          etasToUse.forEach(e => {
             const minuteKey = Math.floor(new Date(e.eta).getTime() / 60000);
             const rmkKey = e.rmk_tc || '';
             const key = `${minuteKey}-${rmkKey}`; 
@@ -636,10 +643,21 @@ function MainApp() {
           );
           
           if (validEtas.length > 0) {
-            validEtas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
+            // 💡 智能 Seq 篩選：防禦循環線總站顯示反方向時間
+            const seqGroups = {};
+            validEtas.forEach(e => {
+              const sq = parseInt(e.seq) || 0;
+              if (!seqGroups[sq]) seqGroups[sq] = [];
+              seqGroups[sq].push(e);
+            });
+            const seqs = Object.keys(seqGroups).map(Number).sort((a, b) => a - b);
+            const targetSeq = routeObj.seq !== undefined && seqGroups[routeObj.seq] ? routeObj.seq : seqs[0];
+            const etasToUse = seqGroups[targetSeq] || [];
+
+            etasToUse.sort((a, b) => new Date(a.eta) - new Date(b.eta));
             const uniqueEtas = [];
             const seenKeys = new Set();
-            validEtas.forEach(e => {
+            etasToUse.forEach(e => {
               const minuteKey = Math.floor(new Date(e.eta).getTime() / 60000);
               const rmkKey = e.rmk_tc || '';
               const key = `${minuteKey}-${rmkKey}`; 
@@ -881,7 +899,14 @@ function MainApp() {
 
           const currentMins = Math.floor(Date.now() / 60000);
           if (d && Array.isArray(d.data)) {
-             let validEtas = d.data.filter(e => e.route === route && e.dir === dir && e.eta && String(e.service_type || '1') === String(serviceType || '1'));
+             // 💡 鎖定 Seq：地圖 ETA 只會顯示您點擊的那個站點，不會被同站反方向覆蓋
+             let validEtas = d.data.filter(e => 
+                 e.route === route && 
+                 e.dir === dir && 
+                 e.eta && 
+                 String(e.service_type || '1') === String(serviceType || '1') &&
+                 (mapState.stop.seq ? String(e.seq) === String(mapState.stop.seq) : true)
+             );
              validEtas.sort((a,b) => new Date(a.eta) - new Date(b.eta));
              const uniqueEtas = [];
              const seenKeys = new Set();
@@ -1339,12 +1364,14 @@ function MainApp() {
     if (!selectedStop) return;
     const finalGroupName = customGroupName === 'NEW' ? (customGroupInput.trim() || '自訂') : customGroupName;
     
+    // 💡 存儲 Seq：讓系統永久記住您是從第幾站出發的
     const newRouteConfig = { 
       company: selectedRoute.company || 'kmb',
       route: selectedDirection.route, 
       dir: selectedDirection.bound, 
       dest: selectedDirection.dest_tc, 
       serviceType: selectedDirection.service_type,
+      seq: selectedStop.seq,
       customDest: customStopDesc.trim() || "" 
     };
     
