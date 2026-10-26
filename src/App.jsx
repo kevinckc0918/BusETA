@@ -92,7 +92,7 @@ const getEtaMinutes = (etaDate, nowObj) => {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ==========================================
-// 💡 V50: 完美備註解析器 (智能找回預定班次與走馬燈)
+// 💡 V49: 智能備註解析器 (解決預定班次顯示問題)
 // ==========================================
 const parseRemark = (rmk) => {
   if (!rmk || typeof rmk !== 'string') return null;
@@ -100,7 +100,6 @@ const parseRemark = (rmk) => {
   const isScheduled = rmk.includes('預定班次') || rmk.includes('原定班次');
   const isSpecial = rmk.includes('特別');
   
-  // 淨化字串，移除常規字眼，只留下特殊站點資訊
   let text = rmk
     .replace(/預定班次/g, '')
     .replace(/原定班次/g, '')
@@ -112,7 +111,6 @@ const parseRemark = (rmk) => {
     .replace(/）/g, '')
     .trim();
 
-  // 💡 關鍵修復：如果淨化後沒有字，但它是預定班次，就補回預定字眼！不會再隱藏了！
   if (text === '') {
     if (isScheduled) text = '預定班次';
     else if (isSpecial) text = '特別班次';
@@ -123,59 +121,47 @@ const parseRemark = (rmk) => {
 };
 
 // ==========================================
-// 💡 HKO 本地化圖標引擎 (雙重核對保證不破圖)
+// 💡 V46: 整合官方無防盜鏈圖標對照表 (100% 不破圖)
 // ==========================================
-const HKO_WARNING_BASE = '/icons/hko/warnings/';
-const HKO_WEATHER_BASE = '/icons/hko/weather/';
-
-const makeHkoWarningIcon = (fileName) => ({
-  img: `${HKO_WARNING_BASE}${fileName}`,
-});
-
-const getWeatherIconPath = (icon) => `${HKO_WEATHER_BASE}pic${icon}.png`;
+const getWeatherIconPath = (icon) => `https://www.hko.gov.hk/images/HKOWxIconOutline/pic${icon}.png`;
 
 const getWarningData = (code, originalName) => {
-  const nameMatch = (originalName || '').toLowerCase();
-  const codeMatch = (code || '').toUpperCase();
-
-  let imgFile = null;
-  let style = 'bg-slate-800 text-white shadow-sm border border-slate-700';
-
-  if (nameMatch.includes('黃色暴雨') || codeMatch === 'WRAINA') { imgFile = 'raina.gif'; style = 'bg-[#eab308] text-white shadow-sm'; }
-  else if (nameMatch.includes('紅色暴雨') || codeMatch === 'WRAINR') { imgFile = 'rainr.gif'; style = 'bg-[#cf4747] text-white shadow-sm'; }
-  else if (nameMatch.includes('黑色暴雨') || codeMatch === 'WRAINB') { imgFile = 'rainb.gif'; style = 'bg-black text-white shadow-sm border border-gray-600'; }
-  else if (nameMatch.includes('雷暴') || codeMatch === 'WTS') { imgFile = 'ts.gif'; style = 'bg-[#eab308] text-white shadow-sm'; }
-  else if (nameMatch.includes('酷熱') || codeMatch === 'WHOT') { imgFile = 'vhot.gif'; style = 'bg-[#cf4747] text-white shadow-sm'; }
-  else if (nameMatch.includes('寒冷') || codeMatch === 'WCOLD') { imgFile = 'cold.gif'; style = 'bg-[#3b82f6] text-white shadow-sm'; }
-  else if (nameMatch.includes('黃色火災') || codeMatch === 'WFIREY') { imgFile = 'firey.gif'; style = 'bg-[#eab308] text-white shadow-sm'; }
-  else if (nameMatch.includes('紅色火災') || codeMatch === 'WFIRER') { imgFile = 'firer.gif'; style = 'bg-[#cf4747] text-white shadow-sm'; }
-  else if (nameMatch.includes('一號') || codeMatch === 'TC1') { imgFile = 'tc1.gif'; style = 'bg-white text-slate-800 shadow-sm border border-gray-200'; }
-  else if (nameMatch.includes('三號') || codeMatch === 'TC3') { imgFile = 'tc3.gif'; style = 'bg-white text-slate-800 shadow-sm border border-gray-200'; }
-  else if (nameMatch.includes('八號東北') || codeMatch === 'TC8NE') { imgFile = 'tc8ne.gif'; style = 'bg-white text-slate-800 shadow-sm border border-gray-200'; }
-  else if (nameMatch.includes('八號西北') || codeMatch === 'TC8NW') { imgFile = 'tc8nw.gif'; style = 'bg-white text-slate-800 shadow-sm border border-gray-200'; }
-  else if (nameMatch.includes('八號東南') || codeMatch === 'TC8SE') { imgFile = 'tc8se.gif'; style = 'bg-white text-slate-800 shadow-sm border border-gray-200'; }
-  else if (nameMatch.includes('八號西南') || codeMatch === 'TC8SW') { imgFile = 'tc8sw.gif'; style = 'bg-white text-slate-800 shadow-sm border border-gray-200'; }
-  else if (nameMatch.includes('九號') || codeMatch === 'TC9') { imgFile = 'tc9.gif'; style = 'bg-white text-slate-800 shadow-sm border border-gray-200'; }
-  else if (nameMatch.includes('十號') || codeMatch === 'TC10') { imgFile = 'tc10.gif'; style = 'bg-white text-slate-800 shadow-sm border border-gray-200'; }
-  else if (nameMatch.includes('季候風') || codeMatch.includes('MS')) { imgFile = 'sms.gif'; style = 'bg-slate-800 text-white shadow-sm border border-slate-700'; }
-  else if (nameMatch.includes('山泥傾瀉') || codeMatch === 'WLSL' || codeMatch === 'WL') { imgFile = 'landslip.gif'; style = 'bg-yellow-600 text-white shadow-sm border border-yellow-700'; }
-  else if (nameMatch.includes('水浸') || codeMatch === 'WFNV' || codeMatch === 'FNTSA') { imgFile = 'ntfl.gif'; style = 'bg-white text-slate-800 shadow-sm border border-gray-200'; }
-  else if (nameMatch.includes('霜凍') || codeMatch === 'WFROST' || codeMatch === 'FROST') { imgFile = 'frost.gif'; style = 'bg-white text-slate-800 shadow-sm border border-gray-200'; }
-
-  if (!originalName && !imgFile) return null;
-
-  return {
-    text: originalName || code,
-    img: imgFile ? `${HKO_WARNING_BASE}${imgFile}` : null,
-    style: style
+  const map = {
+    WFIREY: { icon: 'firey', text: '黃色火災危險警告', style: 'bg-[#eab308] text-white shadow-sm' },
+    WFIRER: { icon: 'firer', text: '紅色火災危險警告', style: 'bg-[#cf4747] text-white shadow-sm' },
+    WHOT: { icon: 'vhot', text: '酷熱天氣警告', style: 'bg-[#cf4747] text-white shadow-sm' },
+    WCOLD: { icon: 'cold', text: '寒冷天氣警告', style: 'bg-[#3b82f6] text-white shadow-sm' },
+    WMSGNL: { icon: 'sms', text: '強烈季候風信號', style: 'bg-slate-800 text-white shadow-sm border border-slate-700' },
+    WRAINA: { icon: 'raina', text: '黃色暴雨警告信號', style: 'bg-[#eab308] text-white shadow-sm' },
+    WRAINR: { icon: 'rainr', text: '紅色暴雨警告信號', style: 'bg-[#cf4747] text-white shadow-sm' },
+    WRAINB: { icon: 'rainb', text: '黑色暴雨警告信號', style: 'bg-black text-white shadow-sm border border-gray-600' },
+    WTS: { icon: 'ts', text: '雷暴警告', style: 'bg-[#eab308] text-white shadow-sm' },
+    TC1: { icon: 'tc1', text: '一號戒備信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC3: { icon: 'tc3', text: '三號強風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC8NE: { icon: 'tc8ne', text: '八號東北烈風或暴風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC8NW: { icon: 'tc8nw', text: '八號西北烈風或暴風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC8SE: { icon: 'tc8se', text: '八號東南烈風或暴風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC8SW: { icon: 'tc8sw', text: '八號西南烈風或暴風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC9: { icon: 'tc9', text: '九號烈風或暴風風力增強信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    TC10: { icon: 'tc10', text: '十號颶風信號', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' },
+    WLSL: { icon: 'lsl', text: '山泥傾瀉警告', style: 'bg-yellow-600 text-white shadow-sm border border-yellow-700' },
+    WFNV: { icon: 'ntfl', text: '新界北部水浸特別報告', style: 'bg-white text-slate-800 shadow-sm border border-gray-200' }
   };
+
+  const data = map[code];
+  if (data) {
+    return {
+      text: originalName || data.text,
+      img: `https://www.hko.gov.hk/tc/wxinfo/dailywx/images/${data.icon}.gif`,
+      style: data.style
+    };
+  }
+  if (!originalName || originalName.trim() === '') return null;
+  return { text: originalName, img: null, style: 'bg-slate-800 text-white shadow-md' };
 };
 
 const DEFAULT_PHOTOS = ["/photo01.jpg", "/photo02.jpg", "/photo03.jpg"];
 const WEATHER_BG = "/victoria-harbour.jpg";
-
-// 🔗 您的專屬 CSDI 路線庫網址
-const MY_GITHUB_CSDI_URL = "https://example-placeholder.github.io/routes";
 
 const DEFAULT_LOCATIONS = [
   {
@@ -258,7 +244,6 @@ function MainApp() {
       .filter(wData => wData !== null); 
   }, [weatherInfo.warnings]);
 
-  // 💡 強制修改網頁頁籤標題為「實時巴士報站」
   useEffect(() => {
     document.title = "實時巴士報站";
   }, []);
@@ -431,7 +416,6 @@ function MainApp() {
     return ['ALL', 'NEARBY', ...Array.from(groupsSet)]; 
   }, [locations]);
 
-  // 💡 V40/50 核心修復：在列表層綁入 serviceType 確保絕不誤殺
   const groupedFavoritesData = useMemo(() => {
     const groups = {};
     (locationsData || []).forEach(loc => {
@@ -495,7 +479,7 @@ function MainApp() {
 
   const getOrFetchAllKmbStops = async () => {
     try {
-      const cached = localStorage.getItem('kmb_all_stops_cache_v50');
+      const cached = localStorage.getItem('kmb_all_stops_cache_v51');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) return parsed.stops;
@@ -509,7 +493,7 @@ function MainApp() {
         const miniStops = (d.data || []).map(s => ({
           id: s.stop, name: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long)
         })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
-        try { localStorage.setItem('kmb_all_stops_cache_v50', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
+        try { localStorage.setItem('kmb_all_stops_cache_v51', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
         return miniStops;
       }
     } catch (e) {}
@@ -542,6 +526,7 @@ function MainApp() {
     }
   }, [nearbyRadius]);
 
+  // 💡 V51 核心修復：附近車站 ETA 加入 Seq 分組，過濾反方向循環線時間
   const fetchNearbyStopsLiveETA = useCallback(async () => {
     if (!nearbyStops || nearbyStops.length === 0) return;
     try {
@@ -564,7 +549,7 @@ function MainApp() {
           routeGroups[key].etasBySeq[sq].push(eta);
         });
         const routesDataList = Object.values(routeGroups).map(group => {
-          // 💡 智能 Seq 篩選：找出最小的 seq (開出班次)，忽略最後抵達的 seq
+          // 只抓取最早的 Seq (避免抓到繞圈回來的站點)
           const seqs = Object.keys(group.etasBySeq).map(Number).sort((a, b) => a - b);
           const targetSeq = seqs[0];
           const etasToUse = group.etasBySeq[targetSeq] || [];
@@ -606,6 +591,7 @@ function MainApp() {
     return () => clearInterval(timer);
   }, [fetchNearbyStopsLiveETA]);
 
+  // 💡 V51 核心修復：主畫面我的最愛 ETA 加入 Seq 篩選器
   const fetchCustomLocationsData = useCallback(async () => {
     if (!locations || locations.length === 0) { setLocationsData([]); setLoading(false); return; }
     setLoading(true); setError(null);
@@ -643,14 +629,14 @@ function MainApp() {
           );
           
           if (validEtas.length > 0) {
-            // 💡 智能 Seq 篩選：防禦循環線總站顯示反方向時間
             const seqGroups = {};
             validEtas.forEach(e => {
-              const sq = parseInt(e.seq) || 0;
-              if (!seqGroups[sq]) seqGroups[sq] = [];
-              seqGroups[sq].push(e);
+                const sq = parseInt(e.seq) || 0;
+                if (!seqGroups[sq]) seqGroups[sq] = [];
+                seqGroups[sq].push(e);
             });
             const seqs = Object.keys(seqGroups).map(Number).sort((a, b) => a - b);
+            // 優先使用設定檔存的 seq，否則抓最小的 (開出站)
             const targetSeq = routeObj.seq !== undefined && seqGroups[routeObj.seq] ? routeObj.seq : seqs[0];
             const etasToUse = seqGroups[targetSeq] || [];
 
@@ -760,7 +746,7 @@ function MainApp() {
 
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
-    const cacheKey = `kmb_stop_details_cache_v50_${company}`;
+    const cacheKey = `kmb_stop_details_cache_v51_${company}`;
     
     if (company === 'kmb') {
         const allKmbStops = await getOrFetchAllKmbStops();
@@ -881,6 +867,7 @@ function MainApp() {
     }
   };
 
+  // 💡 V51 核心修復：地圖模式精準對位 Seq
   useEffect(() => {
     if (!mapState.isOpen || !mapState.stop?.id || !mapState.routeInfo) return;
     let isMounted = true;
@@ -899,7 +886,6 @@ function MainApp() {
 
           const currentMins = Math.floor(Date.now() / 60000);
           if (d && Array.isArray(d.data)) {
-             // 💡 鎖定 Seq：地圖 ETA 只會顯示您點擊的那個站點，不會被同站反方向覆蓋
              let validEtas = d.data.filter(e => 
                  e.route === route && 
                  e.dir === dir && 
@@ -934,8 +920,9 @@ function MainApp() {
     fetchMapStopETA();
     const timer = setInterval(fetchMapStopETA, 30000);
     return () => { isMounted = false; clearInterval(timer); };
-  }, [mapState.isOpen, mapState.stop?.id, mapState.routeInfo]);
+  }, [mapState.isOpen, mapState.stop?.id, mapState.routeInfo, mapState.stop?.seq]);
 
+  // 💡 V51 核心修復：徹底移除 600m 限制，傳送所有車站給 OSRM 確保貼合站點
   useEffect(() => {
     if (!mapState.isOpen || mapState.loadingStops || mapState.routeStops.length === 0 || mapEngineState.fetched) return;
     
@@ -972,19 +959,22 @@ function MainApp() {
         }
 
         if (!allSnappedCoords) {
-            let skeletonStops = [validStops[0]];
-            let lastSkStop = validStops[0];
-            for (let i = 1; i < validStops.length - 1; i++) {
-                const dist = calculateDistance(lastSkStop.lat, lastSkStop.lng, validStops[i].lat, validStops[i].lng);
-                if (dist > 600) {
-                    skeletonStops.push(validStops[i]);
-                    lastSkStop = validStops[i];
+            let skeletonStops = [];
+            // OSRM 公共 API 通常限制在 100 個點內，將所有站點平均取樣即可貼合
+            if (validStops.length <= 80) {
+                skeletonStops = [...validStops];
+            } else {
+                const step = validStops.length / 80;
+                for (let i = 0; i < 80; i++) {
+                    skeletonStops.push(validStops[Math.floor(i * step)]);
+                }
+                if (skeletonStops[skeletonStops.length - 1].id !== validStops[validStops.length - 1].id) {
+                    skeletonStops.push(validStops[validStops.length - 1]);
                 }
             }
-            skeletonStops.push(validStops[validStops.length - 1]);
 
             const coordsStr = skeletonStops.map(s => `${s.lng},${s.lat}`).join(';');
-            const radiusesStr = skeletonStops.map(() => '150').join(';');
+            const radiusesStr = skeletonStops.map(() => '50').join(';');
             const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&continue_straight=true&radiuses=${radiusesStr}`;
 
             try {
@@ -1234,7 +1224,7 @@ function MainApp() {
     try {
       const successful = document.execCommand('copy');
       if (successful) { setBackupSuccess('備份代碼複製成功！'); setTimeout(() => setBackupSuccess(''), 2000); } 
-      else setBackupError('複製失敗，請手動複製文本。');
+      else setBackupError('複製失敗，請手手複製文本。');
     } catch (err) { setBackupError('瀏覽器不支持自動複製。'); }
     document.body.removeChild(textArea);
   };
@@ -1364,7 +1354,7 @@ function MainApp() {
     if (!selectedStop) return;
     const finalGroupName = customGroupName === 'NEW' ? (customGroupInput.trim() || '自訂') : customGroupName;
     
-    // 💡 存儲 Seq：讓系統永久記住您是從第幾站出發的
+    // 💡 V51: 儲存路線時，強制存入該分站的 seq (解決循環線反方向時間)
     const newRouteConfig = { 
       company: selectedRoute.company || 'kmb',
       route: selectedDirection.route, 
@@ -1405,7 +1395,6 @@ function MainApp() {
     setTimeout(() => fetchCustomLocationsData(), 200);
   };
 
-  // 💡 V50: 主畫面渲染智能預定與特別班次排版
   const renderRow = (route, rIdx, isNearbySource = false, layoutType = 'LIST') => {
     const isEven = rIdx % 2 === 0;
     const rowBg = isEven ? theme.rowEven : theme.rowOdd;
@@ -1525,7 +1514,7 @@ function MainApp() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 警告橫幅：完美對接包含 WMSGNL 等所有代碼 */}
+        {/* 💡 警告橫幅：完美對接包含 WMS 等所有代碼 */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2.5 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -1956,7 +1945,7 @@ function MainApp() {
                             </span>
                           </div>
                           
-                          {/* 💡 當前車站：地圖 ETA 套用智能備註解析器與走馬燈 */}
+                          {/* 💡 當前車站：地圖 ETA 套用走馬燈與預定時鐘 */}
                           {isCurrent && (
                             <div className="mt-4 mb-2 flex flex-col gap-3 relative ml-[40px]">
                                <span className={`text-[10px] font-bold absolute -top-10 right-0 flex items-center gap-1 ${isCTB ? 'text-[#3b82f6]' : 'text-[#e3342f]'}`}>
@@ -1989,10 +1978,9 @@ function MainApp() {
                                               </div>
                                           </div>
                                           
-                                          {/* V50: 完美地圖內走馬燈與預定時鐘 */}
                                           <div className="flex-1 min-w-0 pr-2 pt-1.5 overflow-hidden">
                                             {parsedRmk?.text ? (
-                                              <div className={`flex items-center gap-1 ${parsedRmk.isSpecial || isSpecialRoute ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (parsedRmk.isScheduled ? 'text-blue-500' : (isDarkMode ? 'text-gray-400' : 'text-gray-500'))}`}>
+                                              <div className={`flex items-center gap-1 ${parsedRmk.isSpecial || isSpecialRoute ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`}>
                                                 {parsedRmk.isScheduled && <Clock className="w-3.5 h-3.5 shrink-0" />}
                                                 <div className="flex-1 overflow-hidden whitespace-nowrap">
                                                   {parsedRmk.text.length > 8 ? (
