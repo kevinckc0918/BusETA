@@ -21,7 +21,9 @@ import {
   Sliders,
   RotateCcw,
   Image as ImageIcon,
-  AlertTriangle
+  AlertTriangle,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 
 // ==========================================
@@ -89,10 +91,8 @@ const getEtaMinutes = (etaDate, nowObj) => {
   return Math.floor((new Date(etaDate) - nowObj) / 60000);
 };
 
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
 // ==========================================
-// 💡 V49: 智能備註解析器 (解決預定班次顯示問題)
+// 💡 智能備註解析器
 // ==========================================
 const parseRemark = (rmk) => {
   if (!rmk || typeof rmk !== 'string') return null;
@@ -121,7 +121,7 @@ const parseRemark = (rmk) => {
 };
 
 // ==========================================
-// 💡 V46: 整合官方無防盜鏈圖標對照表 (100% 不破圖)
+// 💡 天氣警告與圖標對照表
 // ==========================================
 const getWeatherIconPath = (icon) => `https://www.hko.gov.hk/images/HKOWxIconOutline/pic${icon}.png`;
 
@@ -229,14 +229,12 @@ function MainApp() {
     try { return localStorage.getItem('kmb_trajectory') || 'CSDI'; } catch { return 'CSDI'; }
   });
 
-  const [weatherInfo, setWeatherInfo] = useState({ temp: '--', icon: null, warnings: [] });
+  // 設定選項「顯示預定班次標籤」，預設為 false (隱藏 Label)
+  const [showScheduledEta, setShowScheduledEta] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('kmb_show_scheduled_eta') || 'false'); } catch { return false; }
+  });
 
-  const activeTCWarning = useMemo(() => {
-    if (!weatherInfo.warnings) return null;
-    const tcWarning = weatherInfo.warnings.find(w => w.code && w.code.startsWith('TC'));
-    if (tcWarning) return getWarningData(tcWarning.code, tcWarning.name);
-    return null;
-  }, [weatherInfo.warnings]);
+  const [weatherInfo, setWeatherInfo] = useState({ temp: '--', icon: null, warnings: [] });
 
   const validWarnings = useMemo(() => {
     return (weatherInfo.warnings || [])
@@ -306,7 +304,6 @@ function MainApp() {
   });
   
   const [mapGpsState, setMapGpsState] = useState('idle'); 
-
   const [mapStopEtas, setMapStopEtas] = useState([]);
   const [loadingMapEtas, setLoadingMapEtas] = useState(false);
   const [leafletLoaded, setLeafletLoaded] = useState(false);
@@ -410,11 +407,18 @@ function MainApp() {
   useEffect(() => { try { localStorage.setItem('kmb_nearby_radius', nearbyRadius.toString()); } catch {} }, [nearbyRadius]);
   useEffect(() => { if (standMonitorId) try { localStorage.setItem('kmb_stand_monitor_id', standMonitorId); } catch {} }, [standMonitorId]);
   useEffect(() => { try { localStorage.setItem('kmb_trajectory', trajectoryMode); } catch {} }, [trajectoryMode]);
+  useEffect(() => { try { localStorage.setItem('kmb_show_scheduled_eta', JSON.stringify(showScheduledEta)); } catch {} }, [showScheduledEta]);
 
   const availableGroups = useMemo(() => {
     const groupsSet = new Set((locations || []).map(loc => loc.groupName || '預設'));
     return ['ALL', 'NEARBY', ...Array.from(groupsSet)]; 
   }, [locations]);
+
+  // 班次時間正常依先後順序排列（不剔除班次）
+  const filterAndSortEtas = useCallback((uniqueEtas) => {
+    if (!uniqueEtas || uniqueEtas.length === 0) return [];
+    return [...uniqueEtas].sort((a, b) => new Date(a.time || a.eta) - new Date(b.time || b.eta));
+  }, []);
 
   const groupedFavoritesData = useMemo(() => {
     const groups = {};
@@ -479,7 +483,7 @@ function MainApp() {
 
   const getOrFetchAllKmbStops = async () => {
     try {
-      const cached = localStorage.getItem('kmb_all_stops_cache_v51');
+      const cached = localStorage.getItem('kmb_all_stops_cache_v55');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed.timestamp && Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) return parsed.stops;
@@ -493,7 +497,7 @@ function MainApp() {
         const miniStops = (d.data || []).map(s => ({
           id: s.stop, name: s.name_tc, lat: parseFloat(s.lat), lng: parseFloat(s.long)
         })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
-        try { localStorage.setItem('kmb_all_stops_cache_v51', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
+        try { localStorage.setItem('kmb_all_stops_cache_v55', JSON.stringify({ timestamp: Date.now(), stops: miniStops })); } catch (e) {}
         return miniStops;
       }
     } catch (e) {}
@@ -526,7 +530,6 @@ function MainApp() {
     }
   }, [nearbyRadius]);
 
-  // 💡 V51 核心修復：附近車站 ETA 加入 Seq 分組，過濾反方向循環線時間
   const fetchNearbyStopsLiveETA = useCallback(async () => {
     if (!nearbyStops || nearbyStops.length === 0) return;
     try {
@@ -549,7 +552,6 @@ function MainApp() {
           routeGroups[key].etasBySeq[sq].push(eta);
         });
         const routesDataList = Object.values(routeGroups).map(group => {
-          // 只抓取最早的 Seq (避免抓到繞圈回來的站點)
           const seqs = Object.keys(group.etasBySeq).map(Number).sort((a, b) => a - b);
           const targetSeq = seqs[0];
           const etasToUse = group.etasBySeq[targetSeq] || [];
@@ -563,19 +565,19 @@ function MainApp() {
             const key = `${minuteKey}-${rmkKey}`; 
             if (!seenKeys.has(key) && (minuteKey - currentMins) >= -1) {
               seenKeys.add(key);
-              uniqueEtas.push(e);
+              uniqueEtas.push({ time: new Date(e.eta), rmk: e.rmk_tc || null });
             }
           });
+
+          const sortedEtas = filterAndSortEtas(uniqueEtas);
+
           return { 
             company: group.company,
             route: group.route, 
             dir: group.dir,
             serviceType: group.serviceType,
             dest: group.dest, 
-            etas: uniqueEtas.slice(0, 2).map(e => ({ 
-              time: new Date(e.eta), 
-              rmk: e.rmk_tc || null 
-            })) 
+            etas: sortedEtas.slice(0, 2)
           };
         });
         routesDataList.sort((a, b) => a.route.localeCompare(b.route, undefined, { numeric: true }));
@@ -583,7 +585,7 @@ function MainApp() {
       });
       setNearbyStopsData(processed); setLastUpdated(new Date());
     } catch (e) {}
-  }, [nearbyStops]);
+  }, [nearbyStops, filterAndSortEtas]);
 
   useEffect(() => {
     fetchNearbyStopsLiveETA();
@@ -591,7 +593,6 @@ function MainApp() {
     return () => clearInterval(timer);
   }, [fetchNearbyStopsLiveETA]);
 
-  // 💡 V51 核心修復：主畫面我的最愛 ETA 加入 Seq 篩選器
   const fetchCustomLocationsData = useCallback(async () => {
     if (!locations || locations.length === 0) { setLocationsData([]); setLoading(false); return; }
     setLoading(true); setError(null);
@@ -636,7 +637,6 @@ function MainApp() {
                 seqGroups[sq].push(e);
             });
             const seqs = Object.keys(seqGroups).map(Number).sort((a, b) => a - b);
-            // 優先使用設定檔存的 seq，否則抓最小的 (開出站)
             const targetSeq = routeObj.seq !== undefined && seqGroups[routeObj.seq] ? routeObj.seq : seqs[0];
             const etasToUse = seqGroups[targetSeq] || [];
 
@@ -649,9 +649,11 @@ function MainApp() {
               const key = `${minuteKey}-${rmkKey}`; 
               if (!seenKeys.has(key) && (minuteKey - currentMins) >= -1) {
                 seenKeys.add(key);
-                uniqueEtas.push(e);
+                uniqueEtas.push({ time: new Date(e.eta), rmk: e.rmk_tc || null });
               }
             });
+
+            const sortedEtas = filterAndSortEtas(uniqueEtas);
 
             const primaryDest = routeObj.customDest || uniqueEtas[0]?.dest_tc || routeObj.dest || "目的地";
             routesList.push({ 
@@ -661,10 +663,7 @@ function MainApp() {
               serviceType: routeObj.serviceType,
               dest: primaryDest.includes('荃灣西') ? '荃灣西站' : primaryDest, 
               customDest: routeObj.customDest, 
-              etas: uniqueEtas.slice(0, 2).map(e => ({ 
-                time: new Date(e.eta), 
-                rmk: e.rmk_tc || null 
-              })) 
+              etas: sortedEtas.slice(0, 2)
             });
           } else {
             routesList.push({ company: comp, route: routeObj.route, dir: routeObj.dir, serviceType: routeObj.serviceType, dest: routeObj.customDest || routeObj.dest || "未有班次", customDest: routeObj.customDest, etas: [] });
@@ -677,7 +676,7 @@ function MainApp() {
       const processedData = await Promise.all(promises);
       setLocationsData(processedData); setLastUpdated(new Date());
     } catch (err) { setError('到站預報載入失敗'); } finally { setLoading(false); }
-  }, [locations]);
+  }, [locations, filterAndSortEtas]);
 
   useEffect(() => {
     fetchCustomLocationsData();
@@ -746,7 +745,7 @@ function MainApp() {
 
   const fetchStopDetailsInBatch = async (stopIds, company = 'kmb') => {
     let cache = {};
-    const cacheKey = `kmb_stop_details_cache_v51_${company}`;
+    const cacheKey = `kmb_stop_details_cache_v55_${company}`;
     
     if (company === 'kmb') {
         const allKmbStops = await getOrFetchAllKmbStops();
@@ -867,7 +866,6 @@ function MainApp() {
     }
   };
 
-  // 💡 V51 核心修復：地圖模式精準對位 Seq
   useEffect(() => {
     if (!mapState.isOpen || !mapState.stop?.id || !mapState.routeInfo) return;
     let isMounted = true;
@@ -906,7 +904,9 @@ function MainApp() {
                    uniqueEtas.push(e);
                 }
              });
-             setMapStopEtas(uniqueEtas.slice(0, 3)); 
+
+             const sorted = filterAndSortEtas(uniqueEtas);
+             setMapStopEtas(sorted.slice(0, 3)); 
           } else {
              setMapStopEtas([]);
           }
@@ -920,9 +920,9 @@ function MainApp() {
     fetchMapStopETA();
     const timer = setInterval(fetchMapStopETA, 30000);
     return () => { isMounted = false; clearInterval(timer); };
-  }, [mapState.isOpen, mapState.stop?.id, mapState.routeInfo, mapState.stop?.seq]);
+  }, [mapState.isOpen, mapState.stop?.id, mapState.routeInfo, mapState.stop?.seq, filterAndSortEtas]);
 
-  // 💡 V51 核心修復：徹底移除 600m 限制，傳送所有車站給 OSRM 確保貼合站點
+  // 分段道路網吸附演算法 (Chunked Routing Engine)
   useEffect(() => {
     if (!mapState.isOpen || mapState.loadingStops || mapState.routeStops.length === 0 || mapEngineState.fetched) return;
     
@@ -938,6 +938,7 @@ function MainApp() {
 
         let allSnappedCoords = null;
 
+        // 1. 優先嘗試官方高精度香港巴士路網 Waypoints
         try {
             const compStr = mapState.routeInfo.company.toUpperCase();
             const routeStr = mapState.routeInfo.route.toUpperCase();
@@ -950,44 +951,52 @@ function MainApp() {
 
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) {
+                if (Array.isArray(data) && data.length > 5) {
                     allSnappedCoords = data.map(p => (p[0] > 90 ? [p[1], p[0]] : [p[0], p[1]]));
                 }
             }
         } catch (e) {
-            console.log("Failed to fetch CSDI Data");
+            console.warn("無法取得預設路線幾何資料，轉向分段導航演算法");
         }
 
+        // 2. 若無預設幾何，改用分段 OSRM 算法 (每段最多20個相鄰站，杜絕大跨度直接拉直線)
         if (!allSnappedCoords) {
-            let skeletonStops = [];
-            // OSRM 公共 API 通常限制在 100 個點內，將所有站點平均取樣即可貼合
-            if (validStops.length <= 80) {
-                skeletonStops = [...validStops];
-            } else {
-                const step = validStops.length / 80;
-                for (let i = 0; i < 80; i++) {
-                    skeletonStops.push(validStops[Math.floor(i * step)]);
-                }
-                if (skeletonStops[skeletonStops.length - 1].id !== validStops[validStops.length - 1].id) {
-                    skeletonStops.push(validStops[validStops.length - 1]);
-                }
-            }
-
-            const coordsStr = skeletonStops.map(s => `${s.lng},${s.lat}`).join(';');
-            const radiusesStr = skeletonStops.map(() => '50').join(';');
-            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&continue_straight=true&radiuses=${radiusesStr}`;
-
             try {
-                const res = await fetch(osrmUrl);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.code === 'Ok' && data.routes && data.routes[0]) {
-                        allSnappedCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-                    } else {
-                        allSnappedCoords = stopLatLngs;
+                const CHUNK_SIZE = 20; 
+                let combinedPath = [];
+
+                for (let i = 0; i < validStops.length; i += CHUNK_SIZE) {
+                    const chunk = validStops.slice(i, i + CHUNK_SIZE + 1);
+                    if (chunk.length < 2) continue;
+
+                    const coordsStr = chunk.map(s => `${s.lng},${s.lat}`).join(';');
+                    const radiusesStr = chunk.map(() => '60').join(';');
+                    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&continue_straight=true&radiuses=${radiusesStr}`;
+
+                    try {
+                        const res = await fetch(osrmUrl);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.code === 'Ok' && data.routes && data.routes[0]) {
+                                const segmentCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                                if (combinedPath.length > 0) {
+                                    combinedPath.push(...segmentCoords.slice(1));
+                                } else {
+                                    combinedPath.push(...segmentCoords);
+                                }
+                            } else {
+                                chunk.forEach(s => combinedPath.push([s.lat, s.lng]));
+                            }
+                        } else {
+                            chunk.forEach(s => combinedPath.push([s.lat, s.lng]));
+                        }
+                    } catch (e) {
+                        chunk.forEach(s => combinedPath.push([s.lat, s.lng]));
                     }
-                } else {
-                    allSnappedCoords = stopLatLngs;
+                }
+
+                if (combinedPath.length > 1) {
+                    allSnappedCoords = combinedPath;
                 }
             } catch (e) {
                 allSnappedCoords = stopLatLngs;
@@ -1224,7 +1233,7 @@ function MainApp() {
     try {
       const successful = document.execCommand('copy');
       if (successful) { setBackupSuccess('備份代碼複製成功！'); setTimeout(() => setBackupSuccess(''), 2000); } 
-      else setBackupError('複製失敗，請手手複製文本。');
+      else setBackupError('複製失敗，請手動複製文本。');
     } catch (err) { setBackupError('瀏覽器不支持自動複製。'); }
     document.body.removeChild(textArea);
   };
@@ -1354,7 +1363,6 @@ function MainApp() {
     if (!selectedStop) return;
     const finalGroupName = customGroupName === 'NEW' ? (customGroupInput.trim() || '自訂') : customGroupName;
     
-    // 💡 V51: 儲存路線時，強制存入該分站的 seq (解決循環線反方向時間)
     const newRouteConfig = { 
       company: selectedRoute.company || 'kmb',
       route: selectedDirection.route, 
@@ -1450,8 +1458,8 @@ function MainApp() {
         <div className="flex flex-col items-end justify-center shrink-0 min-w-[100px] pointer-events-none">
           <div className={`flex items-center justify-end gap-1 sm:gap-2 ${primaryEtaHeight}`}>
             <div className="flex flex-col items-end mr-1">
-               {/* 💡 V50 走馬燈與預定時鐘標籤 */}
-               {primaryParsed?.text && (
+               {/* 班次分鐘正常呈現；預定班次標籤只在 showScheduledEta 為 true 時顯示 */}
+               {primaryParsed?.text && (showScheduledEta || !primaryParsed.isScheduled) && (
                  <div className={`flex items-center text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded shadow-sm overflow-hidden border max-w-[120px] sm:max-w-[160px] ${primaryParsed.isSpecial || isSpecialRoute ? 'text-[#e3342f] bg-[#e3342f]/10 border-[#e3342f]/20' : (primaryParsed.isScheduled ? 'text-blue-600 bg-blue-50 border-blue-200' : (isDarkMode ? 'text-gray-300 bg-gray-800 border-gray-700' : 'text-gray-600 bg-gray-100 border-gray-200'))}`}>
                    {primaryParsed.isScheduled && <Clock className="w-3 h-3 shrink-0 mr-1" />}
                    <div className="flex-1 overflow-hidden whitespace-nowrap">
@@ -1480,7 +1488,8 @@ function MainApp() {
           
           <div className="flex items-center justify-end gap-1 mt-1.5 sm:mt-2">
             <div className="flex flex-col items-end mr-1">
-               {secondaryParsed?.text && secondaryMins !== null && secondaryMins >= 0 && (
+               {/* 次要班次：若為預定班次，只在 showScheduledEta 為 true 時才顯示標籤 */}
+               {secondaryParsed?.text && secondaryMins !== null && secondaryMins >= 0 && (showScheduledEta || !secondaryParsed.isScheduled) && (
                  <div className={`flex items-center text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm overflow-hidden border max-w-[100px] sm:max-w-[140px] ${secondaryParsed.isSpecial || isSpecialRoute ? 'text-red-400 border-red-500/20' : (secondaryParsed.isScheduled ? 'text-blue-500 border-blue-200' : (isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-200'))}`}>
                    {secondaryParsed.isScheduled && <Clock className="w-2.5 h-2.5 shrink-0 mr-1" />}
                    <div className="flex-1 overflow-hidden whitespace-nowrap">
@@ -1514,7 +1523,6 @@ function MainApp() {
       <div className="w-full max-w-4xl mx-auto px-0 sm:px-3 pt-0 sm:pt-4 pb-24">
         {error && <div className="bg-red-50 text-red-600 p-2.5 text-center text-xs font-bold mx-3 my-3 rounded-lg">{error}</div>}
         
-        {/* 💡 警告橫幅：完美對接包含 WMS 等所有代碼 */}
         {validWarnings.length > 0 && (
           <div className="flex flex-col gap-2.5 px-3 sm:px-0 mb-4 mt-2">
             {validWarnings.map((wData, idx) => (
@@ -1577,7 +1585,7 @@ function MainApp() {
             {locations.length === 0 && (
               <div className={`text-center py-16 rounded-2xl mx-3 shadow-sm border ${theme.emptyStateBg}`}>
                 <Bus className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <h3 className="text-sm font-bold mb-1">收藏看板還是空的</h3>
+                <h3 className="text-sm font-bold mb-1">看板還是空的</h3>
                 <button onClick={() => setIsSettingsModalOpen(true)} className="bg-[#e3342f] text-white px-4 py-2 text-xs font-bold rounded-lg shadow-sm mt-3">開啟設定中心新增路線</button>
               </div>
             )}
@@ -1730,7 +1738,6 @@ function MainApp() {
           z-index: 2;
         }
 
-        /* 💡 走馬燈動畫 */
         @keyframes kmb-scroll {
           0% { transform: translateX(0); }
           100% { transform: translateX(-100%); }
@@ -1781,7 +1788,7 @@ function MainApp() {
                   />
                 )}
                 {weatherInfo.temp !== '--' && (
-                  <span className="text-sm font-bold text-white ios-num-fix drop-shadow-sm tracking-wider">{weatherInfo.temp}°C</span>
+                  <span className="text-sm font-bold text-white drop-shadow-sm tracking-wider">{weatherInfo.temp}°C</span>
                 )}
               </div>
             </div>
@@ -1858,7 +1865,7 @@ function MainApp() {
               {mapEngineState.loadingMap && (
                 <div className={`absolute inset-0 flex flex-col items-center justify-center gap-3 z-20 backdrop-blur-sm ${isDarkMode ? 'bg-zinc-800/80' : 'bg-gray-200/80'}`}>
                   <RefreshCw className={`w-8 h-8 animate-spin ${mapState.routeInfo?.company === 'ctb' ? 'text-blue-600' : 'text-red-500'}`} />
-                  <span className={`text-xs font-bold opacity-70 ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>正在計算軌跡 ({trajectoryMode === 'CSDI' ? '官方專線' : '官方直連'})...</span>
+                  <span className={`text-xs font-bold opacity-70 ${isDarkMode ? 'text-zinc-200' : 'text-slate-800'}`}>正在計算道路貼合軌跡...</span>
                 </div>
               )}
               {mapState.error && (
@@ -1868,7 +1875,6 @@ function MainApp() {
                 </div>
               )}
 
-              {/* 💡 內建主動 GPS 防呆按鈕 */}
               {!mapEngineState.loadingMap && !mapState.error && (
                 <div className="absolute bottom-3 right-3 z-[1000] flex flex-col items-end gap-2">
                   {mapGpsState === 'error' && (
@@ -1945,7 +1951,6 @@ function MainApp() {
                             </span>
                           </div>
                           
-                          {/* 💡 當前車站：地圖 ETA 套用走馬燈與預定時鐘 */}
                           {isCurrent && (
                             <div className="mt-4 mb-2 flex flex-col gap-3 relative ml-[40px]">
                                <span className={`text-[10px] font-bold absolute -top-10 right-0 flex items-center gap-1 ${isCTB ? 'text-[#3b82f6]' : 'text-[#e3342f]'}`}>
@@ -1958,10 +1963,11 @@ function MainApp() {
                                   </div>
                                ) : mapStopEtas.length > 0 ? (
                                   mapStopEtas.map((eta, eIdx) => {
-                                     const mins = getEtaMinutes(eta.eta, now);
+                                     const mins = getEtaMinutes(eta.eta || eta.time, now);
                                      const isMissed = mins !== null && mins < 0;
                                      const isImminent = mins === 0;
-                                     const parsedRmk = parseRemark(eta.rmk_tc);
+                                     const parsedRmk = parseRemark(eta.rmk_tc || eta.rmk);
+                                     const shouldShowLabel = parsedRmk?.text && (showScheduledEta || !parsedRmk.isScheduled);
                                      
                                      return (
                                        <div key={eIdx} className="flex items-start gap-3 sm:gap-4 w-full py-1">
@@ -1973,13 +1979,13 @@ function MainApp() {
                                                 </span>
                                                 <span className={`text-[11px] font-bold whitespace-nowrap flex items-center gap-0.5 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
                                                    {isMissed ? '' : isImminent ? '' : '分鐘'}
-                                                   {parsedRmk?.isScheduled && <Clock className="w-3 h-3 opacity-50 mb-0.5" />}
+                                                   {showScheduledEta && parsedRmk?.isScheduled && <Clock className="w-3 h-3 opacity-50 mb-0.5" />}
                                                 </span>
                                               </div>
                                           </div>
                                           
                                           <div className="flex-1 min-w-0 pr-2 pt-1.5 overflow-hidden">
-                                            {parsedRmk?.text ? (
+                                            {shouldShowLabel ? (
                                               <div className={`flex items-center gap-1 ${parsedRmk.isSpecial || isSpecialRoute ? (isDarkMode ? 'text-red-400' : 'text-red-600') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`}>
                                                 {parsedRmk.isScheduled && <Clock className="w-3.5 h-3.5 shrink-0" />}
                                                 <div className="flex-1 overflow-hidden whitespace-nowrap">
@@ -1993,11 +1999,13 @@ function MainApp() {
                                                 </div>
                                               </div>
                                             ) : (
-                                              <span className={`text-[11px] font-bold opacity-60 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>九巴</span>
+                                              <span className={`text-[11px] font-bold opacity-60 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                                {mapState.routeInfo?.company === 'ctb' ? '城巴' : '九巴'}
+                                              </span>
                                             )}
                                           </div>
                                        </div>
-                                     )
+                                     );
                                   })
                                ) : (
                                   <div className={`flex items-center gap-2 text-xs font-bold py-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -2029,7 +2037,7 @@ function MainApp() {
             
             <div className={`px-5 py-4 border-b flex items-center justify-between shrink-0 ${isDarkMode ? 'border-zinc-700' : 'border-gray-200'}`}>
               <h3 className="font-extrabold text-base flex items-center gap-2 text-[#e3342f]">
-                <Settings className="w-5 h-5 animate-spin-hover" />
+                <Settings className="w-5 h-5" />
                 看板設定中心
               </h3>
               
@@ -2152,20 +2160,49 @@ function MainApp() {
 
               {settingsTab === 'ADVANCED' && (
                 <div className="flex flex-col gap-5">
+                  <div className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
+                    <div className="flex flex-col pr-2">
+                      <span className="text-xs font-black flex items-center gap-1.5">
+                        <Clock className="w-4 h-4 text-blue-500" />
+                        顯示預定班次標籤
+                      </span>
+                      <p className="text-[11px] opacity-70 leading-relaxed font-bold mt-1">
+                        預設為關閉。班次時間（分鐘）會一律正常按順序顯示；關閉時將隱藏「預定班次」的文字標籤，使介面更加簡潔俐落。
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => setShowScheduledEta(!showScheduledEta)}
+                      className={`p-1.5 rounded-xl transition-all flex items-center gap-1 text-xs font-black shrink-0 ${showScheduledEta ? 'bg-blue-600 text-white' : (isDarkMode ? 'bg-zinc-800 text-zinc-400' : 'bg-gray-200 text-gray-600')}`}
+                    >
+                      {showScheduledEta ? (
+                        <>
+                          <ToggleRight className="w-5 h-5 text-white" />
+                          <span>已顯示</span>
+                        </>
+                      ) : (
+                        <>
+                          <ToggleLeft className="w-5 h-5 text-gray-400" />
+                          <span>已隱藏</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
                   <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
                     <span className="text-xs font-black flex items-center gap-1.5"><MapPin className="w-4 h-4 text-blue-500" />地圖軌跡繪製模式</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">
-                      「官方專線軌跡」會優先使用 CSDI 數據，若無資料則啟動 OSRM 智能防繞路引擎。「官方直連」則直接以直線相連。
+                      「官方專線軌跡」採用分段吸附路網技術，消除直線穿山穿樓情況。「官方直連」則直接以折線相連。
                     </p>
                     <select 
                       value={trajectoryMode} 
                       onChange={(e) => setTrajectoryMode(e.target.value)} 
                       className={`w-full py-2 px-3 rounded-lg border text-xs font-bold outline-none ${theme.inputBg}`}
                     >
-                      <option value="CSDI">🛣️ 官方專線軌跡 (管狀馬路)</option>
-                      <option value="STRAIGHT">📏 官方直連風格 (點對點)</option>
+                      <option value="CSDI">🛣️ 官方專線軌跡 (真實道路彎道貼合)</option>
+                      <option value="STRAIGHT">📏 官方直連風格 (點對點折線)</option>
                     </select>
                   </div>
+
                   <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
                     <span className="text-xs font-black flex items-center gap-1.5"><Sliders className="w-4 h-4 text-blue-500" />🛰️ 附近巴士站搜尋範圍設定</span>
                     <p className="text-[11px] opacity-70 leading-relaxed font-bold">微調 GPS 定位搜尋周圍巴士站點的最大允許半徑，目前半徑為：<strong className="text-blue-500 text-xs ml-1">{nearbyRadius} 米</strong></p>
@@ -2175,6 +2212,7 @@ function MainApp() {
                       <span className="text-[10px] font-bold opacity-50">2000米</span>
                     </div>
                   </div>
+
                   <div className={`p-3.5 rounded-xl border flex flex-col gap-3 ${isDarkMode ? 'bg-red-950/20 border-red-900/30' : 'bg-red-50 border-red-100'}`}>
                     <span className={`text-xs font-black flex items-center gap-1.5 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
                       <RotateCcw className="w-4 h-4" /> 還原原廠預設值
@@ -2254,7 +2292,6 @@ function MainApp() {
                     <span className="text-xs font-bold opacity-70">請選擇方向與班次：</span>
                   </div>
                   <div className="flex flex-col gap-3">
-                    {/* 💡 支援特別班次清晰顯示 */}
                     {routeDirections.map((dir, idx) => {
                       const isSpecial = dir.service_type !== '1';
                       return (
